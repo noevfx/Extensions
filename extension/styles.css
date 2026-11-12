@@ -1,0 +1,114 @@
+/* ============================================================================
+   NOÉ VFX Downloader — estilos injetados na página (botão do YouTube)
+   O ícone flutuante sobre os vídeos vive em Shadow DOM e NÃO usa este arquivo.
+   ========================================================================== */
+
+.noevfx-dl-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  z-index: 1;
+}
+
+.noevfx-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 102, 255, 0.35);
+  cursor: pointer;
+  font-family: "Roboto", "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(0, 102, 255, 0.14);
+  color: #f1f1f1;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+html:not([dark]) .noevfx-dl-btn {
+  background: rgba(0, 102, 255, 0.08);
+  color: #0f0f0f;
+}
+
+.noevfx-dl-btn:hover {
+  background: #0066ff;
+  border-color: #0066ff;
+  color: #ffffff;
+}
+
+.noevfx-dl-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.noevfx-dl-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.noevfx-dl-menu {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  z-index: 2147483647;
+  min-width: 236px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #14161c;
+  border: 1px solid rgba(0, 102, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+html:not([dark]) .noevfx-dl-menu {
+  background: #ffffff;
+  border: 1px solid rgba(0, 102, 255, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.noevfx-dl-menu.noevfx-hidden {
+  display: none;
+}
+
+.noevfx-dl-dest {
+  padding: 6px 10px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "Segoe UI", sans-serif;
+  font-size: 11px;
+  color: #9bb3d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html:not([dark]) .noevfx-dl-dest {
+  color: #4a5a75;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+.noevfx-dl-menu button {
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #f1f1f1;
+  font-family: "Roboto", "Segoe UI", sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+html:not([dark]) .noevfx-dl-menu button {
+  color: #0f0f0f;
+}
+
+.noevfx-dl-menu button:hover {
+  background: rgba(0, 102, 255, 0.18);
+}

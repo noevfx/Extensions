@@ -1,0 +1,50 @@
+﻿NOÉ VFX DOWNLOADER 3.0 — noevfx.com
+=====================================
+
+ESCOLHA A PASTA DO SEU SISTEMA:
+   windows\   ->  Windows 10 / 11
+   mac\       ->  macOS (Intel ou Apple Silicon)
+   linux\     ->  Linux
+
+==================================================================
+LEIA ANTES — O ERRO MAIS COMUM
+==================================================================
+O navegador guarda O CAMINHO da pasta da extensão. Se você carregar
+a extensão da pasta EXTRAÍDA do ZIP e depois apagar essa pasta, a
+extensão QUEBRA (fica cinza / some da barra).
+
+CERTO: carregar da pasta onde o PROGRAMA FOI INSTALADO:
+
+  Windows   %LOCALAPPDATA%\NoeVFXDownloader\extension
+  macOS     ~/.local/share/NoeVFXDownloader/extension
+  Linux     ~/.local/share/NoeVFXDownloader/extension
+
+O instalador ABRE essa pasta sozinho e copia o caminho para a
+área de transferência. É só arrastar a pasta "extension" para a
+página de extensões (ou usar "Carregar sem pacote" e selecioná-la).
+==================================================================
+
+WINDOWS
+  1. Entre na pasta "windows"
+  2. Duplo clique em INSTALAR_NOEVFX.bat
+     (não clique dentro da janela preta enquanto instala)
+  3. Ele copia tudo para %LOCALAPPDATA%\NoeVFXDownloader, liga o
+     servidor, ABRE a pasta NoeVFX e abre o navegador
+  4. Modo de desenvolvedor -> arraste a pasta "extension" (que está
+     aberta na tela) para a página, ou clique em "Carregar sem
+     pacote" e selecione essa pasta
+  5. Abra a extensão: ela pergunta em qual pasta salvar os vídeos
+
+MAC / LINUX
+  1. Terminal dentro da pasta "mac" (ou "linux")
+  2. Rode:   bash instalar-noevfx.sh
+  3. Ele copia para ~/.local/share/NoeVFXDownloader, ABRE essa pasta
+     no Finder/gerenciador e copia o caminho certo
+  4. chrome://extensions -> Modo do desenvolvedor -> arraste a pasta
+     "extension" (ou "Carregar sem compactação" e selecione)
+  5. Abra a extensão: ela pergunta em qual pasta salvar os vídeos
+
+------------------------------------------------------------------
+Manual completo: MANUAL.md
+Desinstalar: DESINSTALAR_NOEVFX.bat  /  desinstalar-noevfx.sh
+------------------------------------------------------------------

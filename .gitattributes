@@ -1,0 +1,18 @@
+# Normaliza fins de linha no repositório (evita .sh quebrado com CRLF)
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+*.sh   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.js   text eol=lf
+*.html text eol=lf
+*.css  text eol=lf
+*.py   text eol=lf
+*.txt  text eol=lf
+
+*.png binary
+*.jpg binary
+*.zip binary

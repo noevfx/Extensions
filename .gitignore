@@ -1,0 +1,20 @@
+# build
+/build/
+
+# configuração local do servidor (não versionar: contém caminho do usuário)
+server/config.json
+config.json
+
+# logs e cache
+*.log
+*.pyc
+__pycache__/
+
+# sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# editores
+.vscode/
+.idea/
