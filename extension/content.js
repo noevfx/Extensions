@@ -1,5 +1,5 @@
 /* ============================================================================
-   NOÉ VFX Downloader — Content Script v3.0  (noevfx.com)
+   Noe VFX Downloader — Content Script v3.0  (noevfx.com)
    - Ícone flutuante sobre QUALQUER <video> (Shadow DOM, sem conflito)
    - Arrastável dentro da área do vídeo (posição salva por site)
    - Some sozinho após 2 s com o mouse parado

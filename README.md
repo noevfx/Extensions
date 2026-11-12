@@ -2,7 +2,7 @@
   <img src="extension/icons/logo.svg" width="96" alt="NOÉ VFX">
 </p>
 
-<h1 align="center">NOÉ VFX Downloader</h1>
+<h1 align="center">Noe VFX Downloader</h1>
 
 <p align="center">
   Detector universal de vídeos para navegadores Chromium — baixa na <b>qualidade nativa</b> do player.<br>

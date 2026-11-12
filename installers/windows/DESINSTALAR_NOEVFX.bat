@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions
-title Desinstalador - NOE VFX Downloader
+title Desinstalador - Noe VFX Downloader
 color 0E
 cls
 echo.
 echo  ==========================================================
-echo     DESINSTALADOR  -  NOE VFX DOWNLOADER  (noevfx.com)
+echo     DESINSTALADOR  -  Noe VFX Downloader  (noevfx.com)
 echo  ==========================================================
 echo.
 echo  Isto vai remover:
@@ -39,7 +39,7 @@ echo   DESINSTALADO COM SUCESSO
 echo.
 echo   Falta 1 passo manual no navegador:
 echo     - Abra edge://extensions  ou  chrome://extensions
-echo     - Clique em "Remover" no cartao do NOE VFX Downloader
+echo     - Clique em "Remover" no cartao do Noe VFX Downloader
 echo  ==========================================================
 echo.
 pause

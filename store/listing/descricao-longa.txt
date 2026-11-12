@@ -1,0 +1,14 @@
+Detecta automaticamente os vídeos da página (HLS, DASH, MP4, WebM e players
+embutidos) e baixa na melhor qualidade disponível.
+
+• Ícone no canto do vídeo — um clique para baixar, arraste para mover
+• Escolha a pasta e a qualidade padrão no primeiro uso
+• Miniaturas de preview e lista dos vídeos detectados
+• Baixar um ou todos, com fila de downloads
+• Funciona em sites que exigem login (usa os cookies da sua sessão)
+• Contador no ícone: quantos vídeos existem na aba
+
+REQUER o aplicativo NOÉ VFX instalado no computador (Windows, macOS ou Linux).
+Instalador e instruções em: https://github.com/noevfx/Extensions
+
+NOÉ VFX — https://noevfx.com

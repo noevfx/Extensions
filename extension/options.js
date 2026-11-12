@@ -1,5 +1,5 @@
 /* ============================================================================
-   NOÉ VFX Downloader — Configurações / Primeiro uso v3.0
+   Noe VFX Downloader — Configurações / Primeiro uso v3.0
    ========================================================================== */
 "use strict";
 
@@ -204,7 +204,7 @@ $("saveBtn").addEventListener("click", async () => {
 if (firstRun) {
   welcome.classList.add("show");
   saveBtn.textContent = "Concluir configuração";
-  document.title = "Bem-vindo ao NOÉ VFX Downloader";
+  document.title = "Bem-vindo ao Noe VFX Downloader";
 }
 
 (async function init() {

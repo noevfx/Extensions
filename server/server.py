@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NOÉ VFX Downloader — servidor local  (noevfx.com)
+Noe VFX Downloader — servidor local  (noevfx.com)
 =================================================
 Roda em segundo plano (Windows, macOS e Linux), só escuta 127.0.0.1 e só
 responde a pedidos feitos pela extensão (cabeçalho X-NoeVFX-Client).

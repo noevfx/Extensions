@@ -1,5 +1,5 @@
 /* ============================================================================
-   NOÉ VFX Downloader — Service Worker v3.0  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Badge vermelho com número branco = vídeos encontrados na aba
    - Fila de downloads individuais e "baixar todos"

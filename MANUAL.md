@@ -1,4 +1,4 @@
-# NOÉ VFX Downloader v3.0 — Manual de Instalação e Uso
+# Noe VFX Downloader v3.0 — Manual de Instalação e Uso
 
 **Site:** https://noevfx.com
 **Navegadores:** Chrome, Microsoft Edge, Brave, Opera, Vivaldi (qualquer Chromium)

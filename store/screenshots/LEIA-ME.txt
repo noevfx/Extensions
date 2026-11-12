@@ -1,0 +1,13 @@
+Coloque aqui as imagens da loja (1 a 5).
+
+Especificação:
+- 1280 × 800 px (PNG ou JPG)
+- mostre a extensão em uso: o ícone no vídeo, o popup com a lista e a tela de configurações
+- evite texto pequeno demais (a loja reduz a imagem)
+
+Sugestão de 3 imagens:
+1. Popup aberto com vídeos detectados e miniaturas
+2. Ícone flutuante sobre o player (com o cartão de pastas aberto)
+3. Tela de configurações (pasta padrão + qualidade)
+
+Depois de salvar aqui, suba no painel da loja na etapa "Store listing".

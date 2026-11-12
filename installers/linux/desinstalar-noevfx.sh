@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  NOÉ VFX Downloader 3.0 — Desinstalador (macOS / Linux)
+#  Noe VFX Downloader 3.0 — Desinstalador (macOS / Linux)
 #  Uso: bash desinstalar-noevfx.sh
 # =============================================================================
 set -u
@@ -9,7 +9,7 @@ DEST="$HOME/.local/share/$APP"
 OS="$(uname -s)"
 
 printf "\n==========================================================\n"
-printf "   DESINSTALADOR — NOÉ VFX DOWNLOADER (noevfx.com)\n"
+printf "   DESINSTALADOR — Noe VFX Downloader (noevfx.com)\n"
 printf "==========================================================\n\n"
 printf "Isto vai remover o serviço em segundo plano e os arquivos em:\n  %s\n\n" "$DEST"
 printf "Os vídeos já baixados NÃO serão apagados.\n\n"
@@ -43,6 +43,6 @@ printf "==========================================================\n"
 printf "  DESINSTALADO COM SUCESSO\n\n"
 printf "  Falta 1 passo manual no navegador:\n"
 printf "    - Abra chrome://extensions\n"
-printf "    - Clique em \"Remover\" no cartão do NOÉ VFX Downloader\n"
+printf "    - Clique em \"Remover\" no cartão do Noe VFX Downloader\n"
 printf "==========================================================\n\n"
 exit 0

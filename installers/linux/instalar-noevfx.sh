@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  NOÉ VFX Downloader 3.0 — Instalador (macOS e Linux)
+#  Noe VFX Downloader 3.0 — Instalador (macOS e Linux)
 #  https://noevfx.com
 #
 #  Esta pasta serve SOMENTE para instalar. O programa é copiado para
@@ -25,7 +25,7 @@ err()  { printf "${C_ERR}   X   %s${C_OFF}\n" "$*"; }
 step() { printf "\n${C_INFO}> %s${C_OFF}\n" "$*"; }
 
 printf "\n\033[1m============================================================\033[0m\n"
-printf "        NOÉ VFX DOWNLOADER  v3.0  —  INSTALADOR\n"
+printf "        Noe VFX Downloader  v3.0  —  INSTALADOR\n"
 printf "                 https://noevfx.com\n"
 printf "\033[1m============================================================\033[0m\n\n"
 printf "Sistema:        %s (%s)\n" "$OS" "$ARCH"
@@ -189,7 +189,7 @@ else
   mkdir -p "$SYSTEMD_DIR"
   cat > "$SYSTEMD_DIR/noevfx-downloader.service" <<SYSEOF
 [Unit]
-Description=NOE VFX Downloader (noevfx.com)
+Description=Noe VFX Downloader (noevfx.com)
 After=network-online.target
 
 [Service]
@@ -212,7 +212,7 @@ SYSEOF
       cat > "$AD/noevfx-downloader.desktop" <<DESKEOF
 [Desktop Entry]
 Type=Application
-Name=NOÉ VFX Downloader
+Name=Noe VFX Downloader
 Exec=$PY $DEST/server/server.py
 X-GNOME-Autostart-enabled=true
 NoDisplay=true
@@ -224,7 +224,7 @@ DESKEOF
     cat > "$AD/noevfx-downloader.desktop" <<DESKEOF
 [Desktop Entry]
 Type=Application
-Name=NOÉ VFX Downloader
+Name=Noe VFX Downloader
 Exec=$PY $DEST/server/server.py
 X-GNOME-Autostart-enabled=true
 NoDisplay=true
@@ -300,7 +300,7 @@ instalado em $DEST e inicia sozinho com o sistema.
 
 JÁ TINHA O NOÉ VFX INSTALADO? Isto foi uma ATUALIZAÇÃO.
 Falta 1 clique: abra chrome://extensions e clique em
-"Recarregar" no cartão do NOÉ VFX Downloader.
+"Recarregar" no cartão do Noe VFX Downloader.
 
 Para desinstalar:  bash desinstalar-noevfx.sh
 ============================================================

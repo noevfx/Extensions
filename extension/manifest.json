@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "NOÉ VFX Downloader",
+  "name": "Noe VFX Downloader",
   "version": "3.0.0",
   "description": "Detector universal de vídeos (HLS/DASH/MP4 + yt-dlp) na qualidade nativa do player — por NOÉ VFX (noevfx.com).",
   "homepage_url": "https://noevfx.com",
@@ -22,7 +22,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "NOÉ VFX Downloader",
+    "default_title": "Noe VFX Downloader",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

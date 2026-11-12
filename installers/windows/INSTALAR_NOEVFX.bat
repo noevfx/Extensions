@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title NOE VFX Downloader 3.0 - Instalador (noevfx.com)
+title Noe VFX Downloader 3.0 - Instalador (noevfx.com)
 color 0B
 cls
 echo.
 echo  ============================================================
-echo        NOE VFX DOWNLOADER  v3.0  -  AUTO-INSTALADOR
+echo        Noe VFX Downloader  v3.0  -  AUTO-INSTALADOR
 echo                    https://noevfx.com
 echo  ============================================================
 echo.
@@ -256,7 +256,7 @@ echo  Esta pasta extraida pode ser APAGADA agora.
 echo.
 echo  JA TINHA O NOE VFX INSTALADO? Isto foi uma ATUALIZACAO.
 echo  Falta 1 clique: abra edge://extensions (ou chrome://extensions)
-echo  e clique em "Recarregar" no cartao do NOE VFX Downloader.
+echo  e clique em "Recarregar" no cartao do Noe VFX Downloader.
 echo.
 echo  Programa instalado em: %TARGET%
 echo  Pasta padrao de downloads: %USERPROFILE%\Downloads\NoeVFX
