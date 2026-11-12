@@ -20,7 +20,9 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip)
+[`noevfx-downloader.zip` (v3.0.0)](https://github.com/noevfx/Extensions/releases/download/v3.0.0/noevfx-downloader.zip)
+
+<sub>Também disponível em [`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip) e na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 
 O zip vem com três pastas autocontidas — use só a do seu sistema:
 
