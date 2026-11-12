@@ -210,3 +210,7 @@ Ferramenta para uso pessoal. Baixe apenas conteúdo que você tem direito de bai
 <p align="center">
   <sub>© NOÉ VFX — <a href="https://noevfx.com">noevfx.com</a></sub>
 </p>
+
+---
+
+<sub>Este repositório reúne as extensões e add-ons da **NOÉ VFX**. No momento ele contém o **Downloader**; novos utilitários entram na mesma estrutura (`extension/` + `server/` + `installers/`).</sub>
