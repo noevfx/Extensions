@@ -47,9 +47,18 @@ $("themeBtn").addEventListener("click", () => {
 
 /* --------------------------------------------------------------- health --- */
 function chip(label, ok, extra) {
+  // sem innerHTML: o texto pode vir do servidor local
   const s = document.createElement("span");
   s.className = "check " + (ok ? "ok" : "bad");
-  s.innerHTML = `<b>${ok ? "✓" : "✕"}</b> ${label}${extra ? ` <span style="opacity:.7;font-weight:600">${extra}</span>` : ""}`;
+  const b = document.createElement("b");
+  b.textContent = ok ? "✓" : "✕";
+  s.append(b, " " + label);
+  if (extra) {
+    const x = document.createElement("span");
+    x.style.cssText = "opacity:.7;font-weight:600";
+    x.textContent = " " + extra;
+    s.append(x);
+  }
   return s;
 }
 
@@ -64,7 +73,7 @@ async function health() {
     srvPill.textContent = t("offline");
     srvPill.className = "pill off";
     checks.appendChild(chip(t("step1"), false));
-    srvHint.textContent = t("step1Offline");
+    srvHint.textContent = r && r.forbidden ? t("forbiddenMsg") : t("step1Offline");
     lastHealth = null;
     return false;
   }
@@ -74,10 +83,11 @@ async function health() {
   srvPill.className = "pill on";
   checks.appendChild(chip("Server", true, "v" + (d.version || "3.0")));
   checks.appendChild(chip("yt-dlp", !!d.yt_dlp));
-  checks.appendChild(chip("FFmpeg", !!d.ffmpeg));
+  checks.appendChild(chip("FFmpeg", d.ffmpeg_ok !== undefined ? !!d.ffmpeg_ok : !!d.ffmpeg));   // existe E executa
+  if (d.deno !== undefined) checks.appendChild(chip("Deno (YouTube)", !!d.deno));
   checks.appendChild(chip("Python", !!d.python, d.python || ""));
   if (d.yt_dlp_path) checks.title = "yt-dlp: " + d.yt_dlp_path + (d.ffmpeg_path ? "\nffmpeg: " + d.ffmpeg_path : "");
-  srvHint.textContent = d.ffmpeg ? "" : "FFmpeg: install it again with the Noe VFX installer.";
+  srvHint.textContent = r.outdated ? t("outdatedMsg") : ((d.ffmpeg_ok === false || (d.ffmpeg_ok === undefined && !d.ffmpeg)) ? t("ffmpegMissing") : "");
   if (d.output_dir) {
     outDir.value = outDir.value || d.output_dir;
     outDir.placeholder = d.output_dir;
@@ -86,6 +96,36 @@ async function health() {
 }
 
 $("retestBtn").addEventListener("click", health);
+
+/* Copiar diagnóstico: um texto curto (sem links completos nem caminhos) para colar na conversa quando algo falha */
+$("diagBtn").addEventListener("click", async () => {
+  const btn = $("diagBtn");
+  const L = [];
+  await health();
+  L.push("Noe VFX Downloader - diagnostico");
+  L.push("extensao: v" + chrome.runtime.getManifest().version + " | " + chrome.runtime.id);
+  L.push("navegador: " + navigator.userAgent);
+  const d = lastHealth;
+  if (d) {
+    L.push("servidor: v" + d.version + " (api " + d.api_version + ") | " + d.platform + " | python " + d.python);
+    L.push("yt-dlp=" + d.yt_dlp + " | ffmpeg_ok=" + d.ffmpeg_ok + " | ffprobe_ok=" + d.ffprobe_ok + " | deno=" + d.deno + " | impersonate=" + d.impersonate);
+  } else {
+    L.push("servidor: OFFLINE");
+  }
+  try {
+    const r = await fetch("http://127.0.0.1:8765/jobs", { headers: { "X-NoeVFX-Client": "1" } });
+    const js = ((await r.json()).jobs || []).slice(0, 6);
+    L.push("ultimos downloads:");
+    js.forEach((j) => {
+      let host = "";
+      try { host = new URL(j.url).hostname; } catch (_) {}
+      L.push("  - " + j.status + " | " + (j.quality || "") + " | " + host + (j.warning ? " | aviso " + j.warning : "") + (j.error ? " | " + String(j.error).slice(0, 160) : ""));
+    });
+  } catch (_) {}
+  try { await navigator.clipboard.writeText(L.join("\n")); btn.textContent = t("diagCopied"); }
+  catch (_) { btn.textContent = "?"; }
+  setTimeout(() => { btn.textContent = t("diag"); }, 2500);
+});
 
 /* ------------------------------------------------------------- configuração */
 function fillForm(c) {
@@ -139,7 +179,7 @@ $("pickBtn").addEventListener("click", async () => {
   const btn = $("pickBtn");
   btn.disabled = true;
   btn.textContent = t("opening");
-  const r = await send({ type: "PICK_FOLDER" });
+  const r = await pickFolderDirect();
   btn.disabled = false;
   btn.textContent = t("pickFolder");
   if (r && r.path) {
@@ -147,9 +187,25 @@ $("pickBtn").addEventListener("click", async () => {
     markDirty();
     saveStatus.textContent = t("pickOk");
   } else if (r && r.error) {
-    saveStatus.textContent = t("pickErr");
+    saveStatus.textContent = r.error === "offline" ? t("step1Offline") : t("pickErr");
   }
 });
+
+/* O seletor pode ficar aberto por minutos. Chamado direto daqui (e não pelo service worker,
+   que o Chrome encerra se uma resposta demora mais de ~30 s) a pasta escolhida nunca se perde. */
+async function pickFolderDirect() {
+  try {
+    const r = await fetch("http://127.0.0.1:8765/pick-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-NoeVFX-Client": "1" },
+      body: "{}"
+    });
+    const d = await r.json().catch(() => ({}));
+    return { ok: !!d.path, path: d.path || "", error: r.ok ? "" : (d.error || "HTTP " + r.status) };
+  } catch (_) {
+    return { ok: false, path: "", error: "offline" };
+  }
+}
 
 $("openBtn").addEventListener("click", async () => {
   const r = await send({ type: "OPEN_FOLDER", path: outDir.value.trim() });

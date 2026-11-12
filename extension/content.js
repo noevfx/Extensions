@@ -92,7 +92,11 @@
     }
     .toast.err { border-color: rgba(239,68,68,.65); }
     .toast.ok { border-color: rgba(16,185,129,.6); }
+    .fab:focus-visible, .panel button:focus-visible { outline: 2px solid #7fb0ff; outline-offset: 2px; }
   `;
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   const state = {
     cfg: null,
@@ -113,7 +117,8 @@
     pos: null,
     dragMoved: false,
     dragging: false,
-    posLoaded: false
+    posLoaded: false,
+    posReady: false      // só grava a posição padrão depois de ler a salva (senão sobrescreveria)
   };
 
   const isYT = () => /(^|\.)youtube\.com$/.test(location.hostname);
@@ -157,8 +162,9 @@
         const map = (res && res.fabPos) || {};
         const p = map[location.hostname];
         if (Array.isArray(p) && p.length === 2 && isFinite(p[0]) && isFinite(p[1])) state.pos = p;
+        state.posReady = true;
       });
-    } catch (_) {}
+    } catch (_) { state.posReady = true; }
   }
 
   function savePos() {
@@ -250,6 +256,22 @@
   /* ------------------------------------------------------------------- scan - */
   const MEDIA_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|flv|mkv)(\?|#|$)/i;
 
+  // Lista de mídia vista na rede, mantida por um PerformanceObserver: o buffer
+  // padrão do navegador guarda só 250 recursos e depois deixa de registrar.
+  const netList = [];
+  const netSet = new Set();
+  function noteNet(name) {
+    if (!name || netSet.has(name) || !MEDIA_RE.test(name)) return;
+    netSet.add(name);
+    netList.push(name);
+    if (netList.length > 300) netSet.delete(netList.shift());
+  }
+  try {
+    performance.getEntriesByType("resource").forEach((e) => noteNet(e.name));
+    new PerformanceObserver((l) => l.getEntries().forEach((e) => noteNet(e.name)))
+      .observe({ type: "resource", buffered: true });
+  } catch (_) {}
+
   function scan() {
     let thumb = state.thumb;
     if (!thumb) {
@@ -268,16 +290,10 @@
       if (!url || !/^https?:/i.test(url)) return;
       if (seen.has(url)) return;
       seen.add(url);
-      items.push({ url, kind: kind || "Player", thumb, title: document.title });
+      items.push({ url, kind: kind || "Player", title: document.title });   // a miniatura vai uma vez só, no nível da mensagem
     };
 
-    try {
-      const res = performance.getEntriesByType("resource");
-      for (let i = res.length - 1; i >= 0 && i > res.length - 240; i--) {
-        const n = res[i].name;
-        if (n && MEDIA_RE.test(n)) push(n, "Rede");
-      }
-    } catch (_) {}
+    for (let i = netList.length - 1; i >= 0 && i > netList.length - 240; i--) push(netList[i], "Rede");
 
     let vids = [];
     try { vids = Array.from(document.querySelectorAll("video")); } catch (_) {}
@@ -298,7 +314,8 @@
     try {
       document.querySelectorAll("iframe[src]").forEach((f) => {
         const s = f.src || "";
-        if (/youtube\.com\/embed\/|player\.vimeo\.com|dailymotion\.com\/embed|players?\.globo\.com/i.test(s)) {
+        // players embutidos que o yt-dlp entende (o iframe é baixado com a página de fora como Referer)
+        if (/youtube(-nocookie)?\.com\/embed\/|player\.vimeo\.com|dailymotion\.com\/embed|players?\.globo\.com|play\.hotmart\.com|hotmart\.com\/.*embed|fast\.wistia\.(net|com)|wistia\.(net|com)\/embed|players?\.vturb|pandavideo|jwplatform\.com|brightcove|kaltura|loom\.com\/embed|streamable\.com\/e\/|player\.twitch\.tv|vidyard|mediadelivery\.net\/embed|iframe\.mediadelivery/i.test(s)) {
           push(s, "Embed");
         }
       });
@@ -333,11 +350,12 @@
       const host = document.createElement("div");
       host.id = "noevfx-hover-host";
       host.style.cssText = "all:initial;position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;";
-      const root = host.attachShadow({ mode: "open" });
+      // "closed": o JavaScript da página não enxerga nem mexe no painel, nos botões e nos avisos
+      const root = host.attachShadow({ mode: "closed" });
       root.innerHTML = `<style>${STYLE}</style>
-        <button class="fab" type="button" title="${t("fabTitle")}">${BRAND_SVG}</button>
-        <div class="panel"></div>
-        <div class="toast"></div>`;
+        <button class="fab" type="button" title="${esc(t("fabTitle"))}" aria-label="${esc(t("fabTitle"))}">${BRAND_SVG}</button>
+        <div class="panel" role="dialog" aria-label="Noe VFX Downloader"></div>
+        <div class="toast" role="status" aria-live="polite"></div>`;
       state.host = host;
       state.root = root;
       state.fab = root.querySelector(".fab");
@@ -375,17 +393,19 @@
     const availH = Math.max(0, rect.height - FAB_SIZE);
 
     // primeira vez: define a posição inicial e JÁ GRAVA, para o ícone nunca "pular" depois
-    if (!state.pos) {
+    let pos = state.pos;
+    if (!pos) {
       const dTop = rect.top + (isYT() ? 62 : 12);
       const dLeft = rect.right - FAB_SIZE - 12;
-      persistPos([
+      pos = [
         Math.min(1, Math.max(0, (dLeft - rect.left) / Math.max(1, availW))),
         Math.min(1, Math.max(0, (dTop - rect.top) / Math.max(1, availH)))
-      ]);
+      ];
+      if (state.posReady) persistPos(pos);
     }
 
-    let left = rect.left + state.pos[0] * availW;
-    let top = rect.top + state.pos[1] * availH;
+    let left = rect.left + pos[0] * availW;
+    let top = rect.top + pos[1] * availH;
 
     // não deixa o ícone sair da tela (vídeo cortado/rolado)
     left = Math.min(Math.max(8, left), Math.max(8, innerWidth - FAB_SIZE - 8));
@@ -445,7 +465,7 @@
 
   /* ------------------------------------------------------------------ drag -- */
   function onFabDown(e) {
-    if (e.button !== 0) return;
+    if (!e.isTrusted || e.button !== 0) return;      // evento fabricado pela página não vale
     e.preventDefault();
     e.stopPropagation();
     clearTimeout(state.idleT);
@@ -553,13 +573,25 @@
     true
   );
 
+  let scrollRaf = 0;
   window.addEventListener("scroll", () => {
-    if (state.dragging) return;
-    if (state.video && state.fab && state.fab.style.display === "inline-flex") {
-      place(state.video);
-      armIdle();
-    }
+    if (state.dragging || scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {       // no máximo 1 reposicionamento por quadro
+      scrollRaf = 0;
+      if (state.video && state.fab && state.fab.style.display === "inline-flex") {
+        place(state.video);
+        armIdle();
+      }
+    });
   }, { passive: true });
+
+  // painel fecha ao clicar fora ou com Esc
+  document.addEventListener("pointerdown", (e) => {
+    if (state.panelOpen && e.target !== state.host) { closePanel(); scheduleHide(); }
+  }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && state.panelOpen) { closePanel(); scheduleHide(); }
+  }, true);
 
   /* --------------------------------------------------------------- painel UI */
   function renderPanel() {
@@ -577,11 +609,11 @@
       </div>
       <div class="dest">
         <span>📁</span>
-        <span class="path" title="${dest.replace(/"/g, "&quot;")}">${dest ? folderName(dest) : "Downloads/NoeVFX"}</span>
+        <span class="path" title="${esc(dest)}">${esc(dest ? folderName(dest) : "Downloads/NoeVFX")}</span>
         <button type="button" class="change">${t("change")}</button>
       </div>
       <div class="grid">
-        <button type="button" class="opt main" data-q="${quality}">
+        <button type="button" class="opt main" data-q="${esc(quality)}">
           ${direct ? t("saveHere") : t("downloadDefault")}
         </button>
         <button type="button" class="opt" data-q="1080">1080p</button>
@@ -598,6 +630,7 @@
 
     state.panel.querySelector(".change").addEventListener("click", (e) => {
       e.stopPropagation();
+      if (!e.isTrusted) return;
       try { chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" }); } catch (_) {}
       closePanel();
     });
@@ -605,6 +638,7 @@
     state.panel.querySelectorAll("button[data-q]").forEach((b) => {
       b.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (!e.isTrusted) return;
         closePanel();
         hideFab();
         startOne(b.dataset.q);
@@ -613,6 +647,7 @@
 
     state.panel.querySelectorAll(".all-btn").forEach((b) => b.addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!e.isTrusted) return;
       closePanel();
       hideFab();
       await startAll();
@@ -620,6 +655,7 @@
 
     state.panel.querySelector("[data-toggle]").addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!e.isTrusted) return;
       const turningOn = !on;
       const r = await sendMsg({ type: "SAVE_CONFIG", patch: { fab_enabled: turningOn } });
       if (r && r.ok && r.config) state.cfg = r.config;
@@ -639,6 +675,7 @@
   function onFabClick(e) {
     e.preventDefault();
     e.stopPropagation();
+    if (!e.isTrusted) return;                        // clique sintético (da página) não baixa nada
     if (state.dragMoved) return;
     if (!fabOn()) return;
 
@@ -703,10 +740,18 @@
 
     if (!res || !res.ok || !res.job_id) {
       state.busy = false;
-      toast(t("serverOffline"), "err");
+      toast(failText(res), "err", 6500);
       return;
     }
+    if (res.duplicate) toast(t("dupNote"), "ok");
     trackJob(res.job_id, res.output_dir || cfg.output_dir, () => { state.busy = false; });
+  }
+
+  // texto de erro conforme a causa (servidor recusou a extensão x offline x outro erro)
+  function failText(res) {
+    if (res && res.error === "forbidden") return t("forbiddenMsg");
+    if (res && res.error && res.error !== "Servidor local offline" && !res.timeout) return String(res.error).slice(0, 90);
+    return t("serverOffline");
   }
 
   async function startAll() {
@@ -733,35 +778,61 @@
     toast(t("queuedNote", n), "ok", 5200);
   }
 
+  // OBS: o temporizador NÃO pode se chamar "t" (escondia a função de tradução e travava tudo)
   function trackJob(jobId, folder, done) {
     let last = "";
-    const t = setInterval(async () => {
-      const st = await sendMsg({ type: "STATUS", jobId });
-      if (!st || !st.ok) {
-        clearInterval(t);
-        done && done();
-        return;
+    let misses = 0;
+    const started = Date.now();
+    let ended = false;
+    const timer = setInterval(async () => {
+      const finish = () => {
+        if (ended) return;
+        ended = true;
+        clearInterval(timer);
+        try { done && done(); } catch (_) {}
+      };
+      try {
+        const st = await sendMsg({ type: "STATUS", jobId });
+        if (!st || !st.ok) {
+          if (++misses >= 3) { toast(t("serverOffline"), "err"); finish(); }
+          return;
+        }
+        misses = 0;
+        const d = st.data || {};
+        if (d.status === "queued") toast(t("queuedWait"));
+        else if (d.status === "downloading") {
+          const txt = d.progress ? t("downloadingP", d.progress + (d.speed ? " • " + d.speed : "")) : t("downloading0");
+          if (txt !== last) { last = txt; toast(txt, null, 0); }
+        } else if (d.status === "merging") toast(t("mergingShort"), null, 0);
+        else if (d.status === "done") {
+          toast(t("savedInShort", folderName(folder || (d.output_dir || ""))) + (d.warning ? " — " + t("ffWarn") : ""), "ok", d.warning ? 9000 : 6000);
+          finish();
+        } else if (d.status === "canceled") {
+          toast(t("canceledMsg"), null, 3500);
+          finish();
+        } else if (d.status === "error") {
+          toast(t("errShort", String(d.error || "-").slice(0, 90)), "err", 7000);
+          finish();
+        }
+      } catch (_) {
+        finish();                                    // qualquer falha: nunca deixa o botão "ocupado" para sempre
       }
-      const d = st.data || {};
-      if (d.status === "queued") toast(t("queuedWait"));
-      else if (d.status === "downloading") {
-        const txt = d.progress ? t("downloadingP", d.progress + (d.speed ? " • " + d.speed : "")) : t("downloading0");
-        if (txt !== last) { last = txt; toast(txt, null, 0); }
-      } else if (d.status === "merging") toast(t("mergingShort"), null, 0);
-      else if (d.status === "done") {
-        clearInterval(t);
-        toast(t("savedInShort", folderName(folder || (d.output_dir || ""))), "ok", 6000);
-        done && done();
-      } else if (d.status === "error") {
-        clearInterval(t);
-        toast(t("errShort", String(d.error || "-").slice(0, 90)), "err", 7000);
-        done && done();
-      }
+      if (Date.now() - started > 3 * 3600 * 1000) finish();
     }, 800);
   }
 
   /* ------------------------------------------------------ botão no YouTube -- */
   const YT_BTN_ID = "noevfx-dl-wrap";
+
+  // UM único listener global fecha o menu (antes, cada reinjeção do botão somava mais um)
+  let ytCloserOn = false;
+  function ensureYtCloser() {
+    if (ytCloserOn) return;
+    ytCloserOn = true;
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".noevfx-dl-menu").forEach((m) => m.classList.add("noevfx-hidden"));
+    });
+  }
 
   function injectYouTubeButton() {
     if (!isYT() || location.pathname !== "/watch" || !ytId()) return;
@@ -785,7 +856,7 @@
     menu.className = "noevfx-dl-menu noevfx-hidden";
     const dest = (state.cfg && state.cfg.output_dir) || "";
     menu.innerHTML = `
-      <div class="noevfx-dl-dest" title="${dest.replace(/"/g, "&quot;")}">📁 ${dest ? folderName(dest) : "Downloads/NoeVFX"}</div>
+      <div class="noevfx-dl-dest" title="${esc(dest)}">📁 ${esc(dest ? folderName(dest) : "Downloads/NoeVFX")}</div>
       <button type="button" data-q="best">${t("ytBest")}</button>
       <button type="button" data-q="1080">${t("yt1080")}</button>
       <button type="button" data-q="720">${t("yt720")}</button>
@@ -794,6 +865,7 @@
 
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!e.isTrusted) return;
       await loadCfg();
       if (state.cfg && state.cfg.hover_action === "direct") {
         runYTDownload(btn, state.cfg.default_quality || "best");
@@ -802,12 +874,12 @@
       menu.classList.toggle("noevfx-hidden");
     });
 
-    const closer = () => menu.classList.add("noevfx-hidden");
-    document.addEventListener("click", closer);
+    ensureYtCloser();
 
     menu.querySelectorAll("button").forEach((item) => {
       item.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (!e.isTrusted) return;
         menu.classList.add("noevfx-hidden");
         runYTDownload(btn, item.dataset.q);
       });
@@ -834,26 +906,41 @@
     });
 
     if (!res || !res.ok || !res.job_id) {
-      label.textContent = t("ytOffline");
+      label.textContent = res && res.error === "forbidden" ? t("forbiddenShort") : t("ytOffline");
       setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3200);
       return;
     }
-    toast(t("downloadStarted"), "ok");
-    const t = setInterval(async () => {
-      const st = await sendMsg({ type: "STATUS", jobId: res.job_id });
-      if (!st || !st.ok) { clearInterval(t); label.textContent = t("ytError"); btn.disabled = false; return; }
-      const d = st.data || {};
-      if (d.status === "downloading") label.textContent = d.progress ? t("downloadingP", d.progress) : t("downloading0");
-      else if (d.status === "merging") label.textContent = t("ytMerging");
-      else if (d.status === "done") {
-        clearInterval(t);
-        label.textContent = t("ytSaved");
-        setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3000);
-      } else if (d.status === "error") {
-        clearInterval(t);
-        label.textContent = t("ytError");
-        setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3500);
+    toast(res.duplicate ? t("dupNote") : t("downloadStarted"), "ok");
+    // OBS: o temporizador NÃO pode se chamar "t" (escondia a função de tradução)
+    let misses = 0;
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      const reset = (ms) => setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, ms);
+      try {
+        const st = await sendMsg({ type: "STATUS", jobId: res.job_id });
+        if (!st || !st.ok) {
+          if (++misses >= 3) { clearInterval(timer); label.textContent = t("ytError"); reset(3000); }
+          return;
+        }
+        misses = 0;
+        const d = st.data || {};
+        if (d.status === "downloading") label.textContent = d.progress ? t("downloadingP", d.progress) : t("downloading0");
+        else if (d.status === "merging") label.textContent = t("ytMerging");
+        else if (d.status === "done") {
+          clearInterval(timer);
+          label.textContent = t("ytSaved");
+          reset(3000);
+        } else if (d.status === "error" || d.status === "canceled") {
+          clearInterval(timer);
+          label.textContent = t("ytError");
+          reset(3500);
+        }
+      } catch (_) {
+        clearInterval(timer);
+        btn.disabled = false;
+        label.textContent = t("ytDownload");
       }
+      if (Date.now() - started > 3 * 3600 * 1000) { clearInterval(timer); btn.disabled = false; }
     }, 900);
   }
 
@@ -863,9 +950,10 @@
     if (scanTimer) return;
     scanTimer = setTimeout(() => {
       scanTimer = null;
+      if (document.visibilityState !== "visible") return;     // aba em segundo plano não varre
       publish(true);
       injectYouTubeButton();
-    }, delay || 700);
+    }, delay || 900);
   }
 
   const obs = new MutationObserver(() => scheduleScan(600));
@@ -882,7 +970,9 @@
       publish(true);
       injectYouTubeButton();
     });
-    setInterval(() => {
+    const pubTimer = setInterval(() => {
+      // extensão recarregada/atualizada: este script ficou órfão, então para de trabalhar
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(pubTimer); obs.disconnect(); return; }
       if (document.visibilityState === "visible") publish(false);
     }, 4000);
   };

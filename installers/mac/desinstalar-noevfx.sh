@@ -26,8 +26,9 @@ pkill -f "$DEST/server/server.py" 2>/dev/null || true
 printf "[2/4] Removendo inicialização automática...\n"
 if [ "$OS" = "Darwin" ]; then
   PLIST="$HOME/Library/LaunchAgents/com.noevfx.downloader.plist"
+  launchctl bootout "gui/$(id -u)/com.noevfx.downloader" >/dev/null 2>&1 || true
   launchctl unload "$PLIST" >/dev/null 2>&1 || true
-  rm -f "$PLIST"
+  rm -f "$PLIST" "$HOME/Library/Logs/NoeVFXDownloader.log"
 else
   systemctl --user disable --now noevfx-downloader.service >/dev/null 2>&1 || true
   rm -f "$HOME/.config/systemd/user/noevfx-downloader.service"

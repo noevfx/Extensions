@@ -63,6 +63,19 @@
       iconOn: "ICON ON",
       iconOff: "ICON OFF",
       serverOffline: "Local server offline — run the installer",
+      forbiddenMsg: "The local app refused this extension — run the installer again",
+      forbiddenShort: "Run the installer again",
+      outdatedMsg: "Local app is outdated — run the installer again",
+      dupNote: "This video is already being downloaded",
+      canceledMsg: "Download canceled",
+      cancel: "Cancel",
+      cancelTip: "Cancel the current download",
+      cancelFail: "Could not cancel",
+      diag: "Copy diagnostics",
+      diagTip: "Copies a short status report to paste in a chat when something fails",
+      diagCopied: "Copied! Paste it in the chat",
+      ffWarn: "no FFmpeg: saved as a single file (quality may be lower)",
+      ffmpegMissing: "FFmpeg not working — quality may be lower. Run the installer again",
       cannotStart: "Could not start",
       queuedWait: "Queued: waiting for a slot…",
       downloadingP: "Downloading {0}",
@@ -219,6 +232,19 @@
       iconOn: "ÍCONE ON",
       iconOff: "ÍCONE OFF",
       serverOffline: "Servidor local offline — rode o instalador",
+      forbiddenMsg: "O app local recusou esta extensão — rode o instalador de novo",
+      forbiddenShort: "Rode o instalador de novo",
+      outdatedMsg: "App local desatualizado — rode o instalador de novo",
+      dupNote: "Este vídeo já está sendo baixado",
+      canceledMsg: "Download cancelado",
+      cancel: "Cancelar",
+      cancelTip: "Cancelar o download atual",
+      cancelFail: "Não consegui cancelar",
+      diag: "Copiar diagnóstico",
+      diagTip: "Copia um relatório curto do estado do app para colar na conversa quando algo falhar",
+      diagCopied: "Copiado! Cole na conversa",
+      ffWarn: "sem FFmpeg: salvo em arquivo único (qualidade pode ser menor)",
+      ffmpegMissing: "FFmpeg não está funcionando — a qualidade pode ser menor. Rode o instalador de novo",
       cannotStart: "Não foi possível iniciar",
       queuedWait: "Na fila: aguardando vaga...",
       downloadingP: "Baixando {0}",
@@ -346,7 +372,9 @@
       el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph")));
     });
     scope.querySelectorAll("[data-i18n-title]").forEach((el) => {
-      el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+      const tip = t(el.getAttribute("data-i18n-title"));
+      el.setAttribute("title", tip);
+      if (!el.textContent.trim()) el.setAttribute("aria-label", tip);   // botões só com ícone: nome para leitor de tela
     });
     if (document.documentElement) document.documentElement.setAttribute("lang", LANG === "pt" ? "pt-BR" : "en");
   }

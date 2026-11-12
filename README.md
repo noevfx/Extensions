@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.0-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.1-0066FF">
   <img alt="plataformas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
 </p>
@@ -21,14 +21,14 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`noevfx-downloader.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.0/noevfx-downloader.zip)
+[`noevfx-downloader.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.1/noevfx-downloader.zip)
 
 <sub>Também em [`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip) e na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
 | Windows 10/11 | `windows/` | `INSTALAR_NOEVFX.bat` |
-| macOS (Intel e Apple Silicon) | `mac/` | `instalar-noevfx.sh` |
+| macOS (Intel e Apple Silicon) | `mac/` | `INSTALAR-MAC.command` (ou `instalar-noevfx.sh`) |
 | Linux | `linux/` | `instalar-noevfx.sh` |
 
 > A pasta extraída serve **somente para instalar**. O programa é copiado para uma pasta do sistema e roda de lá — depois você pode apagar o que extraiu.
@@ -88,24 +88,30 @@
 
 ### Windows
 
+O instalador faz tudo sozinho, **sem administrador e sem nada instalado antes**
+(Python, yt-dlp com checagem SHA-256, FFmpeg e Deno para o YouTube; só baixa o que faltar).
+Pode rodar de novo para atualizar.
+
 1. Baixe e **extraia** o zip
 2. Abra `windows\INSTALAR_NOEVFX.bat`
-   - verifica o Python
    - copia tudo para `%LOCALAPPDATA%\NoeVFXDownloader`
-   - instala/atualiza `yt-dlp` e `FFmpeg` (só se faltar)
    - cria o aplicativo oculto que inicia com o Windows
-   - abre a pasta instalada e o navegador
-3. No navegador: **Modo de desenvolvedor** → **Carregar sem pacote** → selecione a pasta `extension` que abriu
+   - abre um **guia visual** no navegador com o último passo
+3. No navegador: **Modo de desenvolvedor** → **Carregar sem pacote** → cole o caminho da pasta `extension` (já copiado)
 
 ### macOS / Linux
+
+macOS: botão direito em `mac/INSTALAR-MAC.command` → **Abrir** (só na 1ª vez). Ou, em qualquer um dos dois:
 
 ```bash
 cd mac        # ou: cd linux
 bash instalar-noevfx.sh
 ```
 
-O script copia para `~/.local/share/NoeVFXDownloader`, instala `yt-dlp`/`ffmpeg`
-e cria o serviço de inicialização (LaunchAgent no macOS, `systemd --user` no Linux).
+Copia para `~/.local/share/NoeVFXDownloader` e cria o serviço de inicialização
+(LaunchAgent no macOS, `systemd --user` no Linux). O log fica em `install.log`.
+A instalação nos três sistemas é testada automaticamente a cada versão
+(GitHub Actions: Windows, macOS Apple/Intel, Linux x64/ARM).
 
 > **O erro mais comum:** carregar a extensão da pasta **extraída do zip**. O
 > navegador guarda o caminho e a extensão quebra quando você apaga a pasta.

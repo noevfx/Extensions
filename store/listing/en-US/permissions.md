@@ -47,8 +47,8 @@ Paste these into the privacy / permissions fields.
 
 ## `tabs` / `activeTab`
 
-> Identify the active tab to list the videos found there and to refresh detection
-> when the user asks.
+> Not requested (v3.0.1): the host permission already covers reading the active tab's
+> address and title.
 
 ---
 

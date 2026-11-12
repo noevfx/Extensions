@@ -30,8 +30,10 @@
       --ok: #059669;
     }
     * { box-sizing: border-box; }
+    button, input, select { font-family: inherit; }      /* botões herdam a fonte do app (antes caíam em Arial) */
     body {
       width: 388px;
+      overflow-x: hidden;
       max-height: 596px;
       overflow-y: auto;
       margin: 0;
@@ -93,17 +95,19 @@
     }
     input[type="url"]:focus { border-color: var(--accent); }
 
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+    /* um botão principal + 3 opções iguais lado a lado */
+    .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
     button.act {
-      padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
-      color: var(--text); font-size: 12px; font-weight: 500; cursor: pointer;
+      padding: 9px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+      color: var(--text); font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       transition: background .12s ease, border-color .12s ease;
     }
     button.act:hover { background: var(--surface-hover); border-color: var(--accent); }
     button.act.primary {
-      grid-column: span 2; background: var(--accent); border-color: var(--accent);
-      color: #fff; font-weight: 600; font-size: 13px;
+      grid-column: span 3; background: var(--accent); border-color: var(--accent);
+      color: #fff; font-weight: 700; font-size: 13px; padding: 11px 10px;
+      box-shadow: 0 2px 10px rgba(0,102,255,.28);
     }
     button.act.primary:hover { background: var(--accent-hover); }
 
@@ -142,7 +146,7 @@
     }
     .thumb-ph {
       width: 62px; height: 36px; border-radius: 5px; flex-shrink: 0; display: flex; align-items: center;
-      justify-content: center; font-size: 8.5px; font-weight: 800; color: #cfe0ff; letter-spacing: .04em;
+      justify-content: center; font-size: 15px; color: #8fb4ff; padding-left: 2px;
       background: linear-gradient(135deg, #122a52, #0066FF33); border: 1px solid rgba(0,102,255,.35);
     }
     .stream-meta { overflow: hidden; flex: 1; min-width: 0; }
@@ -171,6 +175,10 @@
     footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
     footer a:hover { text-decoration: underline; }
     #status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    [hidden] { display: none !important; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .bar { height: 3px; margin-top: 8px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
     .ver { font-size: 10px; color: var(--muted); flex-shrink: 0; }
     .mail { font-size: 10px; color: var(--muted); text-decoration: none; flex-shrink: 0; }
     .mail:hover { color: var(--accent); }
@@ -231,7 +239,7 @@
     <button class="act primary" data-q="best" data-i18n="best"></button>
     <button class="act" data-q="1080" data-i18n="q1080"></button>
     <button class="act" data-q="720" data-i18n="q720"></button>
-    <button class="act" data-q="audio" style="grid-column: span 2;" data-i18n="audio"></button>
+    <button class="act" data-q="audio" data-i18n="audioOnly"></button>
   </div>
 
   <div class="sec-head">
@@ -245,9 +253,11 @@
     <div class="empty" data-i18n="empty"></div>
   </div>
 
+  <div id="barWrap" class="bar" hidden><i id="bar"></i></div>
   <footer>
-    <div id="status" data-i18n="ready"></div>
-    <span id="ver" class="ver">v3.0.0</span>
+    <div id="status" data-i18n="ready" role="status" aria-live="polite"></div>
+    <button id="cancelBtn" class="mini-btn" type="button" hidden data-i18n="cancel" data-i18n-title="cancelTip"></button>
+    <span id="ver" class="ver">v3.0.1</span>
     <a class="mail" href="mailto:labs@noevfx.com" title="labs@noevfx.com">labs@noevfx.com</a>
   </footer>
   <script src="i18n.js"></script>

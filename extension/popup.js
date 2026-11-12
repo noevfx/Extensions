@@ -22,8 +22,12 @@ const allBtn = $("allBtn");
 const countPill = $("countPill");
 const fabBtn = $("fabBtn");
 const verEl = $("ver");
+const cancelBtn = $("cancelBtn");
+const barWrap = $("barWrap");
+const bar = $("bar");
 
 let currentTab = null;
+let currentJob = null;          // último download em andamento (o botão Cancelar age nele)
 let streams = [];
 let cfg = null;
 let serverOnline = false;
@@ -85,7 +89,9 @@ async function checkHealth() {
   srv.textContent = serverOnline ? t("online") : t("offline");
   srv.classList.toggle("on", serverOnline);
   srv.classList.toggle("off", !serverOnline);
-  if (!serverOnline) statusEl.textContent = t("offlineHint");
+  if (!serverOnline) statusEl.textContent = r && r.forbidden ? t("forbiddenMsg") : t("offlineHint");
+  else if (r.outdated) statusEl.textContent = t("outdatedMsg");
+  else if (r.data && r.data.ffmpeg_ok === false) statusEl.textContent = t("ffmpegMissing");
   return serverOnline;
 }
 
@@ -139,7 +145,8 @@ function thumbNode(item) {
 function placeholder(kind) {
   const d = document.createElement("div");
   d.className = "thumb-ph";
-  d.textContent = (kind || "VIDEO").toUpperCase().slice(0, 6);
+  d.textContent = "▶";                // o tipo (HLS/MP4...) já aparece na etiqueta ao lado
+  d.setAttribute("aria-hidden", "true");
   return d;
 }
 
@@ -188,6 +195,7 @@ function render() {
     btn.className = "stream-btn";
     btn.type = "button";
     btn.textContent = t("download");
+    btn.setAttribute("aria-label", t("download") + ": " + name.slice(0, 70));
     btn.addEventListener("click", () => {
       btn.disabled = true;
       btn.textContent = "…";
@@ -209,26 +217,27 @@ function render() {
 /* miniatura gerada pelo servidor (ffmpeg) quando a página não tem poster/og:image */
 async function loadThumbs(pending) {
   if (!serverOnline) return;
-  for (const p of pending.slice(0, 4)) {
-    if (!p.el || !p.el.isConnected) continue;
-    const cached = thumbCache.get(p.item.url);
-    if (cached) {
-      const img0 = document.createElement("img");
-      img0.className = "thumb";
-      img0.src = cached;
-      p.el.replaceWith(img0);
-      continue;
+  const queue = pending.slice(0, 6);
+  const work = async () => {                       // 3 em paralelo (o servidor também limita a 2 ffmpeg)
+    while (queue.length) {
+      const p = queue.shift();
+      if (!p.el || !p.el.isConnected) continue;
+      let src = thumbCache.get(p.item.url);
+      if (!src) {
+        const r = await send({ type: "THUMB", url: p.item.url, referer: currentTab && currentTab.url ? currentTab.url : "" });
+        if (!r || !r.ok || !r.data) continue;
+        src = r.data;
+        thumbCache.set(p.item.url, src);
+      }
+      if (!p.el.isConnected) continue;
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = src;
+      img.alt = "";
+      p.el.replaceWith(img);
     }
-    const r = await send({ type: "THUMB", url: p.item.url, referer: currentTab && currentTab.url ? currentTab.url : "" });
-    if (!r || !r.ok || !r.data) continue;
-    thumbCache.set(p.item.url, r.data);
-    if (!p.el.isConnected) continue;
-    const img = document.createElement("img");
-    img.className = "thumb";
-    img.src = r.data;
-    img.alt = "";
-    p.el.replaceWith(img);
-  }
+  };
+  await Promise.all([work(), work(), work()]);
 }
 
 async function refreshStreams(showSpinner) {
@@ -251,30 +260,48 @@ async function refreshStreams(showSpinner) {
 }
 
 /* -------------------------------------------------------------- downloads - */
+function setJob(jobId) {
+  currentJob = jobId;
+  cancelBtn.hidden = !jobId;
+  barWrap.hidden = !jobId;
+  if (!jobId) bar.style.width = "0";
+}
+
 function track(jobId, onDone) {
   const started = Date.now();
+  setJob(jobId);
+  let ended = false;
   const timer = setInterval(async () => {
+    const end = (ok) => {
+      if (ended) return;
+      ended = true;
+      clearInterval(timer);
+      if (currentJob === jobId) setJob(null);
+      onDone && onDone(ok);
+    };
     const st = await send({ type: "STATUS", jobId });
     if (!st || !st.ok) {
       if (Date.now() - started > 8000) {
-        clearInterval(timer);
         statusEl.textContent = t("lost");
-        onDone && onDone(false);
+        end(false);
       }
       return;
     }
     const d = st.data || {};
+    const pct = parseFloat(d.progress);
+    if (currentJob === jobId && isFinite(pct)) bar.style.width = Math.min(100, pct) + "%";
     if (d.status === "queued") statusEl.textContent = t("queue");
     else if (d.status === "downloading") statusEl.textContent = d.progress ? t("downloading", d.progress) : t("extracting");
     else if (d.status === "merging") statusEl.textContent = t("merging");
     else if (d.status === "done") {
-      clearInterval(timer);
-      statusEl.textContent = t("savedIn", prettyFolder(d.output_dir || (cfg && cfg.output_dir)));
-      onDone && onDone(true);
+      statusEl.textContent = t("savedIn", prettyFolder(d.output_dir || (cfg && cfg.output_dir))) + (d.warning ? " — " + t("ffWarn") : "");
+      end(true);
+    } else if (d.status === "canceled") {
+      statusEl.textContent = t("canceledMsg");
+      end(false);
     } else if (d.status === "error") {
-      clearInterval(timer);
       statusEl.textContent = t("errX", String(d.error || "-").slice(0, 70));
-      onDone && onDone(false);
+      end(false);
     }
   }, 700);
 }
@@ -298,11 +325,16 @@ async function startDownload(targetUrl, quality, fallbackStream, onDone) {
   });
 
   if (!res || !res.ok || !res.job_id) {
-    statusEl.textContent = t("startFail");
+    statusEl.textContent = res && res.error === "forbidden" ? t("forbiddenMsg")
+      : res && res.error && res.error !== "Servidor local offline" ? String(res.error).slice(0, 70)
+      : t("startFail");
+    const keep = statusEl.textContent;
     await checkHealth();
+    if (serverOnline) statusEl.textContent = keep;      // o aviso do erro vale mais que o "online"
     onDone && onDone(false);
     return;
   }
+  if (res.duplicate) statusEl.textContent = t("dupNote");
   track(res.job_id, onDone);
 }
 
@@ -335,14 +367,16 @@ async function downloadAll() {
 
 /* ------------------------------------------------------------------ boot -- */
 async function boot() {
-  await loadConfig(true);
-
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  urlInput.setAttribute("aria-label", t("urlPh"));
+  // config, aba ativa e saúde do servidor ao mesmo tempo (antes eram 4 esperas em fila)
+  const [tabs] = await Promise.all([
+    chrome.tabs.query({ active: true, currentWindow: true }),
+    loadConfig(true),
+    checkHealth()
+  ]);
   currentTab = tabs[0] || null;
   const u = (currentTab && currentTab.url) || "";
   if (u.startsWith("http")) urlInput.value = u;
-
-  await checkHealth();
 
   if (currentTab && currentTab.id != null) {
     const r = await send({ type: "GET_TAB_STREAMS", tabId: currentTab.id });
@@ -395,6 +429,12 @@ openFolderBtn.addEventListener("click", async () => {
 });
 
 allBtn.addEventListener("click", downloadAll);
+
+cancelBtn.addEventListener("click", async () => {
+  if (!currentJob) return;
+  const r = await send({ type: "CANCEL", jobId: currentJob });
+  statusEl.textContent = r && r.ok ? t("canceledMsg") : t("cancelFail");
+});
 
 document.querySelectorAll("button[data-q]").forEach((btn) => {
   btn.addEventListener("click", () => {

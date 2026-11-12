@@ -54,8 +54,8 @@ def main():
             shutil.copy2(src, pkg / f)
 
     platforms = {
-        "windows": ("installers/windows", ["INSTALAR_NOEVFX.bat", "DESINSTALAR_NOEVFX.bat"]),
-        "mac": ("installers/mac", ["instalar-noevfx.sh", "desinstalar-noevfx.sh"]),
+        "windows": ("installers/windows", ["INSTALAR_NOEVFX.bat", "instalar-noevfx.ps1", "DESINSTALAR_NOEVFX.bat"]),
+        "mac": ("installers/mac", ["INSTALAR-MAC.command", "instalar-noevfx.sh", "desinstalar-noevfx.sh"]),
         "linux": ("installers/linux", ["instalar-noevfx.sh", "desinstalar-noevfx.sh"]),
     }
 
@@ -65,10 +65,11 @@ def main():
         (dest / "server").mkdir(parents=True)
         copy_tree(ROOT / "extension", dest / "extension")
         shutil.copy2(ROOT / "server" / "server.py", dest / "server" / "server.py")
+        shutil.copy2(ROOT / "installers" / "common" / "guia-extensao.html", dest / "guia-extensao.html")
         for f in files:
             src = ROOT / inst_dir / f
             data = src.read_bytes()
-            data = crlf(data) if f.endswith(".bat") else data.replace(b"\r\n", b"\n")
+            data = crlf(data) if f.endswith((".bat", ".ps1")) else data.replace(b"\r\n", b"\n")
             (dest / f).write_bytes(data)
 
     zip_path = DIST / "noevfx-downloader.zip"
@@ -84,7 +85,7 @@ def main():
                 arc = PKG_NAME + "/" + full.relative_to(pkg).as_posix()
                 zi = zipfile.ZipInfo(arc, date_time=(2026, 11, 12, 12, 0, 0))
                 zi.create_system = 3
-                zi.external_attr = (0o755 if f.endswith(".sh") else 0o644) << 16
+                zi.external_attr = (0o755 if f.endswith((".sh", ".command")) else 0o644) << 16
                 zi.compress_type = zipfile.ZIP_DEFLATED
                 z.writestr(zi, full.read_bytes())
                 count += 1

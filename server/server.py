@@ -4,7 +4,8 @@
 Noe VFX Downloader — servidor local  (noevfx.com)
 =================================================
 Roda em segundo plano (Windows, macOS e Linux), só escuta 127.0.0.1 e só
-responde a pedidos feitos pela extensão (cabeçalho X-NoeVFX-Client).
+responde a pedidos feitos pela extensão (origem chrome-extension:// com o ID
+conhecido) vindos de um cabeçalho Host local.
 
 Endpoints
   GET  /health          estado do motor (yt-dlp, ffmpeg, python, pastas)
@@ -14,10 +15,11 @@ Endpoints
   POST /open-folder     abre a pasta no gerenciador de arquivos
   GET  /thumb?url=      gera miniatura do vídeo (ffmpeg, com cache)
   POST /download        enfileira download
+  POST /cancel          cancela um download (corpo: {"id": "..."})
   GET  /status?id=      progresso de um download
   GET  /jobs            últimos downloads
 
-Sem dependências externas: só a biblioteca padrão do Python.
+Sem dependências externas: só a biblioteca padrão do Python (3.9+).
 """
 
 import hashlib
@@ -27,6 +29,7 @@ import platform
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -40,10 +43,23 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.0"
+VERSION = "3.0.1"
+API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("NOEVFX_PORT", "8765"))
+
+# ID fixo da extensão (vem da chave pública no manifest.json). Outros IDs
+# (ex.: versão publicada na loja) entram por "allowed_extension_ids" no
+# config.json ou pela variável NOEVFX_EXT_IDS (separados por vírgula).
+EXT_IDS_BUILTIN = {"hdmfifeopbmjcfjbjpkfjinejneohlji"}
+
+MAX_BODY = 2 * 1024 * 1024           # corpo máximo de um POST
+MAX_ACTIVE = 60                      # downloads na fila + rodando
+MAX_JOBS_KEPT = 200                  # jobs lembrados na memória
+JOB_TTL = 3600                       # jobs terminados somem depois de 1 h
+STALL_SECONDS = 600                  # yt-dlp sem nenhuma saída por 10 min é morto
+MERGE_STALL_SECONDS = 3600           # ...e 1 h na fase de unir/converter (lives de horas)
 
 BASE = Path(__file__).resolve().parent
 BIN = BASE / "bin"
@@ -52,6 +68,77 @@ IS_MAC = sys.platform == "darwin"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if IS_WIN else 0
 TMP = Path(tempfile.gettempdir())
 THUMB_CACHE = TMP / "NoeVFXThumbs"
+
+
+# --------------------------------------------------------------------------- #
+# argumentos extras do yt-dlp: só uma lista segura (nada de --exec, -o, ...)
+# --------------------------------------------------------------------------- #
+# nome -> quantos valores a opção recebe (0 ou 1). Comparação EXATA: abreviações
+# ("--exe" no lugar de "--exec") não passam.
+ARG_OK = {}
+for _n in (
+    "-f", "--format", "-S", "--format-sort", "--merge-output-format", "--remux-video",
+    "--recode-video", "--extractor-args", "--impersonate", "--proxy",
+    "--geo-verification-proxy", "--geo-bypass-country", "--sub-langs", "--sub-format",
+    "--convert-subs", "--convert-thumbnails", "--add-header", "--user-agent", "--referer",
+    "-r", "--limit-rate", "--throttled-rate", "-R", "--retries", "--fragment-retries",
+    "--retry-sleep", "-N", "--concurrent-fragments", "--sleep-interval", "--min-sleep-interval",
+    "--max-sleep-interval", "--sleep-requests", "--sleep-subtitles", "--socket-timeout",
+    "--extractor-retries", "--video-password", "-u", "--username", "-p", "--password",
+    "-2", "--twofactor", "--age-limit", "--max-filesize", "--min-filesize",
+    "--match-filters", "--download-sections", "--audio-format", "--audio-quality",
+    "--playlist-items", "--playlist-start", "--playlist-end", "--max-downloads",
+    "--source-address", "--sponsorblock-mark", "--sponsorblock-remove",
+):
+    ARG_OK[_n] = 1
+for _n in (
+    "--write-subs", "--write-auto-subs", "--embed-subs", "--embed-thumbnail",
+    "--embed-metadata", "--embed-chapters", "--write-thumbnail", "--write-description",
+    "--write-info-json", "--geo-bypass", "--no-geo-bypass", "--hls-prefer-native",
+    "--hls-prefer-ffmpeg", "--hls-use-mpegts", "--no-hls-use-mpegts", "--no-check-certificates",
+    "--prefer-insecure", "--no-part", "--no-mtime", "--restrict-filenames",
+    "--windows-filenames", "-4", "--force-ipv4", "-6", "--force-ipv6", "-i",
+    "--ignore-errors", "--no-continue", "-x", "--extract-audio", "-k", "--keep-video",
+    "--yes-playlist", "--no-playlist", "--no-overwrites", "--force-overwrites",
+    "--live-from-start", "--no-live-from-start",
+):
+    ARG_OK[_n] = 0
+
+
+def parse_extra_args(text):
+    """Valida e separa o campo 'argumentos extras'. ValueError se algo não for permitido."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    if len(text) > 1000:
+        raise ValueError("argumentos extras: texto muito longo")
+    try:
+        toks = shlex.split(text, posix=True)
+    except ValueError:
+        raise ValueError("argumentos extras: aspas não fechadas")
+    out = []
+    i = 0
+    while i < len(toks):
+        tk = toks[i]
+        if not tk.startswith("-"):
+            raise ValueError("argumentos extras: valor solto '%s'" % tk[:40])
+        if tk.startswith("--"):
+            name, eq, _val = tk.partition("=")
+        else:
+            name, eq = tk, ""
+        arity = ARG_OK.get(name)
+        if arity is None:
+            raise ValueError("argumentos extras: opção não permitida '%s'" % name[:40])
+        out.append(tk)
+        i += 1
+        if arity == 1 and not eq:
+            if i >= len(toks):
+                raise ValueError("argumentos extras: falta o valor de %s" % name)
+            out.append(toks[i])
+            i += 1
+        elif arity == 0 and eq:
+            raise ValueError("argumentos extras: %s não recebe valor" % name)
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -76,6 +163,7 @@ DEFAULT_CFG = {
     "extra_args": "",
     "onboarded": False,
 }
+BOOL_KEYS = ("use_cookies", "organize_by_site", "fab_enabled", "onboarded")
 
 
 def _parent_writable(path: Path) -> bool:
@@ -112,11 +200,39 @@ def load_cfg() -> dict:
     return cfg
 
 
+def clean_patch(patch: dict) -> dict:
+    """Valida tipos e limites do que a extensão quer gravar. ValueError se algo estiver errado."""
+    out = {}
+    for k, v in (patch or {}).items():
+        if k not in DEFAULT_CFG or v is None:
+            continue
+        if k == "output_dir":
+            if not isinstance(v, str) or len(v) > 500 or any(ord(c) < 32 for c in v):
+                raise ValueError("Pasta inválida")
+            out[k] = v.strip()
+        elif k == "hover_action":
+            if v not in ("menu", "direct"):
+                raise ValueError("hover_action inválido")
+            out[k] = v
+        elif k == "default_quality":
+            if v not in FORMAT_MAP:
+                raise ValueError("Qualidade inválida")
+            out[k] = v
+        elif k in BOOL_KEYS:
+            if not isinstance(v, bool):
+                raise ValueError("%s precisa ser verdadeiro/falso" % k)
+            out[k] = v
+        elif k == "extra_args":
+            if not isinstance(v, str):
+                raise ValueError("extra_args precisa ser texto")
+            parse_extra_args(v)           # só valida; ValueError se tiver opção proibida
+            out[k] = v.strip()
+    return out
+
+
 def save_cfg(patch: dict) -> dict:
     cfg = load_cfg()
-    for k, v in (patch or {}).items():
-        if k in DEFAULT_CFG and v is not None:
-            cfg[k] = v
+    cfg.update(clean_patch(patch))
 
     out = Path(str(cfg.get("output_dir") or DEFAULT_CFG["output_dir"])).expanduser()
     try:
@@ -126,8 +242,27 @@ def save_cfg(patch: dict) -> dict:
     cfg["output_dir"] = str(out)
 
     with CFG_LOCK:
-        CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp = CONFIG_FILE.with_name(CONFIG_FILE.name + ".tmp")
+        tmp.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+        os.replace(str(tmp), str(CONFIG_FILE))
     return cfg
+
+
+_IDS_CACHE = {"at": 0.0, "ids": set()}
+
+
+def allowed_ext_ids() -> set:
+    now = time.time()
+    if now - _IDS_CACHE["at"] < 5:
+        return _IDS_CACHE["ids"]
+    ids = set(EXT_IDS_BUILTIN)
+    extra = load_cfg().get("allowed_extension_ids")
+    if isinstance(extra, list):
+        ids.update(str(x).strip() for x in extra if str(x).strip())
+    env = os.environ.get("NOEVFX_EXT_IDS", "")
+    ids.update(x.strip() for x in env.split(",") if x.strip())
+    _IDS_CACHE.update(at=now, ids=ids)
+    return ids
 
 
 # --------------------------------------------------------------------------- #
@@ -173,8 +308,12 @@ def find_exe(name: str) -> str:
                 if found:
                     break
 
-        if not found and IS_MAC:
-            for p in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"):
+        if not found and not IS_WIN:
+            # o serviço (launchd/systemd) roda com um PATH mínimo: procura nos lugares comuns
+            dirs = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin",
+                    str(Path.home() / ".local" / "bin"), str(Path.home() / ".deno" / "bin")]
+            dirs += sorted(str(p) for p in (Path.home() / "Library" / "Python").glob("*/bin"))
+            for p in dirs:
                 cand = Path(p) / name
                 if cand.exists() and os.access(str(cand), os.X_OK):
                     found = str(cand)
@@ -188,56 +327,205 @@ def exe_path(name: str) -> str:
     return find_exe(name)
 
 
+def child_env() -> dict:
+    """PATH dos subprocessos: inclui a pasta bin e onde estão deno/ffmpeg/ffprobe (o yt-dlp usa o Deno no YouTube)."""
+    env = dict(os.environ)
+    extra = [str(BIN)]
+    for tool in ("deno", "ffmpeg", "ffprobe"):
+        p = find_exe(tool)
+        if p:
+            d = str(Path(p).parent)
+            if d not in extra:
+                extra.append(d)
+    env["PATH"] = os.pathsep.join(extra + [env.get("PATH", "")])
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
+_FF_LOCK = threading.Lock()
+_FF = {"stamp": None, "state": None}
+
+
+def _runs_ok(exe: str) -> bool:
+    try:
+        r = subprocess.run([exe, "-version"], capture_output=True, timeout=15, creationflags=NO_WINDOW,
+                           stdin=subprocess.DEVNULL)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def ffmpeg_state() -> dict:
+    """FFmpeg de verdade: o arquivo existe E executa. {ok, probe, path, dir, same_dir}.
+
+    Na 3.0 o servidor só checava se o arquivo existia e nunca dizia ao yt-dlp onde ele estava:
+    o yt-dlp não achava o FFmpeg, deixava vídeo e áudio em arquivos separados (vídeo "sem áudio")
+    e o m4a dava erro ('ffprobe and ffmpeg not found')."""
+    ff = find_exe("ffmpeg")
+    pr = find_exe("ffprobe")
+    try:
+        stamp = (ff, pr, os.stat(ff).st_mtime if ff else 0, os.stat(pr).st_mtime if pr else 0)
+    except Exception:
+        stamp = (ff, pr, 0, 0)
+    with _FF_LOCK:
+        if _FF["stamp"] == stamp and _FF["state"] is not None:
+            return _FF["state"]
+        ok = bool(ff) and _runs_ok(ff)
+        probe = bool(pr) and _runs_ok(pr)
+        st = {
+            "ok": ok, "probe": probe, "path": ff, "probe_path": pr,
+            "dir": str(Path(ff).parent) if ff else "",
+            "same_dir": bool(ok and probe and Path(ff).parent == Path(pr).parent),
+        }
+        _FF.update(stamp=stamp, state=st)
+        return st
+
+
 _IMPL_LOCK = threading.Lock()
-_IMPL = {"checked": False, "ok": False}
+_IMPL = {"checked": False, "ok": False, "stamp": None}
+
+
+def _yt_stamp():
+    yt = exe_path("yt-dlp")
+    try:
+        return (yt, os.stat(yt).st_mtime) if yt else None
+    except Exception:
+        return None
+
+
+def impersonate_cached():
+    """Sem custo: True/False se já sabemos, None se ainda não verificamos."""
+    with _IMPL_LOCK:
+        if _IMPL["checked"] and _IMPL["stamp"] == _yt_stamp():
+            return _IMPL["ok"]
+    return None
+
+
+_IMPL_RUN = threading.Lock()       # só serializa a verificação lenta; /health nunca espera por ela
 
 
 def supports_impersonate() -> bool:
-    """--impersonate (disfarce de navegador real) ajuda a furar bloqueio anti-bot."""
-    with _IMPL_LOCK:
-        if _IMPL["checked"]:
-            return _IMPL["ok"]
-        _IMPL["checked"] = True
+    """--impersonate (disfarce de navegador real) ajuda a furar bloqueio anti-bot. Roda 1 vez por versão do yt-dlp."""
+    with _IMPL_RUN:
+        stamp = _yt_stamp()
+        with _IMPL_LOCK:
+            if _IMPL["checked"] and _IMPL["stamp"] == stamp:
+                return _IMPL["ok"]
         yt = exe_path("yt-dlp")
         if not yt:
             return False
+        ok = False
         try:
             out = subprocess.run(
-                [yt, "--help"], capture_output=True, text=True, timeout=25,
-                creationflags=NO_WINDOW,
+                [yt, "--ignore-config", "--help"], capture_output=True, text=True,
+                encoding="utf-8", errors="replace", timeout=25, creationflags=NO_WINDOW,
+                stdin=subprocess.DEVNULL, env=child_env(), cwd=str(BASE),
             )
-            _IMPL["ok"] = "impersonate" in ((out.stdout or "") + (out.stderr or ""))
+            ok = "impersonate" in ((out.stdout or "") + (out.stderr or ""))
         except Exception:
-            _IMPL["ok"] = False
-        return _IMPL["ok"]
+            ok = False
+        with _IMPL_LOCK:
+            _IMPL.update(checked=True, ok=ok, stamp=stamp)
+        return ok
+
+
+# --------------------------------------------------------------------------- #
+# validação de entradas
+# --------------------------------------------------------------------------- #
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def clean_url(value, maxlen=4096) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    if not value or len(value) > maxlen or _CTRL_RE.search(value) or " " in value:
+        return ""
+    try:
+        u = urlparse(value)
+    except Exception:
+        return ""
+    if u.scheme.lower() not in ("http", "https") or not u.netloc:
+        return ""
+    return value
+
+
+def clean_header(value, maxlen) -> str:
+    if not isinstance(value, str):
+        return ""
+    return _CTRL_RE.sub("", value)[:maxlen].strip()
+
+
+def clean_cookies(value) -> str:
+    """Só aceita o formato Netscape (comentários + linhas de 7 campos separados por TAB)."""
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    lines = ["# Netscape HTTP Cookie File"]
+    for ln in value.replace("\r", "").split("\n"):
+        if ln.startswith("# Netscape"):
+            continue
+        if ln.startswith("#HttpOnly_") or (not ln.startswith("#") and ln.count("\t") == 6):
+            if ln.count("\t") == 6 and not _CTRL_RE.search(ln.replace("\t", "")):
+                lines.append(ln)
+    return "\n".join(lines) + "\n" if len(lines) > 1 else ""
+
+
+def sweep_temp():
+    """Apaga sobras de cookies/seletor de execuções que caíram no meio."""
+    cutoff = time.time() - 60
+    try:
+        for p in TMP.glob("nvf_ck_*"):
+            try:
+                if p.stat().st_mtime < cutoff:
+                    p.unlink()
+            except Exception:
+                pass
+        for p in TMP.glob("nvf_pick_*"):
+            try:
+                if p.stat().st_mtime < cutoff:
+                    p.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------- #
 # jobs
 # --------------------------------------------------------------------------- #
 JOBS = {}
+PROCS = {}
+CANCELED = set()
 JOBS_LOCK = threading.Lock()
 MAX_CONCURRENT = 3
 EXECUTOR = ThreadPoolExecutor(max_workers=MAX_CONCURRENT)
+ACTIVE = ("queued", "downloading", "merging")
+
+
+class QueueFull(Exception):
+    pass
+
 
 FORMAT_MAP = {
     "best": "bestvideo*+bestaudio/best",
     "1080": "bestvideo*[height<=1080]+bestaudio/best[height<=1080]/best",
     "720": "bestvideo*[height<=720]+bestaudio/best[height<=720]/best",
-    "audio": "bestaudio[ext=m4a]/bestaudio",
+    # sem faixa só de áudio (HLS/MP4 "juntos"): cai no vídeo inteiro e o -x extrai o áudio
+    "audio": "bestaudio[ext=m4a]/bestaudio/best",
 }
 FORMAT_NO_FFMPEG = {
     "best": "best[ext=mp4]/best",
     "1080": "best[height<=1080]/best",
     "720": "best[height<=720]/best",
-    "audio": "bestaudio/best",
+    "audio": "bestaudio[ext=m4a]/bestaudio/best",
 }
 
 PCT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
 SPEED_RE = re.compile(r"\bat\s+([\d.,]+\s*[KMG]?i?B/s)", re.I)
-DEST_RE = re.compile(r"\[download\]\s+Destination:\s+(.+)$", re.I)
+DEST_RE = re.compile(r"\[(?:download|ExtractAudio|VideoRemuxer|VideoConvertor)\]\s+Destination:\s+(.+)$", re.I)
 MERGE_RE = re.compile(r'Merging formats into "(.+)"', re.I)
-ALREADY_RE = re.compile(r"has already been downloaded", re.I)
+ALREADY_RE = re.compile(r"\[download\]\s+(.+?)\s+has already been downloaded", re.I)
+PART_SUFFIXES = (".part", ".ytdl", ".temp", ".tmp")
 
 
 def job_update(job_id: str, **kw):
@@ -247,13 +535,31 @@ def job_update(job_id: str, **kw):
             job.update(kw)
 
 
-def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
-              cookies_file: str, extra_args: str, impersonate: bool, single: bool = True):
-    yt = exe_path("yt-dlp")
-    has_ffmpeg = bool(exe_path("ffmpeg"))
+def kill_proc(proc):
+    """Mata o yt-dlp e os filhos dele (ffmpeg)."""
+    try:
+        if IS_WIN:
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                           capture_output=True, creationflags=NO_WINDOW, timeout=15)
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
 
+
+def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
+              cookies_file: str, extra: list, impersonate: bool, single: bool = True,
+              use_ffmpeg: bool = True):
+    yt = exe_path("yt-dlp")
+    ff = ffmpeg_state()
+    has_ffmpeg = bool(use_ffmpeg and ff["ok"])
+
+    # (sem --no-warnings: os avisos do yt-dlp, como "ffmpeg not found", precisam chegar até aqui)
     cmd = [
-        yt, "--newline", "--no-playlist", "--no-warnings",
+        yt, "--ignore-config", "--newline", "--no-playlist",
         "--concurrent-fragments", "16",
         "--retries", "10",
         "--fragment-retries", "20",
@@ -271,12 +577,14 @@ def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
 
     if has_ffmpeg:
         cmd += ["--merge-output-format", "mp4"]
+        if ff["same_dir"]:
+            cmd += ["--ffmpeg-location", ff["dir"]]     # diz ao yt-dlp ONDE está o ffmpeg/ffprobe
 
     if referer.startswith("http"):
         cmd += ["--referer", referer]
         try:
-            origin = "%s://%s" % (urlparse(referer).scheme, urlparse(referer).netloc)
-            cmd += ["--add-header", "Origin:%s" % origin]
+            pr = urlparse(referer)
+            cmd += ["--add-header", "Origin:%s://%s" % (pr.scheme, pr.netloc)]
         except Exception:
             pass
 
@@ -289,80 +597,189 @@ def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
     if impersonate:
         cmd += ["--impersonate", "chrome"]
 
-    if extra_args:
-        try:
-            cmd += shlex.split(extra_args, posix=not IS_WIN)
-        except Exception:
-            pass
+    if extra:
+        cmd += list(extra)          # já validado por parse_extra_args()
 
     cmd.append(url)
     return cmd, has_ffmpeg
 
 
+FF_MISSING_RE = re.compile(
+    r"ffmpeg is not installed|won't be merged|ffprobe and ffmpeg not found|ffmpeg not found|"
+    r"ffmpeg or avconv not found|Postprocessing:.*(ffmpeg|ffprobe)", re.I)
+
+
 def run_ytdlp(job_id: str, url: str, fmt: str, out_tmpl: str, referer: str,
-              ua: str, cookies_file: str, extra_args: str, impersonate: bool, single: bool = True):
-    cmd, _has_ffmpeg = build_cmd(url, fmt, out_tmpl, referer, ua, cookies_file, extra_args, impersonate, single)
+              ua: str, cookies_file: str, extra: list, impersonate: bool, single: bool = True,
+              use_ffmpeg: bool = True):
+    cmd, _has_ffmpeg = build_cmd(url, fmt, out_tmpl, referer, ua, cookies_file, extra, impersonate, single, use_ffmpeg)
     if not cmd[0]:
         raise RuntimeError("yt-dlp não encontrado. Rode o instalador do NOÉ VFX.")
 
     proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
         text=True, encoding="utf-8", errors="replace",
-        creationflags=NO_WINDOW, bufsize=1,
+        creationflags=NO_WINDOW, bufsize=1, env=child_env(), cwd=str(BASE),
+        start_new_session=not IS_WIN,
     )
+    with JOBS_LOCK:
+        PROCS[job_id] = proc
+
+    state = {"last": time.time(), "stalled": False}
+
+    def watchdog():
+        while proc.poll() is None:
+            time.sleep(5)
+            # unir vídeo+áudio de uma live de horas pode ficar muito tempo sem imprimir nada
+            limit = MERGE_STALL_SECONDS if state.get("merging") else STALL_SECONDS
+            if time.time() - state["last"] > limit:
+                state["stalled"] = True
+                kill_proc(proc)
+                return
+
+    threading.Thread(target=watchdog, daemon=True).start()
 
     tail = []
     last_pct = None
-    for line in proc.stdout:
-        line = line.rstrip()
-        if not line:
-            continue
-        tail.append(line)
-        if len(tail) > 12:
-            tail.pop(0)
+    try:
+        for line in proc.stdout:
+            state["last"] = time.time()
+            line = line.rstrip()
+            if not line:
+                continue
+            tail.append(line)
+            if len(tail) > 12:
+                tail.pop(0)
+            if FF_MISSING_RE.search(line):
+                state["ffmissing"] = True
+                if "ffmissing_line" not in state:
+                    state["ffmissing_line"] = line[:200]
 
-        m = DEST_RE.search(line)
-        if m:
-            job_update(job_id, file=m.group(1).strip())
+            m = DEST_RE.search(line)
+            if m:
+                job_update(job_id, file=m.group(1).strip())
 
-        if MERGE_RE.search(line) or line.startswith("[Merger]"):
-            job_update(job_id, status="merging", progress="unindo")
-            continue
+            m = MERGE_RE.search(line)
+            if m:
+                state["merging"] = True
+                job_update(job_id, status="merging", progress="unindo", file=m.group(1).strip())
+                continue
+            if line.startswith("[Merger]") or line.startswith("[ExtractAudio]") or line.startswith("[VideoRemuxer]"):
+                state["merging"] = True
+                job_update(job_id, status="merging", progress="unindo")
+                continue
 
-        if ALREADY_RE.search(line):
-            job_update(job_id, progress="já baixado")
-            continue
+            m = ALREADY_RE.search(line)
+            if m:
+                job_update(job_id, progress="já baixado", file=m.group(1).strip())
+                continue
 
-        m = PCT_RE.search(line)
-        if m and "[download]" in line:
-            pct = m.group(1).replace(",", ".") + "%"
-            sp = SPEED_RE.search(line)
-            upd = {"status": "downloading", "progress": pct}
-            if sp:
-                upd["speed"] = sp.group(1).replace(" ", "")
-            job_update(job_id, **upd)
-            last_pct = pct
+            m = PCT_RE.search(line)
+            if m and "[download]" in line:
+                pct = m.group(1).replace(",", ".") + "%"
+                sp = SPEED_RE.search(line)
+                upd = {"status": "downloading", "progress": pct}
+                if sp:
+                    upd["speed"] = sp.group(1).replace(" ", "")
+                job_update(job_id, **upd)
+                last_pct = pct
 
-        if line.startswith("ERROR:"):
-            job_update(job_id, error=line[6:].strip()[:300])
-
-    code = proc.wait()
+            if line.startswith("ERROR:"):
+                job_update(job_id, error=line[6:].strip()[:300])
+        code = proc.wait()
+    finally:
+        with JOBS_LOCK:
+            PROCS.pop(job_id, None)
+    if state["stalled"]:
+        tail.append("ERROR: sem resposta por %d s (download cancelado)" % STALL_SECONDS)
+        code = code or 1
+    if state.get("ffmissing"):
+        job_update(job_id, ffmpeg_problem=True)
     return code, tail, last_pct
 
 
+def _newest_since(folder: Path, since: float):
+    best, best_t = None, 0.0
+    try:
+        for p in folder.iterdir():
+            if p.is_file() and not p.name.endswith(PART_SUFFIXES):
+                t = p.stat().st_mtime
+                if t >= since and t > best_t:
+                    best, best_t = p, t
+    except Exception:
+        pass
+    return best
+
+
+UNMERGED_RE = re.compile(r"\]\.f[\w-]+\.[A-Za-z0-9]{2,5}$")     # "Titulo [id].f251.webm" = pedaço que não foi unido
+
+
+def _unmerged_since(folder: Path, since: float) -> list:
+    out = []
+    try:
+        for p in folder.iterdir():
+            if p.is_file() and UNMERGED_RE.search(p.name) and p.stat().st_mtime >= since - 2:
+                out.append(p)
+    except Exception:
+        pass
+    return out
+
+
+def _remove_unmerged(folder: Path, since: float):
+    for p in _unmerged_since(folder, since):
+        try:
+            p.unlink()
+        except Exception:
+            pass
+
+
+# erros comuns do yt-dlp em português claro (o texto original vai junto, entre parênteses)
+FRIENDLY = (
+    (r"live event will begin|Premieres in|will begin in", "A live/estreia ainda não começou."),
+    (r"live event has ended|being processed|processing this video|still processing|is processing", "A live acabou, mas o site ainda está processando a gravação. Tente de novo mais tarde."),
+    (r"Sign in to confirm you.re not a bot|confirm you.re not a bot", "O site pediu confirmação de que você não é um robô: entre na sua conta no navegador (com os cookies ligados nas Configurações) e tente de novo."),
+    (r"Private video|members-only|Join this channel|This video is available to", "Vídeo privado ou só para membros: entre na sua conta no navegador e deixe os cookies ligados."),
+    (r"HTTP Error 403|403: Forbidden", "O site negou o acesso (403). Entre na sua conta, atualize a página do vídeo e tente de novo."),
+    (r"HTTP Error 404|404: Not Found", "O endereço do vídeo expirou (404). Atualize a página e tente de novo."),
+    (r"Requested format is not available", "Esse formato não existe nesse vídeo. Tente 'Qualidade nativa'."),
+    (r"Unsupported URL", "Este endereço não é suportado direto. Dê play no vídeo e baixe pelo ícone sobre o player."),
+    (r"ffprobe and ffmpeg not found|ffmpeg is not installed", "FFmpeg não encontrado. Rode o instalador do Noe VFX de novo."),
+)
+
+
+def friendly_error(err: str) -> str:
+    for pat, msg in FRIENDLY:
+        if re.search(pat, err, re.I):
+            return "%s (%s)" % (msg, err[:160])
+    return err
+
+
+def _is_canceled(job_id: str) -> bool:
+    with JOBS_LOCK:
+        return job_id in CANCELED
+
+
 def run_job(job_id: str, req: dict):
+    if _is_canceled(job_id):
+        job_update(job_id, status="canceled", progress="cancelado", finished=time.time())
+        return
+
     cfg = load_cfg()
     quality = req.get("quality") or cfg.get("default_quality") or "best"
     url = req.get("url", "")
-    fallback = req.get("fallback_stream") or req.get("fallbackStream") or ""
+    fallback = req.get("fallback_stream") or ""
     referer = req.get("referer") or ""
-    ua = req.get("userAgent") or req.get("user_agent") or ""
-    extra = req.get("extra_args") or cfg.get("extra_args") or ""
+    ua = req.get("userAgent") or ""
+    try:
+        extra = parse_extra_args(cfg.get("extra_args") or "")
+    except ValueError:
+        extra = []                      # config antiga com opção hoje proibida: ignora
 
-    out_dir = Path(req.get("output_dir") or cfg.get("output_dir") or DEFAULT_CFG["output_dir"]).expanduser()
+    out_dir = Path(cfg.get("output_dir") or DEFAULT_CFG["output_dir"]).expanduser()
     if req.get("organizeBySite") or cfg.get("organize_by_site"):
         try:
             site = urlparse(url).netloc.replace(":", "_") or "outros"
+            site = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", site)
             out_dir = out_dir / site
         except Exception:
             pass
@@ -372,7 +789,8 @@ def run_job(job_id: str, req: dict):
         out_dir = Path.home() / "Downloads"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    job_update(job_id, status="downloading", output_dir=str(out_dir), progress="0%")
+    started = time.time()
+    job_update(job_id, status="downloading", output_dir=str(out_dir), progress="0%", started=started)
 
     cookies_file = ""
     try:
@@ -380,37 +798,70 @@ def run_job(job_id: str, req: dict):
         if cookie_txt.strip() and cfg.get("use_cookies", True):
             fd, cookies_file = tempfile.mkstemp(prefix="nvf_ck_", suffix=".txt", dir=str(TMP))
             os.close(fd)
+            try:
+                os.chmod(cookies_file, 0o600)
+            except Exception:
+                pass
             Path(cookies_file).write_text(cookie_txt, encoding="utf-8")
 
-        has_ff = bool(exe_path("ffmpeg"))
-        fmt = (FORMAT_MAP if has_ff else FORMAT_NO_FFMPEG).get(quality, FORMAT_MAP["best"])
         out_tmpl = str(out_dir / "%(title).100s [%(id)s].%(ext)s")
-
         imp = supports_impersonate()
         single = req.get("single", True) is not False
-        cmd_extra = extra
-        if quality == "audio" and has_ff:
-            cmd_extra = (extra + " -x --audio-format m4a").strip()
+        use_ff = ffmpeg_state()["ok"]          # FFmpeg que realmente EXECUTA (não basta o arquivo existir)
 
-        code, tail, _pct = run_ytdlp(job_id, url, fmt, out_tmpl, referer, ua, cookies_file, cmd_extra, imp, single)
+        def attempt(u, rf, imp_flag):
+            """Uma tentativa. Se o yt-dlp reclamar do FFmpeg (vídeo/áudio separados, m4a com erro),
+            limpa os pedaços e refaz sozinho em formato único: nunca entrega vídeo sem áudio."""
+            nonlocal use_ff
 
-        if code != 0 and imp:
+            def once(ff_on):
+                fm = (FORMAT_MAP if ff_on else FORMAT_NO_FFMPEG).get(quality, FORMAT_MAP["best"])
+                ex = list(extra)
+                if quality == "audio" and ff_on:
+                    ex += ["-x", "--audio-format", "m4a"]       # (se der erro de FFmpeg, o attempt refaz sem isto)
+                job_update(job_id, ffmpeg_problem=False)
+                return run_ytdlp(job_id, u, fm, out_tmpl, rf, ua, cookies_file, ex, imp_flag, single, ff_on)
+
+            code_, tail_, pct_ = once(use_ff)
+            with JOBS_LOCK:
+                flagged = bool((JOBS.get(job_id) or {}).get("ffmpeg_problem"))
+            if (flagged or _unmerged_since(out_dir, started)) and not _is_canceled(job_id):
+                _remove_unmerged(out_dir, started)
+                use_ff = False
+                job_update(job_id, progress="FFmpeg indisponível: baixando em formato único...",
+                           warning="ffmpeg")
+                code_, tail_, pct_ = once(False)
+            return code_, tail_, pct_
+
+        code, tail, _pct = attempt(url, referer, imp)
+
+        if code != 0 and imp and not _is_canceled(job_id):
             job_update(job_id, progress="tentando modo compatível...")
-            code, tail, _pct = run_ytdlp(job_id, url, fmt, out_tmpl, referer, ua, cookies_file, cmd_extra, False, single)
+            code, tail, _pct = attempt(url, referer, False)
 
-        if code != 0 and fallback and fallback != url:
+        if code != 0 and fallback and fallback != url and not _is_canceled(job_id):
             job_update(job_id, progress="usando stream capturado...")
-            code, tail, _pct = run_ytdlp(job_id, fallback, fmt, out_tmpl, referer, ua, cookies_file, cmd_extra, imp, single)
-            if code != 0 and imp:
-                code, tail, _pct = run_ytdlp(job_id, fallback, fmt, out_tmpl, referer, ua, cookies_file, cmd_extra, False, single)
+            fb_ref = req.get("fallback_referer") or referer          # Referer do iframe que pediu esse stream
+            code, tail, _pct = attempt(fallback, fb_ref, imp)
+            if code != 0 and imp and not _is_canceled(job_id):
+                code, tail, _pct = attempt(fallback, fb_ref, False)
 
-        if code == 0:
-            job_update(job_id, status="done", progress="100%", finished=time.time())
+        if _is_canceled(job_id):
+            job_update(job_id, status="canceled", progress="cancelado", error="", finished=time.time())
+        elif code == 0:
+            with JOBS_LOCK:
+                recorded = (JOBS.get(job_id) or {}).get("file") or ""
+            found = Path(recorded) if recorded and Path(recorded).exists() else _newest_since(out_dir, started - 2)
+            if found:
+                job_update(job_id, status="done", progress="100%", file=str(found), finished=time.time())
+            else:
+                job_update(job_id, status="error", finished=time.time(),
+                           error="O yt-dlp terminou, mas nenhum arquivo apareceu em %s" % out_dir)
         else:
             err = next((l[6:].strip() for l in reversed(tail) if l.startswith("ERROR:")), "")
             if not err:
                 err = tail[-1] if tail else "Falha ao baixar (veja se o yt-dlp está atualizado)"
-            job_update(job_id, status="error", error=err[:400], finished=time.time())
+            job_update(job_id, status="error", error=friendly_error(err)[:400], finished=time.time())
 
     except Exception as exc:
         job_update(job_id, status="error", error=str(exc)[:400], finished=time.time())
@@ -422,62 +873,140 @@ def run_job(job_id: str, req: dict):
                 pass
 
 
-def new_job(req: dict) -> str:
-    job_id = uuid.uuid4().hex[:16]
+def _prune_jobs_locked():
+    now = time.time()
+    for jid in [j for j, v in JOBS.items() if v.get("finished") and now - v["finished"] > JOB_TTL]:
+        JOBS.pop(jid, None)
+        CANCELED.discard(jid)
+    if len(JOBS) > MAX_JOBS_KEPT:
+        done = sorted((v for v in JOBS.values() if v["status"] not in ACTIVE), key=lambda v: v.get("created", 0))
+        for v in done[: len(JOBS) - MAX_JOBS_KEPT]:
+            JOBS.pop(v["id"], None)
+            CANCELED.discard(v["id"])
+
+
+def new_job(req: dict):
+    """Devolve (job_id, duplicado). Levanta QueueFull se a fila estiver cheia."""
+    quality = req.get("quality") or "best"
     with JOBS_LOCK:
+        _prune_jobs_locked()
+        active = [j for j in JOBS.values() if j["status"] in ACTIVE]
+        for j in active:
+            if j.get("url") == req["url"] and j.get("quality") == quality:
+                return j["id"], True
+        if len(active) >= MAX_ACTIVE:
+            raise QueueFull()
+        job_id = uuid.uuid4().hex[:16]
         JOBS[job_id] = {
             "id": job_id,
             "status": "queued",
             "progress": "na fila",
-            "url": req.get("url", ""),
+            "url": req["url"],
+            "quality": quality,
             "title": req.get("title", ""),
             "created": time.time(),
         }
     EXECUTOR.submit(run_job, job_id, req)
-    return job_id
+    return job_id, False
+
+
+def cancel_job(job_id: str) -> bool:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job or job["status"] not in ACTIVE:
+            return False
+        CANCELED.add(job_id)
+        proc = PROCS.get(job_id)
+        queued = job["status"] == "queued"
+    if queued:
+        job_update(job_id, status="canceled", progress="cancelado", finished=time.time())
+    if proc is not None:
+        kill_proc(proc)
+    return True
 
 
 # --------------------------------------------------------------------------- #
 # miniatura (ffmpeg)
 # --------------------------------------------------------------------------- #
-THUMB_LOCK = threading.Lock()
+THUMB_SEM = threading.BoundedSemaphore(2)
+_THUMB_LOCKS = {}
+_THUMB_LOCKS_GUARD = threading.Lock()
+_THUMB_FAIL = {}
+THUMB_MAX_FILES = 400
+THUMB_MAX_BYTES = 60 * 1024 * 1024
+THUMB_FAIL_TTL = 180
+
+
+def _prune_thumbs():
+    try:
+        files = sorted(THUMB_CACHE.glob("*.jpg"), key=lambda p: p.stat().st_mtime)
+        total = sum(p.stat().st_size for p in files)
+        while files and (len(files) > THUMB_MAX_FILES or total > THUMB_MAX_BYTES):
+            p = files.pop(0)
+            total -= p.stat().st_size
+            p.unlink()
+    except Exception:
+        pass
 
 
 def make_thumb(url: str, referer: str, ua: str) -> bytes:
     ff = exe_path("ffmpeg")
-    if not ff or not url.startswith("http"):
+    url = clean_url(url, 2048)
+    if not ff or not url:
         return b""
+    referer = clean_header(referer, 2048)
+    ua = clean_header(ua, 300)
     THUMB_CACHE.mkdir(parents=True, exist_ok=True)
-    key = hashlib.sha1((url + "|" + (referer or "")).encode("utf-8", "ignore")).hexdigest() + ".jpg"
-    dest = THUMB_CACHE / key
+    key = hashlib.sha1((url + "|" + referer).encode("utf-8", "ignore")).hexdigest()
+    dest = THUMB_CACHE / (key + ".jpg")
     if dest.exists() and dest.stat().st_size > 600:
         return dest.read_bytes()
-
-    with THUMB_LOCK:
-        if dest.exists() and dest.stat().st_size > 600:
-            return dest.read_bytes()
-        cmd = [ff, "-hide_banner", "-loglevel", "error", "-y"]
-        if ua:
-            cmd += ["-user_agent", ua]
-        if referer.startswith("http"):
-            cmd += ["-headers", "Referer: %s\r\n" % referer]
-        cmd += [
-            "-analyzeduration", "12M", "-probesize", "12M",
-            "-ss", "2",
-            "-i", url,
-            "-frames:v", "1",
-            "-vf", "scale=320:-2",
-            "-q:v", "6",
-            str(dest),
-        ]
-        try:
-            subprocess.run(cmd, timeout=25, creationflags=NO_WINDOW,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            return b""
-        if dest.exists() and dest.stat().st_size > 600:
-            return dest.read_bytes()
+    if time.time() - _THUMB_FAIL.get(key, 0) < THUMB_FAIL_TTL:
         return b""
+
+    with _THUMB_LOCKS_GUARD:
+        lock = _THUMB_LOCKS.setdefault(key, threading.Lock())
+    with lock:
+        try:
+            if dest.exists() and dest.stat().st_size > 600:
+                return dest.read_bytes()
+            with THUMB_SEM:
+                cmd = [ff, "-hide_banner", "-loglevel", "error", "-y",
+                       # só rede (nada de file:, concat:, etc.): impede ler arquivos locais por playlist HLS
+                       "-protocol_whitelist", "http,https,tcp,tls,crypto,data"]
+                if ua:
+                    cmd += ["-user_agent", ua]
+                if referer.startswith("http"):
+                    cmd += ["-headers", "Referer: %s\r\n" % referer]
+                cmd += [
+                    "-analyzeduration", "12M", "-probesize", "12M",
+                    "-ss", "2",
+                    "-i", url,
+                    "-frames:v", "1",
+                    "-vf", "scale=320:-2",
+                    "-q:v", "6",
+                    str(dest),
+                ]
+                try:
+                    subprocess.run(cmd, timeout=25, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except Exception:
+                    pass
+            if dest.exists() and dest.stat().st_size > 600:
+                _prune_thumbs()
+                return dest.read_bytes()
+            if len(_THUMB_FAIL) > 2000:
+                _THUMB_FAIL.clear()
+            _THUMB_FAIL[key] = time.time()
+            try:
+                dest.unlink()
+            except Exception:
+                pass
+            return b""
+        finally:
+            with _THUMB_LOCKS_GUARD:
+                if len(_THUMB_LOCKS) > 500:
+                    _THUMB_LOCKS.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -503,24 +1032,28 @@ except Exception:
 open(out, "w", encoding="utf-8").write(path)
 """
 
+# O caminho inicial e o arquivo de saída vão por variável de ambiente: nunca
+# viram texto do comando (antes, aspas tipográficas no caminho quebravam o escape).
+PICK_PS = (
+    "Add-Type -AssemblyName System.Windows.Forms;"
+    "$f = New-Object System.Windows.Forms.FolderBrowserDialog;"
+    "$f.Description = 'NOE VFX - escolha a pasta para salvar os videos';"
+    "$f.ShowNewFolderButton = $true;"
+    "if ($env:NVF_INI) { $f.SelectedPath = $env:NVF_INI };"
+    "if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {"
+    " Set-Content -LiteralPath $env:NVF_OUT -Value $f.SelectedPath -Encoding UTF8 }"
+)
+
 
 def _pick_windows() -> str:
     """Seletor de pasta nativo do Windows (PowerShell) — não depende do tkinter."""
     fd, tmp = tempfile.mkstemp(prefix="nvf_pick_", suffix=".txt", dir=str(TMP))
     os.close(fd)
     try:
-        ini = (load_cfg().get("output_dir") or "").replace("'", "''")
-        ps = "Add-Type -AssemblyName System.Windows.Forms;"
-        ps += "$f = New-Object System.Windows.Forms.FolderBrowserDialog;"
-        ps += "$f.Description = 'NOE VFX - escolha a pasta para salvar os videos';"
-        ps += "$f.ShowNewFolderButton = $true;"
-        if ini:
-            ps += "$f.SelectedPath = '%s';" % ini
-        ps += "if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {"
-        ps += " Set-Content -LiteralPath '%s' -Value $f.SelectedPath -Encoding UTF8 }" % tmp.replace("'", "''")
+        env = dict(os.environ, NVF_INI=load_cfg().get("output_dir") or "", NVF_OUT=tmp)
         subprocess.run(
-            ["powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", ps],
-            timeout=900, creationflags=NO_WINDOW,
+            ["powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", PICK_PS],
+            timeout=900, creationflags=NO_WINDOW, env=env, stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         return Path(tmp).read_text(encoding="utf-8-sig", errors="replace").strip()
@@ -580,12 +1113,16 @@ def pick_folder() -> str:
 
 
 def open_folder(path: str) -> bool:
-    p = Path(path or load_cfg().get("output_dir") or DEFAULT_CFG["output_dir"]).expanduser()
+    """Abre uma PASTA no gerenciador de arquivos. Nunca abre/executa arquivos."""
+    raw = (path or "").strip() or load_cfg().get("output_dir") or DEFAULT_CFG["output_dir"]
+    if len(raw) > 500 or _CTRL_RE.search(raw):
+        return False
+    p = Path(raw).expanduser()
     try:
-        p.mkdir(parents=True, exist_ok=True)
+        p.mkdir(parents=True, exist_ok=True)   # falha se já existir como arquivo
     except Exception:
         pass
-    if not p.exists():
+    if not p.is_dir():
         return False
     try:
         if IS_WIN:
@@ -606,21 +1143,40 @@ def py_version() -> str:
 # --------------------------------------------------------------------------- #
 # HTTP
 # --------------------------------------------------------------------------- #
+class TooLarge(Exception):
+    pass
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "NoeVFX/" + VERSION
     protocol_version = "HTTP/1.1"
+    timeout = 60                      # conexão ociosa não segura thread para sempre
 
-    def _allowed(self) -> bool:
+    # -- autenticação ------------------------------------------------------- #
+    def _host_ok(self) -> bool:
+        host = (self.headers.get("Host") or "").strip().lower()
+        return host in ("127.0.0.1:%d" % PORT, "localhost:%d" % PORT)
+
+    def _origin_id(self):
         origin = self.headers.get("Origin", "") or ""
-        if origin and not origin.startswith("chrome-extension://") and not origin.startswith("moz-extension://"):
-            return False
-        return (self.headers.get("X-NoeVFX-Client", "") == "1"
-                or origin.startswith(("chrome-extension://", "moz-extension://")))
+        if origin.startswith("chrome-extension://"):
+            return origin[len("chrome-extension://"):].strip("/")
+        return None
+
+    def _auth(self, path: str):
+        """'ext' = extensão autorizada | 'probe' = diagnóstico do instalador (só /health) | None = negado."""
+        if not self._host_ok():            # barra DNS rebinding
+            return None
+        if self.headers.get("Origin"):
+            return "ext" if self._origin_id() in allowed_ext_ids() else None
+        if path == "/health" and self.headers.get("X-NoeVFX-Client", "") == "1":
+            return "probe"
+        return None
 
     def _cors(self):
-        origin = self.headers.get("Origin", "") or ""
-        if origin.startswith(("chrome-extension://", "moz-extension://")):
-            self.send_header("Access-Control-Allow-Origin", origin)
+        eid = self._origin_id()
+        if eid and eid in allowed_ext_ids() and self._host_ok():
+            self.send_header("Access-Control-Allow-Origin", self.headers.get("Origin"))
             self.send_header("Vary", "Origin")
 
     def _json(self, code: int, payload: dict):
@@ -629,6 +1185,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self._cors()
         self.end_headers()
         try:
@@ -641,6 +1198,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "public, max-age=3600")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self._cors()
         self.end_headers()
         try:
@@ -653,6 +1211,8 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
         except Exception:
             length = 0
+        if length > MAX_BODY:
+            raise TooLarge()
         if length <= 0:
             return {}
         raw = self.rfile.read(length)
@@ -663,39 +1223,56 @@ class Handler(BaseHTTPRequestHandler):
             return {}
 
     def do_OPTIONS(self):
+        path = urlparse(self.path).path
+        if self._auth(path) != "ext":
+            self.send_response(403)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         self.send_response(204)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-NoeVFX-Client")
+        self.send_header("Access-Control-Max-Age", "600")
         self._cors()
         self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_GET(self):
-        if not self._allowed():
+        parsed = urlparse(self.path)
+        level = self._auth(parsed.path)
+        if not level:
             self._json(403, {"error": "forbidden"})
             return
-
-        parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
 
         if parsed.path == "/health":
+            if level == "probe":                       # instaladores: só dizem "estou vivo"
+                self._json(200, {"ok": True, "brand": BRAND, "version": VERSION, "api_version": API_VERSION})
+                return
             yt = exe_path("yt-dlp")
-            ff = exe_path("ffmpeg")
+            fst = ffmpeg_state()
+            ff = fst["path"]
+            with JOBS_LOCK:
+                running = sum(1 for j in JOBS.values() if j["status"] in ACTIVE)
             self._json(200, {
                 "ok": True,
                 "brand": BRAND,
                 "version": VERSION,
+                "api_version": API_VERSION,
                 "platform": platform.system() + " " + platform.release(),
                 "python": py_version(),
                 "yt_dlp": bool(yt),
                 "yt_dlp_path": yt,
                 "ffmpeg": bool(ff),
                 "ffmpeg_path": ff,
-                "impersonate": supports_impersonate(),
+                "ffmpeg_ok": fst["ok"],          # existe E executa
+                "ffprobe_ok": fst["probe"],      # sem o ffprobe o "só áudio (m4a)" não converte
+                "deno": bool(find_exe("deno")),
+                "impersonate": bool(impersonate_cached()),
                 "output_dir": load_cfg().get("output_dir", ""),
                 "default_output_dir": str(default_output_dir()),
                 "config_file": str(CONFIG_FILE),
-                "jobs": len(JOBS),
+                "jobs": running,
             })
             return
 
@@ -716,6 +1293,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/jobs":
             with JOBS_LOCK:
                 items = sorted(JOBS.values(), key=lambda j: j.get("created", 0), reverse=True)[:25]
+                items = [dict(j) for j in items]
             self._json(200, {"jobs": items})
             return
 
@@ -733,16 +1311,22 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
-        if not self._allowed():
+        path = urlparse(self.path).path
+        if self._auth(path) != "ext":
             self._json(403, {"error": "forbidden"})
             return
 
-        path = urlparse(self.path).path
+        try:
+            body = self._body()
+        except TooLarge:
+            self.close_connection = True
+            self._json(413, {"error": "corpo muito grande"})
+            return
 
         if path == "/config":
             try:
-                cfg = save_cfg(self._body())
-            except Exception as exc:
+                cfg = save_cfg(body)
+            except (ValueError, RuntimeError) as exc:
                 self._json(400, {"error": str(exc)})
                 return
             self._json(200, cfg)
@@ -754,19 +1338,41 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/open-folder":
-            body = self._body()
-            ok = open_folder(body.get("path", ""))
-            self._json(200 if ok else 500, {"ok": ok, "path": body.get("path", "")})
+            ok = open_folder(body.get("path", "") if isinstance(body.get("path", ""), str) else "")
+            self._json(200 if ok else 500, {"ok": ok})
             return
 
         if path == "/download":
-            body = self._body()
-            url = (body.get("url") or "").strip()
-            if not url.startswith("http"):
+            url = clean_url(body.get("url"))
+            if not url:
                 self._json(400, {"error": "URL inválida"})
                 return
-            job_id = new_job(body)
-            self._json(200, {"job_id": job_id, "output_dir": load_cfg().get("output_dir", "")})
+            quality = body.get("quality")
+            req = {
+                "url": url,
+                "fallback_stream": clean_url(body.get("fallbackStream") or body.get("fallback_stream")),
+                "referer": clean_url(body.get("referer"), 2048),
+                "fallback_referer": clean_url(body.get("fallbackReferer") or body.get("fallback_referer"), 2048),
+                "userAgent": clean_header(body.get("userAgent"), 300),
+                "quality": quality if quality in FORMAT_MAP else "",
+                "title": clean_header(body.get("title"), 300),
+                "cookies": clean_cookies(body.get("cookies")),
+                "organizeBySite": body.get("organizeBySite") is True,
+                "single": body.get("single") is not False,
+            }
+            try:
+                job_id, dup = new_job(req)
+            except QueueFull:
+                self._json(429, {"error": "fila cheia (%d downloads)" % MAX_ACTIVE})
+                return
+            self._json(200, {"job_id": job_id, "duplicate": dup,
+                             "output_dir": load_cfg().get("output_dir", "")})
+            return
+
+        if path == "/cancel":
+            jid = body.get("id", "")
+            ok = isinstance(jid, str) and cancel_job(jid)
+            self._json(200 if ok else 404, {"ok": ok})
             return
 
         self._json(404, {"error": "not found"})
@@ -783,7 +1389,8 @@ def already_running() -> bool:
             headers={"X-NoeVFX-Client": "1"},
         )
         with url_open(req, timeout=2) as r:
-            return r.status == 200
+            data = json.loads(r.read().decode("utf-8", "replace"))
+            return r.status == 200 and bool(data.get("ok")) and "NOÉ" in str(data.get("brand", ""))
     except Exception:
         return False
 
@@ -797,6 +1404,38 @@ class QuietServer(ThreadingHTTPServer):
         pass
 
 
+YTDLP_STAMP = BASE / ".ytdlp_checked"
+
+
+def maybe_update_ytdlp():
+    """Os sites mudam toda semana e o yt-dlp acompanha: atualiza sozinho (no máx. 1x por dia),
+    só o yt-dlp que o instalador pôs na pasta bin (o do sistema fica com o gerenciador dele)."""
+    yt = exe_path("yt-dlp")
+    if not yt or Path(yt).parent != BIN:
+        return
+    try:
+        if YTDLP_STAMP.exists() and time.time() - YTDLP_STAMP.stat().st_mtime < 86400:
+            return
+    except Exception:
+        pass
+    with JOBS_LOCK:
+        if any(j["status"] in ACTIVE for j in JOBS.values()):
+            return                      # não troca o arquivo no meio de um download
+    try:
+        subprocess.run([yt, "--ignore-config", "-U"], capture_output=True, timeout=180, creationflags=NO_WINDOW,
+                       stdin=subprocess.DEVNULL, cwd=str(BASE))
+        YTDLP_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _updater_loop():
+    time.sleep(30)
+    while True:
+        maybe_update_ytdlp()
+        time.sleep(6 * 3600)
+
+
 def main():
     if already_running():
         print("[NOÉ VFX] Já existe um servidor rodando na porta %d." % PORT, flush=True)
@@ -808,7 +1447,11 @@ def main():
     except OSError as exc:
         print("[NOÉ VFX] Porta %d ocupada (%s). Já deve haver um servidor rodando." % (PORT, exc), flush=True)
         return 1
-    print("[NOÉ VFX] Servidor %s em http://%s:%d" % (VERSION, HOST, PORT), flush=True)
+    sweep_temp()
+    threading.Thread(target=supports_impersonate, daemon=True).start()   # aquece em segundo plano
+    threading.Thread(target=ffmpeg_state, daemon=True).start()
+    threading.Thread(target=_updater_loop, daemon=True).start()
+    print("[NOÉ VFX] Servidor %s (api %d) em http://%s:%d" % (VERSION, API_VERSION, HOST, PORT), flush=True)
     print("[NOÉ VFX] Pasta padrão: %s" % load_cfg().get("output_dir"), flush=True)
     try:
         httpd.serve_forever()

@@ -1,5 +1,9 @@
-﻿Noe VFX Downloader 3.0 — noevfx.com
+﻿Noe VFX Downloader 3.0.1 — noevfx.com
 =====================================
+
+O instalador faz TUDO sozinho (Python, yt-dlp, FFmpeg, Deno e o servidor).
+Você NÃO precisa instalar nada antes e NÃO precisa de senha de administrador.
+Só precisa de internet na hora de instalar (1 a 5 minutos).
 
 ESCOLHA A PASTA DO SEU SISTEMA:
    windows\   ->  Windows 10 / 11
@@ -20,29 +24,36 @@ CERTO: carregar da pasta onde o PROGRAMA FOI INSTALADO:
   Linux     ~/.local/share/NoeVFXDownloader/extension
 
 O instalador ABRE essa pasta sozinho e copia o caminho para a
-área de transferência. É só arrastar a pasta "extension" para a
-página de extensões (ou usar "Carregar sem pacote" e selecioná-la).
+área de transferência.
 ==================================================================
 
 WINDOWS
-  1. Entre na pasta "windows"
-  2. Duplo clique em INSTALAR_NOEVFX.bat
-     (não clique dentro da janela preta enquanto instala)
-  3. Ele copia tudo para %LOCALAPPDATA%\NoeVFXDownloader, liga o
-     servidor, ABRE a pasta NoeVFX e abre o navegador
-  4. Modo de desenvolvedor -> arraste a pasta "extension" (que está
-     aberta na tela) para a página, ou clique em "Carregar sem
-     pacote" e selecione essa pasta
-  5. Abra a extensão: ela pergunta em qual pasta salvar os vídeos
+  1. Extraia o ZIP inteiro (botão direito > Extrair tudo)
+  2. Entre na pasta "windows" e dê duplo clique em INSTALAR_NOEVFX.bat
+     (se o Windows avisar "protegeu seu PC": Mais informações > Executar assim mesmo)
+     Não clique dentro da janela escura enquanto instala.
+  3. No final ele abre a pasta e o navegador. Siga o "ÚLTIMO PASSO"
+     (3 cliques) que aparece na tela.
 
-MAC / LINUX
-  1. Terminal dentro da pasta "mac" (ou "linux")
-  2. Rode:   bash instalar-noevfx.sh
-  3. Ele copia para ~/.local/share/NoeVFXDownloader, ABRE essa pasta
-     no Finder/gerenciador e copia o caminho certo
-  4. chrome://extensions -> Modo do desenvolvedor -> arraste a pasta
-     "extension" (ou "Carregar sem compactação" e selecione)
-  5. Abra a extensão: ela pergunta em qual pasta salvar os vídeos
+MAC
+  1. Dê duplo clique no ZIP para extrair
+  2. Entre na pasta "mac". CLIQUE COM O BOTÃO DIREITO em INSTALAR-MAC.command
+     e escolha  Abrir  (e Abrir de novo no aviso). Só na 1ª vez.
+     Se preferir o Terminal:   bash instalar-noevfx.sh
+  3. No final ele abre o Chrome em chrome://extensions. Siga o
+     "ÚLTIMO PASSO" (3 cliques): Modo do desenvolvedor > Carregar sem
+     compactação > Cmd+Shift+G, cole o caminho (já está copiado) > Abrir
+  Safari não é suportado: use Chrome, Edge ou Brave.
+
+LINUX
+  1. Terminal dentro da pasta "linux":   bash instalar-noevfx.sh
+  2. Siga o "ÚLTIMO PASSO" que aparece na tela.
+
+SE ALGO DER ERRADO
+  - Rode o instalador de novo (é seguro: ele só baixa o que faltar).
+  - O log fica em  <pasta do programa>/install.log
+  - Na extensão, Configurações mostra o que está OK (servidor, yt-dlp,
+    FFmpeg, Deno).
 
 ------------------------------------------------------------------
 Manual completo: MANUAL.md

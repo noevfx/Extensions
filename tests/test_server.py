@@ -1,0 +1,306 @@
+"""Testes do servidor local (só biblioteca padrão).
+
+    python -m unittest discover -s tests -v
+
+Roda uma CÓPIA do server.py numa pasta temporária, numa porta livre, com um
+servidor de arquivos de teste. Não toca na instalação real nem em config.json.
+Os testes que precisam do yt-dlp são pulados se ele não estiver instalado.
+"""
+
+import http.client
+import importlib.util
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import unittest
+from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SERVER_SRC = ROOT / "server" / "server.py"
+EXT_ID = "hdmfifeopbmjcfjbjpkfjinejneohlji"          # ID fixo (chave do manifest.json)
+EVIL_ID = "a" * 32
+
+
+def free_port():
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    p = s.getsockname()[1]
+    s.close()
+    return p
+
+
+class FileHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+
+class SlowHandler(BaseHTTPRequestHandler):
+    """Entrega um 'vídeo' devagar, para dar tempo de cancelar."""
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Length", str(50 * 1024 * 1024))
+        self.end_headers()
+        try:
+            for _ in range(500):
+                self.wfile.write(b"\0" * 1024)
+                time.sleep(0.2)
+        except Exception:
+            pass
+
+    def log_message(self, *a):
+        pass
+
+
+class ServerCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="nvf_test_"))
+        (cls.tmp / "srv").mkdir()
+        shutil.copy2(SERVER_SRC, cls.tmp / "srv" / "server.py")
+        cls.www = cls.tmp / "www"
+        cls.www.mkdir()
+        (cls.www / "a.mp4").write_bytes(b"\0" * 4096)
+        cls.out = cls.tmp / "downloads"
+
+        cls.fport = free_port()
+        handler = lambda *a, **k: FileHandler(*a, directory=str(cls.www), **k)
+        cls.fs = ThreadingHTTPServer(("127.0.0.1", cls.fport), handler)
+        threading.Thread(target=cls.fs.serve_forever, daemon=True).start()
+        cls.sport = free_port()
+        cls.slow = ThreadingHTTPServer(("127.0.0.1", cls.sport), SlowHandler)
+        threading.Thread(target=cls.slow.serve_forever, daemon=True).start()
+
+        cls.port = free_port()
+        env = dict(os.environ, NOEVFX_PORT=str(cls.port))
+        cls.proc = subprocess.Popen([sys.executable, str(cls.tmp / "srv" / "server.py")], env=env,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(cls.tmp))
+        for _ in range(60):
+            try:
+                if cls.req("GET", "/health", {"X-NoeVFX-Client": "1"})[0] == 200:
+                    break
+            except Exception:
+                time.sleep(0.25)
+        cls.have_ytdlp = bool(cls.req("GET", "/health", cls.ext())[2].get("yt_dlp"))
+        cls.req("POST", "/config", cls.ext(), {"output_dir": str(cls.out), "onboarded": True})
+
+        spec = importlib.util.spec_from_file_location("srv_copy", cls.tmp / "srv" / "server.py")
+        cls.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.mod)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.fs.shutdown()
+        cls.slow.shutdown()
+        time.sleep(0.3)
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    # -- helpers ----------------------------------------------------------- #
+    @classmethod
+    def ext(cls, eid=EXT_ID, **extra):
+        h = {"Origin": "chrome-extension://" + eid}
+        h.update(extra)
+        return h
+
+    @classmethod
+    def req(cls, method, path, headers=None, body=None, raw=None):
+        c = http.client.HTTPConnection("127.0.0.1", cls.port, timeout=60)
+        hdr = dict(headers or {})
+        data = raw
+        if body is not None:
+            data = json.dumps(body)
+            hdr["Content-Type"] = "application/json"
+        c.request(method, path, body=data, headers=hdr)
+        r = c.getresponse()
+        txt = r.read()
+        try:
+            js = json.loads(txt.decode("utf-8"))
+        except Exception:
+            js = {}
+        c.close()
+        return r.status, dict(r.getheaders()), js
+
+    def wait_job(self, jid, secs=40):
+        for _ in range(int(secs * 4)):
+            st = self.req("GET", "/status?id=" + jid, self.ext())[2]
+            if st.get("status") in ("done", "error", "canceled"):
+                return st
+            time.sleep(0.25)
+        return st
+
+    # -- autenticação ------------------------------------------------------ #
+    def test_sem_origem_nem_cabecalho_nega(self):
+        self.assertEqual(self.req("GET", "/config")[0], 403)
+
+    def test_cabecalho_sozinho_so_vale_para_health(self):
+        h = {"X-NoeVFX-Client": "1"}
+        self.assertEqual(self.req("GET", "/config", h)[0], 403)
+        self.assertEqual(self.req("GET", "/jobs", h)[0], 403)
+        st, _, js = self.req("GET", "/health", h)
+        self.assertEqual(st, 200)
+        self.assertNotIn("output_dir", js)                 # health do instalador é mínimo
+
+    def test_site_malicioso_nega(self):
+        self.assertEqual(self.req("GET", "/config", {"Origin": "http://evil.com", "X-NoeVFX-Client": "1"})[0], 403)
+        self.assertEqual(self.req("POST", "/config", {"Origin": "http://evil.com", "Content-Type": "text/plain"}, raw="{}")[0], 403)
+
+    def test_extensao_desconhecida_nega(self):
+        self.assertEqual(self.req("GET", "/config", self.ext(EVIL_ID))[0], 403)
+        self.assertEqual(self.req("POST", "/download", self.ext(EVIL_ID), {"url": "http://x.com/a.mp4"})[0], 403)
+
+    def test_dns_rebinding_host_falso_nega(self):
+        h = self.ext(Host="evil.example:%d" % self.port)
+        self.assertEqual(self.req("GET", "/config", h)[0], 403)
+        self.assertEqual(self.req("GET", "/jobs", {"Host": "evil.example:%d" % self.port, "X-NoeVFX-Client": "1"})[0], 403)
+
+    def test_extensao_certa_passa_e_recebe_cors(self):
+        st, hdr, js = self.req("GET", "/config", self.ext())
+        self.assertEqual(st, 200)
+        self.assertEqual(hdr.get("Access-Control-Allow-Origin"), "chrome-extension://" + EXT_ID)
+        self.assertEqual(js["fab_enabled"], True)
+
+    def test_preflight_so_para_extensao_certa(self):
+        h = {"Access-Control-Request-Method": "POST"}
+        self.assertEqual(self.req("OPTIONS", "/download", dict(h, Origin="http://evil.com"))[0], 403)
+        self.assertEqual(self.req("OPTIONS", "/download", dict(h, **self.ext()))[0], 204)
+
+    def test_health_completo_tem_api_version(self):
+        js = self.req("GET", "/health", self.ext())[2]
+        self.assertEqual(js["api_version"], self.mod.API_VERSION)
+        self.assertIn("output_dir", js)
+
+    # -- configuração e argumentos extras ---------------------------------- #
+    def test_extra_args_proibidos_sao_recusados(self):
+        for bad in ("--exec calc", "--exe calc", "-o C:/x/%(id)s", "--config-locations x", "--downloader aria2c",
+                    "--print-to-file a b", "-P C:/tmp", "--cookies-from-browser chrome", "--js-runtimes deno:C:/x.exe",
+                    "--proxy", "solto", "-f22"):
+            st, _, js = self.req("POST", "/config", self.ext(), {"extra_args": bad})
+            self.assertEqual(st, 400, bad)
+
+    def test_extra_args_seguros_funcionam(self):
+        ok = '--extractor-args "youtube:player_client=web" --write-subs --sub-langs pt,en -f "bv*+ba/b"'
+        st, _, js = self.req("POST", "/config", self.ext(), {"extra_args": ok})
+        self.assertEqual(st, 200)
+        self.assertEqual(js["extra_args"], ok)
+        self.assertEqual(self.mod.parse_extra_args(ok)[0:2], ["--extractor-args", "youtube:player_client=web"])
+        self.req("POST", "/config", self.ext(), {"extra_args": ""})
+
+    def test_config_valida_tipos(self):
+        self.assertEqual(self.req("POST", "/config", self.ext(), {"default_quality": "999"})[0], 400)
+        self.assertEqual(self.req("POST", "/config", self.ext(), {"fab_enabled": "sim"})[0], 400)
+        self.assertEqual(self.req("POST", "/config", self.ext(), {"output_dir": "a\x00b"})[0], 400)
+
+    def test_corpo_gigante_413(self):
+        try:
+            st, _, _ = self.req("POST", "/config", self.ext(), raw=json.dumps({"extra_args": "A" * (3 * 1024 * 1024)}))
+            self.assertEqual(st, 413)
+        except ConnectionError:
+            pass                      # o servidor fechou a conexão antes de ler o corpo: também vale como recusa
+        self.assertEqual(self.req("GET", "/config", self.ext())[2]["extra_args"], "")   # nada foi gravado
+
+    # -- pastas ------------------------------------------------------------ #
+    def test_open_folder_recusa_arquivo(self):
+        f = self.www / "a.mp4"
+        self.assertEqual(self.req("POST", "/open-folder", self.ext(), {"path": str(f)})[0], 500)
+
+    # -- miniatura --------------------------------------------------------- #
+    def test_thumb_recusa_esquema_nao_http(self):
+        for u in ("file:///C:/Windows/win.ini", "ftp://x/y.mp4", "javascript:1", "concat:file.txt"):
+            self.assertEqual(self.req("GET", "/thumb?url=" + u, self.ext())[0], 404, u)
+
+    # -- downloads (precisam do yt-dlp) ------------------------------------ #
+    def test_download_url_invalida(self):
+        self.assertEqual(self.req("POST", "/download", self.ext(), {"url": "file:///etc/passwd"})[0], 400)
+        self.assertEqual(self.req("POST", "/download", self.ext(), {"url": "--exec calc"})[0], 400)
+
+    def test_download_ignora_extra_args_do_corpo(self):
+        if not self.have_ytdlp:
+            self.skipTest("yt-dlp ausente")
+        proof = self.tmp / "proof.txt"
+        st, _, js = self.req("POST", "/download", self.ext(), {
+            "url": "http://127.0.0.1:%d/a.mp4" % self.fport,
+            "extra_args": "--simulate --print-to-file PWNED %s" % proof.as_posix()})
+        self.assertEqual(st, 200)
+        self.wait_job(js["job_id"])
+        self.assertFalse(proof.exists())
+
+    def test_download_completo_e_duplicado(self):
+        if not self.have_ytdlp:
+            self.skipTest("yt-dlp ausente")
+        url = "http://127.0.0.1:%d/a.mp4" % self.fport
+        _, _, a = self.req("POST", "/download", self.ext(), {"url": url, "title": "teste"})
+        _, _, b = self.req("POST", "/download", self.ext(), {"url": url, "title": "teste"})
+        if not b.get("duplicate"):          # o 1º já pode ter terminado: tudo bem
+            self.assertNotEqual(a["job_id"], b["job_id"])
+        else:
+            self.assertEqual(a["job_id"], b["job_id"])
+        st = self.wait_job(a["job_id"])
+        self.assertEqual(st["status"], "done", st)
+        self.assertTrue(Path(st["file"]).exists())
+
+    def test_cancelar_download(self):
+        if not self.have_ytdlp:
+            self.skipTest("yt-dlp ausente")
+        _, _, js = self.req("POST", "/download", self.ext(), {"url": "http://127.0.0.1:%d/slow.mp4" % self.sport})
+        for _ in range(40):                  # espera começar
+            if self.req("GET", "/status?id=" + js["job_id"], self.ext())[2].get("status") == "downloading":
+                break
+            time.sleep(0.25)
+        time.sleep(1.5)
+        self.assertEqual(self.req("POST", "/cancel", self.ext(), {"id": js["job_id"]})[0], 200)
+        st = self.wait_job(js["job_id"], 20)
+        self.assertEqual(st["status"], "canceled", st)
+        self.assertEqual(self.req("POST", "/cancel", self.ext(), {"id": js["job_id"]})[0], 404)   # já terminou
+
+    # -- funções puras ----------------------------------------------------- #
+    def test_clean_cookies(self):
+        m = self.mod
+        good = ".a.com\tTRUE\t/\tFALSE\t2000000000\tn\tv"
+        txt = "# Netscape HTTP Cookie File\n%s\nlixo sem tabs\n#HttpOnly_.b.com\tTRUE\t/\tTRUE\t2000000000\tk\tv2\n" % good
+        out = m.clean_cookies(txt)
+        self.assertIn(good, out)
+        self.assertIn("#HttpOnly_.b.com", out)
+        self.assertNotIn("lixo", out)
+        self.assertEqual(m.clean_cookies("qualquer coisa"), "")
+
+    def test_health_informa_ffmpeg_de_verdade(self):
+        js = self.req("GET", "/health", self.ext())[2]
+        for k in ("ffmpeg_ok", "ffprobe_ok", "deno", "impersonate"):
+            self.assertIn(k, js)
+
+    def test_erros_em_portugues(self):
+        m = self.mod
+        self.assertIn("robô", m.friendly_error("Sign in to confirm you're not a bot"))
+        self.assertIn("403", m.friendly_error("HTTP Error 403: Forbidden"))
+        self.assertIn("FFmpeg", m.friendly_error("Postprocessing: ffprobe and ffmpeg not found."))
+        self.assertEqual(m.friendly_error("erro qualquer"), "erro qualquer")
+
+    def test_detecta_pedacos_nao_unidos(self):
+        m = self.mod
+        for nome in ("Titulo [abc].f251.webm", "Titulo [abc].f395.mp4", "x [id].fhls-1080.mp4"):
+            self.assertTrue(m.UNMERGED_RE.search(nome), nome)
+        for nome in ("Titulo [abc].mp4", "Aula 2.f final [abc].mp4"):
+            self.assertFalse(m.UNMERGED_RE.search(nome), nome)
+
+    def test_ffmpeg_ausente_vira_formato_unico_com_audio(self):
+        # um "ffmpeg" que não executa não pode ser tratado como disponível
+        self.assertTrue(self.mod.FF_MISSING_RE.search("ERROR: Postprocessing: ffprobe and ffmpeg not found. Please install"))
+        self.assertTrue(self.mod.FF_MISSING_RE.search("WARNING: You have requested merging of multiple formats but ffmpeg is not installed. The formats won't be merged"))
+
+    def test_clean_url(self):
+        m = self.mod
+        self.assertTrue(m.clean_url("https://a.com/x.m3u8?a=1"))
+        for bad in ("", "javascript:1", "file:///x", "http://", "https://a.com/a b", "https://a.com/\nx", "--exec"):
+            self.assertEqual(m.clean_url(bad), "", bad)
+
+
+if __name__ == "__main__":
+    unittest.main()

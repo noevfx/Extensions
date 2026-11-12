@@ -1,8 +1,10 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.1  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
+   - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
-   - Fila de downloads individuais e "baixar todos"
+   - Fila de downloads individuais, "baixar todos" e cancelar
+   - Só aceita pedidos sensíveis (config, pasta) vindos das páginas da extensão
    ========================================================================== */
 "use strict";
 
@@ -12,8 +14,12 @@ const t = (k, ...s) => (globalThis.__nvfT ? globalThis.__nvfT(k, ...s) : k);
 
 const SERVER = "http://127.0.0.1:8765";
 const HDRS = { "Content-Type": "application/json", "X-NoeVFX-Client": "1" };
+const REQUIRED_API = 2;               // versão mínima do protocolo do servidor local
 const MAX_STREAMS = 80;
+const MAX_CT_STREAMS = 12;            // itens achados só pelo Content-Type (evita encher com segmentos)
 const SESSION = chrome.storage && chrome.storage.session;
+const EXT_URL = chrome.runtime.getURL("");
+const QUALITIES = ["best", "1080", "720", "audio"];
 
 const DEFAULT_CONFIG = {
   output_dir: "",
@@ -27,20 +33,26 @@ const DEFAULT_CONFIG = {
 
 const IGNORE_RE = /\.(ts|m4s|m4f|aac|vtt|srt|jpg|jpeg|png|gif|webp|avif|svg|css|js|json|woff2?|ico|txt|xml|webmanifest)(\?|#|$)|doubleclick|googlesyndication|adsystem|scorecardresearch|googletagmanager|google-analytics|adservice|pubmatic|rubiconproject/i;
 
-const MEDIA_EXT_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|m4a)(\?|#|$)/i;
+const MEDIA_EXT_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|m4a|mkv|flv|ogv)(\?|#|$)/i;
+
+// vídeo/áudio/manifesto reconhecido pelo cabeçalho Content-Type (URLs sem extensão)
+const CT_RE = /^(video\/|audio\/(mp4|mpeg|aac|ogg|webm|x-m4a)|application\/(vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i;
+// o YouTube é baixado pela URL da página (yt-dlp); pedaços de "videoplayback" não servem
+const SKIP_CT_HOST_RE = /(^|\.)(googlevideo\.com|youtube\.com|ytimg\.com)$/i;
 
 /* ---------------------------------------------------------------- util ---- */
 const now = () => Date.now();
+const isHttp = (u) => typeof u === "string" && u.length < 4096 && /^https?:\/\//i.test(u);
 
 async function fetchJson(url, opts = {}, timeout = 9000) {
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeout);
+  const tm = setTimeout(() => ctl.abort(), timeout);
   try {
     const r = await fetch(url, { ...opts, signal: ctl.signal, cache: "no-store" });
     const data = await r.json().catch(() => ({}));
     return { ok: r.ok, status: r.status, data };
   } finally {
-    clearTimeout(t);
+    clearTimeout(tm);
   }
 }
 
@@ -55,31 +67,64 @@ function classify(url) {
   return "Player";
 }
 
+function kindFromContentType(ct) {
+  if (/mpegurl/i.test(ct)) return "HLS";
+  if (/dash\+xml/i.test(ct)) return "DASH";
+  if (/^audio\//i.test(ct)) return "Áudio";
+  if (/webm/i.test(ct)) return "WebM";
+  return "MP4";
+}
+
 /* Agrupa variantes de qualidade do MESMO vídeo (uma pasta = um vídeo). */
-function groupKey(url) {
+function groupKey(url, collapseDigits) {
   try {
     const u = new URL(url);
     let p = u.pathname;
     if (/\.(m3u8|mpd)$/i.test(p)) p = p.replace(/\/[^/]*$/, "");
+    if (collapseDigits) p = p.replace(/\d+/g, "#");
     return u.hostname + p;
   } catch (_) {
     return url;
   }
 }
 
+/* Quem pediu o arquivo (a página/iframe do player). Muitos players (Hotmart, Vimeo privado...) só liberam o
+   vídeo com o Referer do iframe do player, não o da página de fora. */
+function refFrom(d) {
+  try {
+    if (d && isHttp(d.documentUrl)) return d.documentUrl.slice(0, 2000);
+    const o = (d && d.initiator) || "";
+    return /^https?:/i.test(o) ? new URL(o).origin + "/" : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function findItem(url) {
+  for (const list of MEM.values()) {
+    const hit = list.find((x) => x.url === url);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/* Quem mandou a mensagem: página da própria extensão (popup/opções) ou content script? */
+const isExtPage = (s) => !!(s && s.id === chrome.runtime.id && typeof s.url === "string" && s.url.startsWith(EXT_URL));
+
 /* ------------------------------------------------------- store por aba ---- */
 const MEM = new Map();          // tabId -> [streams]
 const THUMB = new Map();        // tabId -> thumb da página
 const PAGE_TITLE = new Map();   // tabId -> título
 const dirty = new Set();
+const dirtyBadge = new Set();
 let flushTimer = null;
 let badgeTimer = null;
 
-function sessionGet(key) {
+function sessionGet(keys) {
   return new Promise((res) => {
     if (!SESSION) return res({});
     try {
-      SESSION.get(key).then((r) => res(r || {})).catch(() => res({}));
+      SESSION.get(keys).then((r) => res(r || {})).catch(() => res({}));
     } catch (_) {
       res({});
     }
@@ -95,15 +140,22 @@ function scheduleFlush(tabId) {
     dirty.clear();
     if (!SESSION) return;
     const patch = {};
-    ids.forEach((id) => (patch["t" + id] = MEM.get(id) || []));
+    ids.forEach((id) => {
+      patch["t" + id] = MEM.get(id) || [];
+      patch["m" + id] = { thumb: THUMB.get(id) || "", title: PAGE_TITLE.get(id) || "" };
+    });
     try { await SESSION.set(patch); } catch (_) {}
   }, 250);
 }
 
 async function hydrate(tabId) {
-  const key = "t" + tabId;
-  const r = await sessionGet(key);
-  const seed = r[key];
+  const r = await sessionGet(["t" + tabId, "m" + tabId]);
+  const meta = r["m" + tabId];
+  if (meta && typeof meta === "object") {
+    if (meta.thumb && !THUMB.has(tabId)) THUMB.set(tabId, meta.thumb);
+    if (meta.title && !PAGE_TITLE.has(tabId)) PAGE_TITLE.set(tabId, meta.title);
+  }
+  const seed = r["t" + tabId];
   if (!Array.isArray(seed) || !seed.length) return;
   const cur = MEM.get(tabId);
   if (!cur || !cur.length) { MEM.set(tabId, seed); return; }
@@ -122,23 +174,27 @@ function listOf(tabId) {
   return l;
 }
 
+// cores uma vez só (valem para todas as abas); por aba só o número
+try {
+  chrome.action.setBadgeBackgroundColor({ color: "#E01B24" });
+  if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#FFFFFF" });
+} catch (_) {}
+
 function scheduleBadge(tabId) {
+  dirtyBadge.add(tabId);
   if (badgeTimer) return;
   badgeTimer = setTimeout(() => {
     badgeTimer = null;
-    MEM.forEach((_v, id) => paintBadge(id));
+    const ids = [...dirtyBadge];
+    dirtyBadge.clear();
+    ids.forEach(paintBadge);
   }, 120);
 }
 
 function paintBadge(tabId) {
   const list = MEM.get(tabId) || [];
   const n = new Set(list.map((x) => x.group || groupKey(x.url))).size;
-  const apply = (obj) => {
-    try { chrome.action[obj.fn]({ tabId, ...obj.arg }).catch(() => {}); } catch (_) {}
-  };
-  apply({ fn: "setBadgeBackgroundColor", arg: { color: "#E01B24" } });
-  apply({ fn: "setBadgeTextColor", arg: { color: "#FFFFFF" } });
-  apply({ fn: "setBadgeText", arg: { text: n ? String(n) : "" } });
+  try { chrome.action.setBadgeText({ tabId, text: n ? String(n) : "" }).catch(() => {}); } catch (_) {}
 }
 
 function addStream(tabId, url, kind, extra) {
@@ -152,20 +208,32 @@ function addStream(tabId, url, kind, extra) {
   const hit = list.find((x) => x.url === url);
   if (hit) {
     let changed = false;
-    if (extra && extra.thumb && !hit.thumb) { hit.thumb = extra.thumb; changed = true; }
+    if (extra && isHttp(extra.ref) && !hit.ref) { hit.ref = extra.ref; changed = true; }
+    if (extra && extra.thumb && !hit.thumb && extra.thumb !== THUMB.get(tabId)) { hit.thumb = extra.thumb; changed = true; }
     if (extra && extra.title && !hit.title) { hit.title = extra.title; changed = true; }
     if (changed) scheduleFlush(tabId);
     return;
   }
 
+  const byType = !!(extra && extra.ct);
+  const group = groupKey(url, byType);
+  if (byType) {
+    // segmentos numerados (seg_1, seg_2...) viram um só item
+    if (list.some((x) => x.group === group)) return;
+    if (list.filter((x) => x.ct).length >= MAX_CT_STREAMS) return;
+  }
+
   const item = {
     url,
     kind: kind || classify(url),
-    group: groupKey(url),
+    group,
     ts: now(),
-    thumb: (extra && extra.thumb) || THUMB.get(tabId) || "",
     title: (extra && extra.title) || PAGE_TITLE.get(tabId) || ""
   };
+  if (byType) item.ct = 1;
+  if (extra && isHttp(extra.ref)) item.ref = extra.ref;
+  // miniatura da página fica UMA vez por aba (THUMB); o item só guarda a sua se for diferente
+  if (extra && extra.thumb && extra.thumb !== THUMB.get(tabId)) item.thumb = extra.thumb;
   list.unshift(item);
   if (list.length > MAX_STREAMS) list.length = MAX_STREAMS;
   scheduleFlush(tabId);
@@ -173,16 +241,18 @@ function addStream(tabId, url, kind, extra) {
 }
 
 function setThumb(tabId, thumb, title) {
-  if (!thumb || tabId == null || tabId < 0) return;
-  if (THUMB.get(tabId) === thumb && (!title || PAGE_TITLE.get(tabId) === title)) return;
-  THUMB.set(tabId, thumb);
-  if (title) PAGE_TITLE.set(tabId, title);
-  const list = listOf(tabId);
+  if (tabId == null || tabId < 0) return;
   let changed = false;
-  list.forEach((x) => {
-    if (!x.thumb) { x.thumb = thumb; changed = true; }
-    if (title && !x.title) { x.title = title; changed = true; }
-  });
+  if (thumb && typeof thumb === "string" && thumb.length < 200000 && THUMB.get(tabId) !== thumb) {
+    THUMB.set(tabId, thumb);
+    changed = true;
+  }
+  if (title && typeof title === "string") {
+    const ti = title.slice(0, 300);
+    if (PAGE_TITLE.get(tabId) !== ti) PAGE_TITLE.set(tabId, ti);
+    const list = listOf(tabId);
+    list.forEach((x) => { if (!x.title) { x.title = ti; changed = true; } });
+  }
   if (changed) scheduleFlush(tabId);
 }
 
@@ -190,25 +260,35 @@ function clearTab(tabId) {
   MEM.delete(tabId);
   THUMB.delete(tabId);
   PAGE_TITLE.delete(tabId);
-  try { SESSION.remove("t" + tabId).catch(() => {}); } catch (_) {}
+  dirty.delete(tabId);
+  try { SESSION.remove(["t" + tabId, "m" + tabId]).catch(() => {}); } catch (_) {}
   paintBadge(tabId);
 }
 
 /* ------------------------------------------------------- sniffer de rede -- */
+// 1) URLs com extensão de mídia conhecida
 chrome.webRequest.onBeforeRequest.addListener(
   (d) => {
     if (d.tabId < 0) return;
-    addStream(d.tabId, d.url, null, null);
+    addStream(d.tabId, d.url, null, { ref: refFrom(d) });
   },
-  { urls: ["*://*/*.m3u8*", "*://*/*.mpd*", "*://*/*.mp4*", "*://*/*.webm*", "*://*/*.m4v*", "*://*/*.mov*", "*://*/*.m4a*"] }
+  { urls: ["*://*/*.m3u8*", "*://*/*.mpd*", "*://*/*.mp4*", "*://*/*.webm*", "*://*/*.m4v*", "*://*/*.mov*", "*://*/*.m4a*", "*://*/*.mkv*", "*://*/*.flv*"] }
 );
 
-chrome.webRequest.onBeforeRequest.addListener(
+// 2) <video src> / áudio SEM extensão na URL: reconhece pelo Content-Type da resposta
+chrome.webRequest.onHeadersReceived.addListener(
   (d) => {
-    if (d.tabId < 0) return;
-    addStream(d.tabId, d.url, null, null);
+    if (d.tabId < 0 || (d.statusCode !== 200 && d.statusCode !== 206)) return;
+    let ct = "";
+    for (const h of d.responseHeaders || []) {
+      if (h.name && h.name.toLowerCase() === "content-type") { ct = h.value || ""; break; }
+    }
+    if (!CT_RE.test(ct)) return;
+    try { if (SKIP_CT_HOST_RE.test(new URL(d.url).hostname)) return; } catch (_) { return; }
+    addStream(d.tabId, d.url, kindFromContentType(ct), { ct: 1, ref: refFrom(d) });
   },
-  { urls: ["<all_urls>"], types: ["media"] }
+  { urls: ["<all_urls>"], types: ["media"] },
+  ["responseHeaders"]
 );
 
 chrome.tabs.onRemoved.addListener((tabId) => clearTab(tabId));
@@ -238,7 +318,7 @@ async function getConfig(force) {
       CFG_ERR = null;
       return CFG;
     }
-    throw new Error("bad");
+    throw new Error(r.status === 403 ? "forbidden" : "bad");
   } catch (e) {
     CFG_ERR = String(e);
     if (!CFG) {
@@ -268,19 +348,38 @@ async function saveConfig(patch) {
   return CFG;
 }
 
+/* Quem não é página da extensão só pode ligar/desligar o ícone. */
+function sanitizePatch(patch, fromExtPage) {
+  if (!patch || typeof patch !== "object") return {};
+  if (fromExtPage) return patch;                    // o servidor valida o resto
+  return typeof patch.fab_enabled === "boolean" ? { fab_enabled: patch.fab_enabled } : {};
+}
+
 function broadcastConfig() {
   try {
     chrome.tabs.query({}).then((tabs) => {
-      tabs.forEach((t) => {
-        if (t.id == null) return;
+      tabs.forEach((tb) => {
+        if (tb.id == null) return;
         try {
-          chrome.tabs.sendMessage(t.id, { type: "CONFIG_CHANGED" }, () => {
+          chrome.tabs.sendMessage(tb.id, { type: "CONFIG_CHANGED" }, () => {
             if (chrome.runtime.lastError) { /* aba sem content script */ }
           });
         } catch (_) {}
       });
     }).catch(() => {});
   } catch (_) {}
+}
+
+/* --------------------------------------------------------------- servidor -- */
+let API = { checked: 0, outdated: false };
+
+async function health() {
+  const r = await fetchJson(SERVER + "/health", { headers: HDRS }, 4000);
+  if (r.status === 403) return { ok: false, forbidden: true };
+  const d = r.data || {};
+  const outdated = !(Number(d.api_version) >= REQUIRED_API);
+  API = { checked: now(), outdated };
+  return { ok: r.ok, data: d, outdated };
 }
 
 /* --------------------------------------------------------------- cookies - */
@@ -295,10 +394,11 @@ async function cookieTxt(urls) {
       const id = c.domain + "|" + c.path + "|" + c.name;
       if (seen.has(id)) continue;
       seen.add(id);
+      const val = String(c.value).replace(/[\t\r\n]/g, "");   // um TAB/quebra no valor desalinharia as colunas
       const pref = c.httpOnly ? "#HttpOnly_" : "";
       const sub = c.hostOnly ? "FALSE" : "TRUE";
       const exp = c.expirationDate ? Math.floor(c.expirationDate) : Math.floor(now() / 1000) + 86400 * 30;
-      lines.push(`${pref}${c.domain}\t${sub}\t${c.path}\t${c.secure ? "TRUE" : "FALSE"}\t${exp}\t${c.name}\t${c.value}`);
+      lines.push(`${pref}${c.domain}\t${sub}\t${c.path}\t${c.secure ? "TRUE" : "FALSE"}\t${exp}\t${c.name}\t${val}`);
     }
   }
   return lines.length > 1 ? lines.join("\n") + "\n" : "";
@@ -306,24 +406,29 @@ async function cookieTxt(urls) {
 
 /* -------------------------------------------------------------- downloads - */
 async function startDownload(payload, sender) {
+  if (!payload || !isHttp(payload.url)) return { ok: false, error: "URL inválida" };
   const cfg = await getConfig();
   const tabId = sender && sender.tab ? sender.tab.id : undefined;
-  const pageUrl = payload.pageUrl || (sender && sender.tab ? sender.tab.url : "") || "";
+  const pageUrl = [payload.pageUrl, sender && sender.tab ? sender.tab.url : ""].find(isHttp) || "";
   const list = tabId != null ? listOf(tabId) : [];
-  const best = payload.fallbackStream || (list[0] ? list[0].url : "");
+  const best = isHttp(payload.fallbackStream) ? payload.fallbackStream : (list[0] ? list[0].url : "");
   const useCookies = payload.useCookies !== false && cfg.use_cookies !== false;
 
-  const cookies = useCookies ? await cookieTxt([payload.url, pageUrl]) : "";
+  const fallbackUrl = isHttp(payload.fallbackStream) ? payload.fallbackStream : (payload.url === pageUrl ? best : "");
+  const primItem = findItem(payload.url);
+  const fbItem = fallbackUrl ? findItem(fallbackUrl) : null;
+  const cookies = useCookies ? await cookieTxt([payload.url, fallbackUrl, pageUrl]) : "";
 
   const body = {
     url: payload.url,
-    fallbackStream: payload.fallbackStream || (payload.url === pageUrl ? best : ""),
-    referer: payload.referer || pageUrl,
-    userAgent: payload.userAgent || navigator.userAgent,
-    quality: payload.quality || cfg.default_quality || "best",
-    title: payload.title || (tabId != null ? PAGE_TITLE.get(tabId) : "") || "",
+    fallbackStream: fallbackUrl,
+    // Referer: o do iframe que pediu aquele stream (se conhecido); senão o da página
+    referer: (primItem && primItem.ref) || (isHttp(payload.referer) ? payload.referer : pageUrl),
+    fallbackReferer: (fbItem && fbItem.ref) || "",
+    userAgent: navigator.userAgent,
+    quality: QUALITIES.includes(payload.quality) ? payload.quality : (cfg.default_quality || "best"),
+    title: String(payload.title || (tabId != null ? PAGE_TITLE.get(tabId) : "") || "").slice(0, 300),
     cookies,
-    outputDir: cfg.output_dir || "",
     organizeBySite: !!cfg.organize_by_site,
     single: payload.single !== false
   };
@@ -334,46 +439,60 @@ async function startDownload(payload, sender) {
     body: JSON.stringify(body)
   }, 15000);
 
+  if (r.status === 403) return { ok: false, error: "forbidden" };
   if (!r.ok || !r.data || !r.data.job_id) {
     return { ok: false, error: (r.data && r.data.error) || "Servidor local offline" };
   }
-  return { ok: true, job_id: r.data.job_id, output_dir: r.data.output_dir || cfg.output_dir };
+  return { ok: true, job_id: r.data.job_id, duplicate: !!r.data.duplicate, output_dir: r.data.output_dir || cfg.output_dir };
 }
 
 /* Mensagens */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || typeof msg.type !== "string" || sender.id !== chrome.runtime.id) return;
+  const fromExt = isExtPage(sender);
+  const ownTab = sender && sender.tab ? sender.tab.id : null;
+  const targetTab = (v) => {
+    // content script só mexe na própria aba; popup/opções em qualquer uma
+    if (fromExt) return Number.isInteger(v) ? v : null;
+    return ownTab;
+  };
+
   const run = async () => {
-    switch (msg && msg.type) {
+    switch (msg.type) {
       case "DOM_MEDIA_FOUND": {
-        const tabId = sender && sender.tab ? sender.tab.id : null;
-        if (tabId == null) return { ok: false };
-        if (msg.thumb) setThumb(tabId, msg.thumb, msg.title);
-        if (Array.isArray(msg.items)) msg.items.forEach((it) => addStream(tabId, it.url, it.kind, it));
-        return { ok: true, count: listOf(tabId).length };
+        if (ownTab == null) return { ok: false };
+        if (msg.thumb) setThumb(ownTab, msg.thumb, msg.title);
+        // vindo de um iframe (player embutido): o Referer certo é o do iframe
+        let frameRef = "";
+        if (sender.frameId && isHttp(sender.url)) frameRef = sender.url.slice(0, 2000);
+        if (Array.isArray(msg.items)) msg.items.slice(0, 120).forEach((it) => it && addStream(ownTab, it.url, it.kind, { ...it, ref: frameRef }));
+        return { ok: true, count: listOf(ownTab).length };
       }
 
       case "PAGE_THUMB": {
-        const tabId = sender && sender.tab ? sender.tab.id : null;
-        if (tabId != null) setThumb(tabId, msg.thumb, msg.title);
+        if (ownTab != null) setThumb(ownTab, msg.thumb, msg.title);
         return { ok: true };
       }
 
       case "GET_TAB_STREAMS": {
-        const tabId = msg.tabId;
+        const tabId = targetTab(msg.tabId);
+        if (tabId == null) return { ok: false };
         if (!MEM.has(tabId)) {
           MEM.set(tabId, []);
           await hydrate(tabId);
         }
+        const pageThumb = THUMB.get(tabId) || "";
         return {
           ok: true,
-          streams: listOf(tabId).slice(),
-          thumb: THUMB.get(tabId) || "",
+          streams: listOf(tabId).map((x) => (x.thumb ? x : { ...x, thumb: pageThumb })),
+          thumb: pageThumb,
           title: PAGE_TITLE.get(tabId) || ""
         };
       }
 
       case "RESCAN_TAB": {
-        const tabId = msg.tabId;
+        const tabId = targetTab(msg.tabId);
+        if (tabId == null) return { ok: false };
         const ask = (frameId) =>
           new Promise((resolve) => {
             const opts = frameId == null ? undefined : { frameId };
@@ -395,21 +514,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           if (res.thumb) setThumb(tabId, res.thumb, res.title);
           res.items.forEach((it) => addStream(tabId, it.url, it.kind, it));
         }
-        return { ok: true, streams: listOf(tabId).slice(), added: res && res.items ? res.items.length : 0 };
+        const pageThumb = THUMB.get(tabId) || "";
+        return {
+          ok: true,
+          streams: listOf(tabId).map((x) => (x.thumb ? x : { ...x, thumb: pageThumb })),
+          added: res && res.items ? res.items.length : 0
+        };
       }
 
       case "CLEAR_TAB": {
-        clearTab(msg.tabId);
+        if (!fromExt) return { ok: false };
+        const tabId = targetTab(msg.tabId);
+        if (tabId != null) clearTab(tabId);
         return { ok: true };
       }
 
       case "GET_CONFIG":
-        return { ok: true, config: await getConfig(!!msg.force), offline: !!CFG_ERR };
+        return { ok: true, config: await getConfig(!!msg.force), offline: !!CFG_ERR, forbidden: CFG_ERR === "Error: forbidden" };
 
       case "SAVE_CONFIG": {
         try {
-          const cfg = await saveConfig(msg.patch || {});
-          try { await chrome.storage.local.set({ cfg }); } catch (_) {}
+          const patch = sanitizePatch(msg.patch, fromExt);
+          const cfg = await saveConfig(patch);
           return { ok: true, config: cfg };
         } catch (e) {
           return { ok: false, error: String(e && e.message ? e.message : e) };
@@ -422,6 +548,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       case "PICK_FOLDER": {
+        if (!fromExt) return { ok: false, error: "forbidden" };
         try {
           const r = await fetchJson(SERVER + "/pick-folder", { method: "POST", headers: HDRS, body: "{}" }, 300000);
           return { ok: !!(r.data && r.data.path), path: (r.data && r.data.path) || "", error: (r.data && r.data.error) || "" };
@@ -435,7 +562,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const r = await fetchJson(SERVER + "/open-folder", {
             method: "POST",
             headers: HDRS,
-            body: JSON.stringify({ path: msg.path || "" })
+            body: JSON.stringify({ path: fromExt && typeof msg.path === "string" ? msg.path : "" })
           }, 8000);
           return { ok: r.ok, data: r.data };
         } catch (_) {
@@ -445,8 +572,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case "HEALTH": {
         try {
-          const r = await fetchJson(SERVER + "/health", { headers: HDRS }, 4000);
-          return { ok: true, data: r.data };
+          return await health();
         } catch (e) {
           return { ok: false, error: String(e) };
         }
@@ -460,7 +586,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
 
       case "DOWNLOAD_MANY": {
-        const urls = Array.isArray(msg.urls) ? msg.urls.slice(0, 30) : [];
+        const urls = [...new Set(Array.isArray(msg.urls) ? msg.urls.filter(isHttp) : [])].slice(0, 30);
         const out = [];
         for (const u of urls) {
           try {
@@ -483,19 +609,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case "STATUS": {
         try {
-          const r = await fetchJson(SERVER + "/status?id=" + encodeURIComponent(msg.jobId), { headers: HDRS }, 5000);
-          return { ok: true, data: r.data };
+          const r = await fetchJson(SERVER + "/status?id=" + encodeURIComponent(String(msg.jobId || "")), { headers: HDRS }, 5000);
+          return { ok: r.ok, data: r.data };
+        } catch (_) {
+          return { ok: false };
+        }
+      }
+
+      case "CANCEL": {
+        try {
+          const r = await fetchJson(SERVER + "/cancel", {
+            method: "POST", headers: HDRS, body: JSON.stringify({ id: String(msg.jobId || "") })
+          }, 6000);
+          return { ok: r.ok };
         } catch (_) {
           return { ok: false };
         }
       }
 
       case "THUMB": {
-        if (!msg.url) return { ok: false };
+        if (!isHttp(msg.url)) return { ok: false };
         try {
           const u =
             SERVER + "/thumb?url=" + encodeURIComponent(msg.url) +
-            "&referer=" + encodeURIComponent(msg.referer || "") +
+            "&referer=" + encodeURIComponent(isHttp(msg.referer) ? msg.referer : "") +
             "&ua=" + encodeURIComponent(navigator.userAgent);
           const r = await fetch(u, { headers: { "X-NoeVFX-Client": "1" }, cache: "force-cache" });
           if (!r.ok) return { ok: false };
@@ -607,6 +744,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (isPlayerUrl(pageUrl) || !urls.length) {
       if (pageUrl.startsWith("http") && !urls.includes(pageUrl)) urls.unshift(pageUrl);
     }
+    urls = [...new Set(urls)];
     if (!urls.length) return;
     for (const u of urls) {
       try {

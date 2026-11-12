@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noe VFX Downloader - Último passo</title>
+<style>
+  :root { --bg:#0f1117; --card:#171a24; --line:#262b3d; --txt:#f3f4f8; --mut:#9499ad; --acc:#0066ff; --ok:#10b981; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f6f8fb; --card:#fff; --line:#e2e8f0; --txt:#0f172a; --mut:#64748b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 36px 20px 60px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom: 8px; }
+  .logo { width:46px; height:46px; border-radius:12px; background:var(--acc); display:grid; place-items:center; }
+  h1 { font-size: 26px; margin:0; line-height:1.15; }
+  .sub { color:var(--mut); margin: 4px 0 26px; }
+  .done { display:flex; gap:10px; align-items:center; background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.4);
+          color:#34d399; padding:12px 16px; border-radius:12px; margin-bottom:22px; font-weight:600; }
+  .step { display:flex; gap:16px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:14px; }
+  .num { flex:none; width:38px; height:38px; border-radius:50%; background:var(--acc); color:#fff; font-weight:800; display:grid; place-items:center; font-size:18px; }
+  .step h2 { font-size:18px; margin:2px 0 4px; }
+  .step p { margin:0; color:var(--mut); }
+  .copy { display:flex; gap:8px; align-items:stretch; margin-top:12px; }
+  code { flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:14px/1.4 ui-monospace, Consolas, Menlo, monospace;
+         overflow-wrap:anywhere; color:var(--txt); }
+  button { font:inherit; font-weight:700; border:0; background:var(--acc); color:#fff; border-radius:10px; padding:0 18px; cursor:pointer; white-space:nowrap; }
+  button:hover { filter:brightness(1.1); }
+  button.ok { background:var(--ok); }
+  .tip { margin-top:18px; border:1px dashed var(--line); border-radius:14px; padding:14px 18px; color:var(--mut); font-size:14.5px; }
+  .tip b { color:var(--txt); }
+  kbd { background:var(--bg); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 7px; font:13px ui-monospace, Consolas, monospace; }
+  .mac { display:none; } .is-mac .mac { display:inline; } .is-mac .notmac { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo"><svg viewBox="0 0 722.36 722.36" width="30" height="30"><path fill="#fff" d="M550.64,561.37H168.59c-4.19,0-7.59-3.4-7.59-7.59V171.73l389.63,389.63ZM553.77,161H171.72l389.63,389.63V168.58c0-4.17-3.39-7.59-7.59-7.59Z"/></svg></div>
+    <div><h1>Quase pronto!</h1></div>
+  </header>
+  <p class="sub">O programa já está instalado e rodando. Falta só colocar a extensão no navegador (3 cliques, uma vez só).</p>
+
+  <div class="done">✓ Servidor ligado, yt-dlp, FFmpeg e Deno instalados</div>
+
+  <section class="step">
+    <div class="num">1</div>
+    <div style="flex:1;min-width:0">
+      <h2>Abra a página de extensões</h2>
+      <p>Cole este endereço na barra do navegador e aperte <kbd>Enter</kbd>.</p>
+      <div class="copy"><code id="extUrl">chrome://extensions</code><button type="button" data-copy-target="extUrl">Copiar</button></div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="num">2</div>
+    <div>
+      <h2>Ligue o “Modo do desenvolvedor”</h2>
+      <p>É a chavinha no <b style="color:var(--txt)">canto superior direito</b> da página de extensões (ou no menu à esquerda, no Edge).</p>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="num">3</div>
+    <div style="flex:1;min-width:0">
+      <h2>Clique em “Carregar sem pacote” e escolha esta pasta</h2>
+      <p>No botão aparece <b style="color:var(--txt)">“Carregar sem compactação”</b> (Chrome) ou <b style="color:var(--txt)">“Carregar sem pacote”</b> (Edge).
+         <span class="mac">No Mac, na janela que abrir aperte <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> e cole o caminho.</span>
+         <span class="notmac">Na janela que abrir, cole o caminho na barra de endereço e confirme.</span></p>
+      <div class="copy"><code id="extPath">__EXT_PATH__</code><button type="button" data-copy-target="extPath">Copiar</button></div>
+    </div>
+  </section>
+
+  <div class="tip">
+    <b>Pronto!</b> Abra qualquer vídeo e passe o mouse em cima: aparece o ícone azul do Noe VFX. Na primeira vez, a extensão pergunta onde salvar os vídeos.<br><br>
+    <b>Dica 1:</b> se o navegador avisar sobre “extensões do modo desenvolvedor” ao abrir, clique em <b>Manter</b>.<br>
+    <b>Dica 2:</b> use <b>esta pasta instalada</b>, não a pasta do ZIP: se você apagar a pasta do ZIP, nada quebra.<br>
+    <b>Dica 3:</b> atualizando o app? Basta clicar em <b>Recarregar</b> no cartão da extensão.
+  </div>
+</main>
+<script>
+  var ua = navigator.userAgent;
+  if (/Mac/i.test(navigator.platform) || /Mac OS X/.test(ua)) document.documentElement.classList.add("is-mac");
+  var scheme = /Edg\//.test(ua) ? "edge" : (navigator.brave ? "brave" : "chrome");
+  document.getElementById("extUrl").textContent = scheme + "://extensions";
+  document.querySelectorAll("[data-copy-target]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var txt = document.getElementById(b.getAttribute("data-copy-target")).textContent;
+      var done = function () { var o = b.textContent; b.textContent = "Copiado ✓"; b.classList.add("ok"); setTimeout(function () { b.textContent = o; b.classList.remove("ok"); }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(done, fallback); } else { fallback(); }
+      function fallback() { var t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); done(); } catch (e) {} t.remove(); }
+    });
+  });
+</script>
+</body>
+</html>

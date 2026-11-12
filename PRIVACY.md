@@ -34,7 +34,13 @@ conteúdo de e-mails, abas em segundo plano, localização.
 ## 2. Para onde vão os dados
 
 - **Servidor local**: `http://127.0.0.1:8765` — roda no seu próprio computador.
-  Ele só aceita requisições com o cabeçalho `X-NoeVFX-Client` e origem de extensão.
+  Ele só aceita pedidos vindos da extensão (ID fixo) e com endereço local.
+- **Detecção de vídeos**: a extensão observa os pedidos de mídia de **todas as abas** (para achar
+  os streams) e lê o título, o endereço e a miniatura da página. Isso fica só no navegador e no
+  servidor local. A miniatura (og:image/pôster) é carregada do próprio site do vídeo.
+- **Instalação e atualização**: o instalador e o servidor baixam o yt-dlp, o FFmpeg, o Deno e o
+  Python do GitHub/gyan.dev/PyPI (com checagem de integridade). O yt-dlp consulta o GitHub
+  1x por dia para se atualizar.
 - **Ferramentas de download**: o servidor local chama o `yt-dlp` e o `ffmpeg`
   instalados na sua máquina para baixar o vídeo diretamente do site de origem.
 - **Nenhum servidor da NOÉ VFX** é contatado durante o uso. Não há analytics,

@@ -1,0 +1,141 @@
+name: testar-instaladores
+
+# Roda o instalador de verdade em Windows, macOS (Apple Silicon e Intel) e Linux (x64 e ARM),
+# com Python do sistema e com Python portátil, e faz um download real conferindo vídeo + áudio.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "ci/**"]
+    paths: ["server/**", "extension/**", "installers/**", "tests/**", "tools/**", ".github/workflows/test.yml"]
+
+jobs:
+  instalador:
+    name: instalador (${{ matrix.nome }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { nome: "linux-x64",          os: ubuntu-latest,    plat: linux,   portatil: "0" }
+          - { nome: "linux-x64-portatil", os: ubuntu-latest,    plat: linux,   portatil: "1" }
+          - { nome: "linux-arm64",        os: ubuntu-24.04-arm, plat: linux,   portatil: "0" }
+          - { nome: "macos-arm64",        os: macos-latest,     plat: mac,     portatil: "0" }
+          - { nome: "macos-arm64-portatil", os: macos-latest,   plat: mac,     portatil: "1" }
+          - { nome: "macos-intel",        os: macos-15-intel,   plat: mac,     portatil: "0" }
+          - { nome: "windows",            os: windows-latest,   plat: windows, portatil: "0" }
+          - { nome: "windows-portatil",   os: windows-latest,   plat: windows, portatil: "1" }
+    env:
+      NOEVFX_PORT: "18765"
+      NOEVFX_NO_BROWSER: "1"
+      NOEVFX_NO_STARTUP: "1"
+      NOEVFX_NO_SERVICE: "1"
+      NOEVFX_FORCE_PORTABLE_PYTHON: ${{ matrix.portatil }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Gerar o pacote
+        shell: bash
+        run: python tools/build.py
+
+      - name: Instalar (Linux/macOS)
+        if: matrix.plat != 'windows'
+        shell: bash
+        run: |
+          export NOEVFX_TARGET="$RUNNER_TEMP/noevfx"
+          unzip -q dist/noevfx-downloader.zip -d "$RUNNER_TEMP/pkg"
+          bash "$RUNNER_TEMP/pkg/noevfx-downloader/${{ matrix.plat }}/instalar-noevfx.sh"
+          echo "--- install.log"; cat "$NOEVFX_TARGET/install.log" || true
+
+      - name: Instalar (Windows)
+        if: matrix.plat == 'windows'
+        shell: pwsh
+        run: |
+          $env:NOEVFX_TARGET = Join-Path $env:RUNNER_TEMP 'noevfx'
+          Expand-Archive dist/noevfx-downloader.zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'pkg')
+          powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:RUNNER_TEMP 'pkg\noevfx-downloader\windows\instalar-noevfx.ps1')
+          Get-Content (Join-Path $env:NOEVFX_TARGET 'install.log') -ErrorAction SilentlyContinue
+
+      - name: Teste de fumaça (download real, vídeo + áudio)
+        shell: bash
+        run: python tests/install_smoke.py
+
+      - name: Testes do servidor (unidade)
+        shell: bash
+        run: python -m unittest discover -s tests -v
+
+      - name: Guardar logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.nome }}
+          path: |
+            ${{ runner.temp }}/noevfx/install.log
+            ${{ runner.temp }}/noevfx/server.log
+          if-no-files-found: ignore
+
+  servico:
+    # o serviço de segundo plano (systemd --user / launchd) pode não existir em runners sem sessão gráfica:
+    # por isso este job só INFORMA (não derruba o resto)
+    name: serviço de segundo plano (${{ matrix.nome }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { nome: "linux",  os: ubuntu-latest, plat: linux }
+          - { nome: "macos",  os: macos-latest,  plat: mac }
+    env:
+      NOEVFX_PORT: "18766"
+      NOEVFX_NO_BROWSER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python tools/build.py
+      - name: Instalar com serviço e conferir que sobe sozinho
+        shell: bash
+        run: |
+          export NOEVFX_TARGET="$RUNNER_TEMP/noevfx"
+          unzip -q dist/noevfx-downloader.zip -d "$RUNNER_TEMP/pkg"
+          bash "$RUNNER_TEMP/pkg/noevfx-downloader/${{ matrix.plat }}/instalar-noevfx.sh"
+          sleep 5
+          curl -fsS -H "X-NoeVFX-Client: 1" "http://127.0.0.1:$NOEVFX_PORT/health"
+
+  extensao:
+    # a extensão num navegador de verdade (Chrome for Testing), com mouse real
+    name: extensão no navegador (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with: { chrome-version: stable }
+      - name: Instalar yt-dlp
+        run: python -m pip install yt-dlp
+      - name: ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - name: Teste ponta a ponta
+        shell: bash
+        env:
+          BROWSER: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tests/e2e.js
