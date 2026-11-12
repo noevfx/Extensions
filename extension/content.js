@@ -10,6 +10,8 @@
   if (window.__noevfxV3) return;
   window.__noevfxV3 = true;
 
+  const t = (k, ...s) => (globalThis.__nvfT ? globalThis.__nvfT(k, ...s) : k);
+
   const BRAND_SVG = `<svg viewBox="0 0 722.36 722.36" width="20" height="20" aria-hidden="true">
     <rect fill="#0066FF" width="722.36" height="722.36" rx="102.3" ry="102.3"/>
     <path fill="#FFFFFF" d="M550.64,561.37H168.59c-4.19,0-7.59-3.4-7.59-7.59V171.73l389.63,389.63ZM553.77,161H171.72l389.63,389.63V168.58c0-4.17-3.39-7.59-7.59-7.59Z"/>
@@ -165,14 +167,18 @@
     const fr = state.fab.getBoundingClientRect();
     const availW = Math.max(1, vr.width - FAB_SIZE);
     const availH = Math.max(1, vr.height - FAB_SIZE);
-    const rx = Math.min(1, Math.max(0, (fr.left - vr.left) / availW));
-    const ry = Math.min(1, Math.max(0, (fr.top - vr.top) / availH));
-    state.pos = [rx, ry];
-    loadPos();
+    persistPos([
+      Math.min(1, Math.max(0, (fr.left - vr.left) / availW)),
+      Math.min(1, Math.max(0, (fr.top - vr.top) / availH))
+    ]);
+  }
+
+  function persistPos(pos) {
+    state.pos = pos;
     try {
       chrome.storage.local.get("fabPos", (res) => {
         const map = (res && res.fabPos) || {};
-        map[location.hostname] = state.pos;
+        map[location.hostname] = pos;
         chrome.storage.local.set({ fabPos: map });
       });
     } catch (_) {}
@@ -180,7 +186,7 @@
 
   /* -------------------------------------------------------------- utilidades */
   const folderName = (p) => {
-    if (!p) return "Downloads/NoeVFX";
+    if (!p) return t("folderLabel");
     const parts = String(p).split(/[\\/]+/).filter(Boolean);
     return parts.length ? parts[parts.length - 1] : p;
   };
@@ -329,7 +335,7 @@
       host.style.cssText = "all:initial;position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;";
       const root = host.attachShadow({ mode: "open" });
       root.innerHTML = `<style>${STYLE}</style>
-        <button class="fab" type="button" title="Baixar com NOÉ VFX — arraste para mover">${BRAND_SVG}</button>
+        <button class="fab" type="button" title="${t("fabTitle")}">${BRAND_SVG}</button>
         <div class="panel"></div>
         <div class="toast"></div>`;
       state.host = host;
@@ -368,15 +374,18 @@
     const availW = Math.max(0, rect.width - FAB_SIZE);
     const availH = Math.max(0, rect.height - FAB_SIZE);
 
-    let left;
-    let top;
-    if (state.pos) {
-      left = rect.left + state.pos[0] * availW;
-      top = rect.top + state.pos[1] * availH;
-    } else {
-      top = rect.top + (isYT() ? 62 : 12);
-      left = rect.right - FAB_SIZE - 12;
+    // primeira vez: define a posição inicial e JÁ GRAVA, para o ícone nunca "pular" depois
+    if (!state.pos) {
+      const dTop = rect.top + (isYT() ? 62 : 12);
+      const dLeft = rect.right - FAB_SIZE - 12;
+      persistPos([
+        Math.min(1, Math.max(0, (dLeft - rect.left) / Math.max(1, availW))),
+        Math.min(1, Math.max(0, (dTop - rect.top) / Math.max(1, availH)))
+      ]);
     }
+
+    let left = rect.left + state.pos[0] * availW;
+    let top = rect.top + state.pos[1] * availH;
 
     // não deixa o ícone sair da tela (vídeo cortado/rolado)
     left = Math.min(Math.max(8, left), Math.max(8, innerWidth - FAB_SIZE - 8));
@@ -385,18 +394,24 @@
     f.style.left = `${Math.round(left)}px`;
     f.style.top = `${Math.round(top)}px`;
 
-    if (state.panelOpen) positionPanel(left, top + FAB_SIZE + 8);
+    if (state.panelOpen) positionPanel(f.getBoundingClientRect());
     return true;
   }
 
-  function positionPanel(left, top) {
+  function positionPanel(anchor) {
     const p = state.panel;
     const w = 268;
-    let l = Math.min(left, innerWidth - w - 10);
-    l = Math.max(10, l);
-    let t = top;
+    const gap = 8;
     const h = p.offsetHeight || 240;
-    if (t + h > innerHeight - 10) t = Math.max(10, innerHeight - h - 10);
+
+    let l = anchor.left - w - gap;
+    if (l < 8) l = anchor.right + gap;
+    l = Math.max(8, Math.min(l, innerWidth - w - 8));
+
+    let t = anchor.top;
+    if (t + h > innerHeight - 8) t = innerHeight - h - 8;
+    t = Math.max(8, t);
+
     p.style.left = `${Math.round(l)}px`;
     p.style.top = `${Math.round(t)}px`;
   }
@@ -557,27 +572,27 @@
     state.panel.innerHTML = `
       <div class="head">
         ${BRAND_SVG}
-        <b>Salvar vídeo</b>
+        <b>${t("saveVideo")}</b>
         <span class="brand">NOÉ VFX</span>
       </div>
       <div class="dest">
         <span>📁</span>
         <span class="path" title="${dest.replace(/"/g, "&quot;")}">${dest ? folderName(dest) : "Downloads/NoeVFX"}</span>
-        <button type="button" class="change">trocar</button>
+        <button type="button" class="change">${t("change")}</button>
       </div>
       <div class="grid">
         <button type="button" class="opt main" data-q="${quality}">
-          ${direct ? "Salvar aqui" : "Baixar na pasta padrão"}
+          ${direct ? t("saveHere") : t("downloadDefault")}
         </button>
         <button type="button" class="opt" data-q="1080">1080p</button>
         <button type="button" class="opt" data-q="720">720p</button>
-        <button type="button" class="opt" data-q="best">Nativa</button>
-        <button type="button" class="opt" data-q="audio">Só áudio</button>
+        <button type="button" class="opt" data-q="best">${t("native")}</button>
+        <button type="button" class="opt" data-q="audio">${t("audioOnly")}</button>
       </div>
-      <div class="all"><button type="button" class="all-btn">Baixar todos os vídeos desta página</button></div>
+      <div class="all"><button type="button" class="all-btn">${t("allPage")}</button></div>
       <div class="foot">
-        <span class="hint">Arraste o ícone para mover</span>
-        <button type="button" class="tgl ${on ? "" : "off"}" data-toggle>${on ? "ÍCONE ON" : "ÍCONE OFF"}</button>
+        <span class="hint">${t("dragHint")}</span>
+        <button type="button" class="tgl ${on ? "" : "off"}" data-toggle>${on ? t("iconOn") : t("iconOff")}</button>
       </div>
     `;
 
@@ -617,8 +632,7 @@
       const p = state.panel;
       p.style.display = "block";
       state.panelOpen = true;
-      const fr = state.fab.getBoundingClientRect();
-      positionPanel(fr.left - 220, fr.bottom + 8);
+      positionPanel(state.fab.getBoundingClientRect());
     });
   }
 
@@ -639,8 +653,7 @@
     renderPanel();
     state.panelOpen = true;
     state.panel.style.display = "block";
-    const r = state.fab.getBoundingClientRect();
-    positionPanel(r.left - 220, r.bottom + 8);
+    positionPanel(state.fab.getBoundingClientRect());
     publish(true);
   }
 
@@ -676,7 +689,7 @@
       if (alt && alt !== page) fallback = alt;
     }
 
-    toast("Iniciando download...");
+    toast(t("starting"));
 
     const res = await sendMsg({
       type: "DOWNLOAD",
@@ -690,7 +703,7 @@
 
     if (!res || !res.ok || !res.job_id) {
       state.busy = false;
-      toast(res && res.error ? "Servidor local offline — rode o instalador" : "Não foi possível iniciar", "err");
+      toast(t("serverOffline"), "err");
       return;
     }
     trackJob(res.job_id, res.output_dir || cfg.output_dir, () => { state.busy = false; });
@@ -712,12 +725,12 @@
     });
 
     if (!res || !res.ok) {
-      toast("Falha ao enfileirar downloads", "err");
+      toast(t("queueFail"), "err");
       return;
     }
     const n = res.queued || 0;
-    if (!n) { toast("Nada para baixar aqui", "err"); return; }
-    toast(`${n} download(s) na fila — acompanhe pelo ícone da extensão`, "ok", 5200);
+    if (!n) { toast(t("nothingHere"), "err"); return; }
+    toast(t("queuedNote", n), "ok", 5200);
   }
 
   function trackJob(jobId, folder, done) {
@@ -730,18 +743,18 @@
         return;
       }
       const d = st.data || {};
-      if (d.status === "queued") toast("Na fila: aguardando vaga...");
+      if (d.status === "queued") toast(t("queuedWait"));
       else if (d.status === "downloading") {
-        const txt = d.progress ? `Baixando ${d.progress}${d.speed ? " • " + d.speed : ""}` : "Baixando...";
+        const txt = d.progress ? t("downloadingP", d.progress + (d.speed ? " • " + d.speed : "")) : t("downloading0");
         if (txt !== last) { last = txt; toast(txt, null, 0); }
-      } else if (d.status === "merging") toast("Unindo vídeo + áudio...", null, 0);
+      } else if (d.status === "merging") toast(t("mergingShort"), null, 0);
       else if (d.status === "done") {
         clearInterval(t);
-        toast(`Salvo em ${folderName(folder || (d.output_dir || ""))}`, "ok", 6000);
+        toast(t("savedInShort", folderName(folder || (d.output_dir || ""))), "ok", 6000);
         done && done();
       } else if (d.status === "error") {
         clearInterval(t);
-        toast("Erro: " + String(d.error || "tente novamente").slice(0, 90), "err", 7000);
+        toast(t("errShort", String(d.error || "-").slice(0, 90)), "err", 7000);
         done && done();
       }
     }, 800);
@@ -766,17 +779,17 @@
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "noevfx-dl-btn";
-    btn.innerHTML = `${BRAND_SVG}<span>Baixar</span>`;
+    btn.innerHTML = `${BRAND_SVG}<span>${t("ytDownload")}</span>`;
 
     const menu = document.createElement("div");
     menu.className = "noevfx-dl-menu noevfx-hidden";
     const dest = (state.cfg && state.cfg.output_dir) || "";
     menu.innerHTML = `
       <div class="noevfx-dl-dest" title="${dest.replace(/"/g, "&quot;")}">📁 ${dest ? folderName(dest) : "Downloads/NoeVFX"}</div>
-      <button type="button" data-q="best">Qualidade Nativa (Máxima)</button>
-      <button type="button" data-q="1080">1080p (Full HD)</button>
-      <button type="button" data-q="720">720p (HD)</button>
-      <button type="button" data-q="audio">Só Áudio (M4A)</button>
+      <button type="button" data-q="best">${t("ytBest")}</button>
+      <button type="button" data-q="1080">${t("yt1080")}</button>
+      <button type="button" data-q="720">${t("yt720")}</button>
+      <button type="button" data-q="audio">${t("ytAudio")}</button>
     `;
 
     btn.addEventListener("click", async (e) => {
@@ -808,7 +821,7 @@
   async function runYTDownload(btn, quality) {
     const label = btn.querySelector("span");
     if (btn.disabled) return;
-    label.textContent = "Iniciando...";
+    label.textContent = t("ytStarting");
     btn.disabled = true;
 
     const res = await sendMsg({
@@ -821,25 +834,25 @@
     });
 
     if (!res || !res.ok || !res.job_id) {
-      label.textContent = "Servidor offline";
-      setTimeout(() => { label.textContent = "Baixar"; btn.disabled = false; }, 3200);
+      label.textContent = t("ytOffline");
+      setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3200);
       return;
     }
-    toast("Download iniciado", "ok");
+    toast(t("downloadStarted"), "ok");
     const t = setInterval(async () => {
       const st = await sendMsg({ type: "STATUS", jobId: res.job_id });
-      if (!st || !st.ok) { clearInterval(t); label.textContent = "Erro"; btn.disabled = false; return; }
+      if (!st || !st.ok) { clearInterval(t); label.textContent = t("ytError"); btn.disabled = false; return; }
       const d = st.data || {};
-      if (d.status === "downloading") label.textContent = d.progress ? "Baixando " + d.progress : "Baixando...";
-      else if (d.status === "merging") label.textContent = "Unindo...";
+      if (d.status === "downloading") label.textContent = d.progress ? t("downloadingP", d.progress) : t("downloading0");
+      else if (d.status === "merging") label.textContent = t("ytMerging");
       else if (d.status === "done") {
         clearInterval(t);
-        label.textContent = "Salvo!";
-        setTimeout(() => { label.textContent = "Baixar"; btn.disabled = false; }, 3000);
+        label.textContent = t("ytSaved");
+        setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3000);
       } else if (d.status === "error") {
         clearInterval(t);
-        label.textContent = "Erro";
-        setTimeout(() => { label.textContent = "Baixar"; btn.disabled = false; }, 3500);
+        label.textContent = t("ytError");
+        setTimeout(() => { label.textContent = t("ytDownload"); btn.disabled = false; }, 3500);
       }
     }, 900);
   }

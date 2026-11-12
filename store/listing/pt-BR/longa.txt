@@ -1,0 +1,26 @@
+Salve os vídeos que você já assiste — para ver offline, na qualidade que o player oferece.
+
+O Noe VFX Downloader encontra a mídia que a página já carrega e salva na pasta que você escolher. Tudo roda no seu computador: a extensão conversa apenas com um aplicativo local instalado por você.
+
+RECURSOS
+• Ícone no canto do vídeo — um clique para salvar, arraste para mover, some após 2s parado
+• Detecta HLS, DASH, MP4 e WebM, incluindo players embutidos
+• Miniatura de preview e lista do que foi encontrado na aba
+• Salvar um ou todos, com fila de downloads
+• Escolha a pasta e a qualidade padrão no primeiro uso
+• Idioma automático: português ou inglês (segue o sistema)
+• Usa a sua própria sessão para o conteúdo que você já tem acesso
+• Contador no ícone: quantos vídeos existem na aba
+
+REQUISITOS
+• O aplicativo Noe VFX (grátis) — Windows, macOS ou Linux
+  https://github.com/noevfx/Extensions
+
+PRIVACIDADE
+Sem conta, sem telemetria, sem anúncios. A extensão conecta apenas a 127.0.0.1 (seu computador). Os cookies da página visitada são usados localmente para acessar o mesmo conteúdo que você já assiste.
+
+USO RESPONSÁVEL
+Salve apenas conteúdo que você tem o direito de baixar. A ferramenta NÃO contorna DRM, paywalls, login ou controles de acesso, e não redistribui nada.
+
+SUPORTE
+labs@noevfx.com — https://noevfx.com

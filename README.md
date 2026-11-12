@@ -1,12 +1,13 @@
 <p align="center">
-  <img src="extension/icons/logo.svg" width="96" alt="NOÉ VFX">
+  <img src="extension/icons/logo.svg" width="96" alt="Noe VFX">
 </p>
 
 <h1 align="center">Noe VFX Downloader</h1>
 
 <p align="center">
-  Detector universal de vídeos para navegadores Chromium — baixa na <b>qualidade nativa</b> do player.<br>
-  <sub>NOÉ VFX · <a href="https://noevfx.com">noevfx.com</a></sub>
+  Salva para assistir offline os vídeos que você <b>já consegue assistir</b> na página,<br>
+  na melhor qualidade que o player entrega — com a pasta e a qualidade que você escolher.
+  <br><sub>NOÉ VFX · <a href="https://noevfx.com">noevfx.com</a> · <a href="mailto:labs@noevfx.com">labs@noevfx.com</a></sub>
 </p>
 
 <p align="center">
@@ -20,13 +21,11 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`noevfx-downloader.zip` (v3.0.0)](https://github.com/noevfx/Extensions/releases/download/v3.0.0/noevfx-downloader.zip)
+[`noevfx-downloader.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.0/noevfx-downloader.zip)
 
-<sub>Também disponível em [`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip) e na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
+<sub>Também em [`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip) e na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 
-O zip vem com três pastas autocontidas — use só a do seu sistema:
-
-| Sistema | Pasta | Instalador |
+| Sistema | Pasta no zip | Instalador |
 |---|---|---|
 | Windows 10/11 | `windows/` | `INSTALAR_NOEVFX.bat` |
 | macOS (Intel e Apple Silicon) | `mac/` | `instalar-noevfx.sh` |
@@ -38,14 +37,14 @@ O zip vem com três pastas autocontidas — use só a do seu sistema:
 
 ## O que ele faz
 
-- **Detecta qualquer vídeo** na página: HLS (`.m3u8`), DASH (`.mpd`), MP4, WebM, players embutidos, YouTube, Vimeo, Globo/G1.
-- **Ícone flutuante no vídeo**: aparece ao passar o mouse, some após 2 s parado, é **arrastável** dentro do player e pode ser ligado/desligado.
-- **Miniatura de preview** de cada vídeo detectado.
-- **Badge vermelho com número branco** no ícone da extensão = vídeos encontrados na aba.
-- **Baixar um ou todos**, com fila de 3 downloads simultâneos.
+- **Encontra o vídeo que a página já carrega** (HLS, DASH, MP4, WebM e players embutidos) e mostra o que está disponível.
+- **Ícone no canto do vídeo**: um clique para salvar, arraste para mover, liga/desliga em 3 lugares.
+- **Miniatura de preview** de cada vídeo encontrado.
+- **Contador no ícone** da extensão: quantos vídeos existem na aba.
+- **Salvar um ou todos**, com fila de downloads.
 - **Pasta padrão escolhida por você**, perguntada no primeiro uso.
-- **Leitura instantânea** de streams (rede + DOM + cache de performance).
-- Funciona com **login/cookies**, sites com proteção anti-bot e players que escondem o `.m3u8`.
+- **Qualidade**: a melhor que o player oferece, ou 1080p / 720p / somente áudio.
+- **Idioma automático**: português ou inglês, conforme o idioma do sistema.
 
 ---
 
@@ -53,8 +52,8 @@ O zip vem com três pastas autocontidas — use só a do seu sistema:
 
 ```
 ┌──────────────────────────────┐        ┌──────────────────────────────┐
-│  Extensão (Chromium)         │  HTTP  │  Servidor local (Python)     │
-│  · sniffer webRequest        │ ─────► │  127.0.0.1:8765              │
+│  Extensão (Chromium)         │  HTTP  │  Aplicativo local (Python)   │
+│  · lê a mídia da aba         │ ─────► │  127.0.0.1:8765              │
 │  · ícone no vídeo            │        │  · yt-dlp  · ffmpeg          │
 │  · popup, configurações      │ ◄───── │  · fila de downloads         │
 └──────────────────────────────┘        └──────────────────────────────┘
@@ -63,8 +62,25 @@ O zip vem com três pastas autocontidas — use só a do seu sistema:
                                         pasta escolhida por você
 ```
 
-- O servidor escuta **apenas `127.0.0.1`**, exige o cabeçalho `X-NoeVFX-Client` e aceita `Origin` somente de extensões (`chrome-extension://`).
-- Nada é enviado para fora da sua máquina: a extensão manda a URL e os cookies **da sua sessão** para o servidor local, que baixa o vídeo com `yt-dlp`.
+- O aplicativo escuta **apenas `127.0.0.1`**, exige o cabeçalho `X-NoeVFX-Client`
+  e aceita origem somente de extensões (`chrome-extension://`).
+- Nada sai do seu computador: a extensão conversa só com o aplicativo local.
+
+---
+
+## Compatibilidade
+
+| Tipo | Suporte |
+|---|---|
+| HLS (`.m3u8`) | sim |
+| DASH (`.mpd`) | sim |
+| MP4 / WebM diretos | sim |
+| Players embutidos (YouTube, Vimeo, Dailymotion) | sim |
+| Conteúdo atrás do seu próprio login | sim, usando a sua sessão |
+| Conteúdo protegido por DRM | **não** — a ferramenta não contorna proteções |
+
+> A ferramenta usa a sessão que **você** já tem aberta. Ela não cria acesso,
+> não quebra login, não ignora assinatura e não remove DRM.
 
 ---
 
@@ -77,7 +93,7 @@ O zip vem com três pastas autocontidas — use só a do seu sistema:
    - verifica o Python
    - copia tudo para `%LOCALAPPDATA%\NoeVFXDownloader`
    - instala/atualiza `yt-dlp` e `FFmpeg` (só se faltar)
-   - cria o servidor oculto que inicia com o Windows
+   - cria o aplicativo oculto que inicia com o Windows
    - abre a pasta instalada e o navegador
 3. No navegador: **Modo de desenvolvedor** → **Carregar sem pacote** → selecione a pasta `extension` que abriu
 
@@ -88,20 +104,21 @@ cd mac        # ou: cd linux
 bash instalar-noevfx.sh
 ```
 
-O script copia para `~/.local/share/NoeVFXDownloader`, instala `yt-dlp`/`ffmpeg` e cria o serviço de inicialização (LaunchAgent no macOS, `systemd --user` no Linux). No fim ele mostra o caminho da pasta `extension` para carregar no navegador.
+O script copia para `~/.local/share/NoeVFXDownloader`, instala `yt-dlp`/`ffmpeg`
+e cria o serviço de inicialização (LaunchAgent no macOS, `systemd --user` no Linux).
 
-> **O erro mais comum:** carregar a extensão da pasta **extraída do zip**. O navegador guarda o caminho e a extensão quebra quando você apaga a pasta. Carregue sempre da pasta **instalada**.
+> **O erro mais comum:** carregar a extensão da pasta **extraída do zip**. O
+> navegador guarda o caminho e a extensão quebra quando você apaga a pasta.
+> Carregue sempre da pasta **instalada**.
 
 ---
 
 ## Primeiro uso
 
-A tela de configuração abre sozinha:
-
-1. **Servidor local** → deve mostrar `online`, `yt-dlp ✓`, `FFmpeg ✓`
-2. **Pasta padrão** → **Escolher pasta…** (abre o seletor do sistema)
+1. **Aplicativo local** → deve mostrar `online`, `yt-dlp ✓`, `FFmpeg ✓`
+2. **Pasta padrão** → **Escolher pasta…**
 3. **Ícone no vídeo** → *perguntar antes de salvar* ou *salvar direto*
-4. **Qualidade padrão** → Nativa, 1080p, 720p ou só áudio
+4. **Qualidade padrão** → melhor disponível, 1080p, 720p ou só áudio
 5. **Concluir**
 
 ---
@@ -110,10 +127,10 @@ A tela de configuração abre sozinha:
 
 | Ação | Como |
 |---|---|
-| Baixar um vídeo | Passe o mouse no vídeo → clique no ícone azul |
-| Ligar/desligar o ícone | Popup (botão de energia), botão direito, ou rodapé do cartão do vídeo |
+| Salvar um vídeo | Passe o mouse no vídeo → clique no ícone azul |
+| Ligar/desligar o ícone | Popup (botão de energia), botão direito ou rodapé do cartão |
 | Mover o ícone | Arraste — a posição fica salva por site |
-| Baixar todos | Botão no popup ou no cartão do vídeo |
+| Salvar todos | Botão no popup ou no cartão do vídeo |
 | Atualizar a detecção | Botão **⟳** no popup (`Shift`+clique recarrega a página) |
 | Abrir a pasta | Popup → **abrir** |
 
@@ -123,12 +140,20 @@ A tela de configuração abre sozinha:
 
 Extensões carregadas fora da loja **não têm auto-update**. Para atualizar:
 
-1. Rode o instalador do zip novo — ele detecta a instalação existente, substitui os arquivos e reinicia o servidor
-2. Em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar** no cartão do NOÉ VFX
+1. Rode o instalador do zip novo — ele detecta a instalação existente, substitui
+   os arquivos e reinicia o aplicativo local
+2. Em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar**
 
 Configurações, pasta escolhida e posições salvas são preservadas.
 
-> Publicação nas lojas (Edge Add-ons / Chrome Web Store) está prevista — quando acontecer, as atualizações passam a ser automáticas.
+---
+
+## Uso responsável
+
+- Salve apenas conteúdo que **você tem o direito** de baixar.
+- A ferramenta **não contorna DRM, paywall, login ou bloqueio regional**.
+- Respeite os termos de uso e os direitos autorais de cada site.
+- Veja [`TERMS.md`](TERMS.md) e [`PRIVACY.md`](PRIVACY.md).
 
 ---
 
@@ -136,14 +161,15 @@ Configurações, pasta escolhida e posições salvas são preservadas.
 
 | Sintoma | Solução |
 |---|---|
-| Selo **Offline** | Rode o instalador novamente; o servidor sobe com o sistema |
+| Selo **Offline** | Rode o instalador novamente; o aplicativo sobe com o sistema |
 | Nenhum vídeo detectado | Dê **play** e clique em **⟳** |
 | Erro de FFmpeg | Rode o instalador (a união vídeo+áudio depende dele) |
-| Vídeo privado / login | Ative **Usar os cookies do navegador** nas configurações |
+| Vídeo só aparece logado | Ative **Usar os cookies do navegador** nas configurações |
 | Erro 403 | Atualize o yt-dlp: `yt-dlp -U` (ou rode o instalador) |
-| "Pasta em Uso" ao apagar a pasta extraída | O servidor ainda está rodando de dentro dela — feche e mova |
 
 **Logs:** Windows `%LOCALAPPDATA%\NoeVFXDownloader\server.log` · macOS/Linux `/tmp/noevfx-downloader.log`
+
+**Suporte:** [labs@noevfx.com](mailto:labs@noevfx.com)
 
 ---
 
@@ -151,7 +177,8 @@ Configurações, pasta escolhida e posições salvas são preservadas.
 
 ```
 extension/                 extensão MV3 (fonte)
-  manifest.json
+  manifest.json            nome/descrição localizados (_locales en, pt_BR)
+  i18n.js                  dicionário pt/en (idioma do sistema)
   background.js            sniffer, badge, fila, configuração
   content.js               ícone no vídeo, miniaturas, leitura instantânea
   popup.html / popup.js    janela da extensão
@@ -159,17 +186,26 @@ extension/                 extensão MV3 (fonte)
   styles.css
   icons/
 
-server/server.py           servidor local (Python puro, sem dependências)
+server/server.py           aplicativo local (Python puro, sem dependências)
 
 installers/
   windows/                 INSTALAR_NOEVFX.bat · DESINSTALAR_NOEVFX.bat
   mac/                     instalar-noevfx.sh · desinstalar-noevfx.sh
   linux/                   instalar-noevfx.sh · desinstalar-noevfx.sh
 
-tools/build.py             gera dist/noevfx-downloader.zip
-dist/                      pacote pronto para distribuir
-MANUAL.md                  manual completo
-COMECE-AQUI.txt            instruções rápidas dentro do zip
+store/                     material para publicar na loja
+  upload/                  zip pronto para subir
+  listing/en-US, pt-BR     textos e justificativas de permissão
+  screenshots/             imagens 1280×800
+
+tools/
+  build.py                 gera dist/noevfx-downloader.zip
+  build-store-zip.py       gera o zip só da extensão (loja)
+  release.py               build + commit + tag + GitHub Release
+
+docs/STORE.md              guia de publicação (Edge e Chrome)
+dist/                      pacotes prontos
+MANUAL.md · TERMS.md · PRIVACY.md · CHANGELOG.md · LICENSE
 ```
 
 ---
@@ -177,42 +213,20 @@ COMECE-AQUI.txt            instruções rápidas dentro do zip
 ## Build
 
 ```bash
-python tools/build.py
+python tools/build.py           # pacote completo (windows/mac/linux)
+python tools/build-store-zip.py # zip da loja (só a extensão)
+python tools/release.py         # release completa no GitHub
 ```
-
-Gera `dist/noevfx-downloader.zip` com `windows/`, `mac/` e `linux/`, cada pasta autocontida (extensão + servidor + instalador).
-
-**Desenvolvimento da extensão:** carregue a pasta `extension/` como extensão descompactada.
-**Desenvolvimento do servidor:** `python server/server.py` (porta 8765, ou `NOEVFX_PORT`).
-
----
-
-## API local
-
-| Método | Rota | Função |
-|---|---|---|
-| `GET` | `/health` | estado (versão, yt-dlp, ffmpeg, pastas) |
-| `GET` | `/config` | configuração atual |
-| `POST` | `/config` | salva configuração |
-| `POST` | `/pick-folder` | seletor de pasta nativo |
-| `POST` | `/open-folder` | abre a pasta no gerenciador |
-| `GET` | `/thumb?url=` | miniatura via FFmpeg (com cache) |
-| `POST` | `/download` | enfileira download |
-| `GET` | `/status?id=` | progresso do job |
-| `GET` | `/jobs` | últimos downloads |
 
 ---
 
 ## Aviso
 
-Ferramenta para uso pessoal. Baixe apenas conteúdo que você tem direito de baixar (material próprio, domínio público, ou com autorização). A responsabilidade pelo uso é de quem baixa.
+Ferramenta para uso pessoal. Salve apenas conteúdo que você tem direito de
+baixar. A responsabilidade pelo uso é de quem baixa. Veja [`TERMS.md`](TERMS.md).
 
 ---
 
 <p align="center">
-  <sub>© NOÉ VFX — <a href="https://noevfx.com">noevfx.com</a></sub>
+  <sub>© NOÉ VFX — <a href="https://noevfx.com">noevfx.com</a> · <a href="mailto:labs@noevfx.com">labs@noevfx.com</a></sub>
 </p>
-
----
-
-<sub>Este repositório reúne as extensões e add-ons da **NOÉ VFX**. No momento ele contém o **Downloader**; novos utilitários entram na mesma estrutura (`extension/` + `server/` + `installers/`).</sub>

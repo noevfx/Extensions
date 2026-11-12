@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Noe VFX Downloader",
+    "description": "Extension name"
+  },
+  "extDesc": {
+    "message": "Save videos you can already watch for offline viewing. Local processing, your folder, your quality.",
+    "description": "Extension description"
+  }
+}

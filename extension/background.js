@@ -6,6 +6,10 @@
    ========================================================================== */
 "use strict";
 
+// i18n dos menus de contexto
+try { importScripts("i18n.js"); } catch (_) {}
+const t = (k, ...s) => (globalThis.__nvfT ? globalThis.__nvfT(k, ...s) : k);
+
 const SERVER = "http://127.0.0.1:8765";
 const HDRS = { "Content-Type": "application/json", "X-NoeVFX-Client": "1" };
 const MAX_STREAMS = 80;
@@ -21,7 +25,9 @@ const DEFAULT_CONFIG = {
   onboarded: false
 };
 
-const IGNORE_RE = /\.(ts|m4s|m4f|aac|vtt|srt|jpg|jpeg|png|gif|webp|avif|svg|css|js|json|woff2?|ico|txt|xml)(\?|#|$)|doubleclick|googlesyndication|adsystem|scorecardresearch|googletagmanager|google-analytics|adservice|pubmatic|rubiconproject/i;
+const IGNORE_RE = /\.(ts|m4s|m4f|aac|vtt|srt|jpg|jpeg|png|gif|webp|avif|svg|css|js|json|woff2?|ico|txt|xml|webmanifest)(\?|#|$)|doubleclick|googlesyndication|adsystem|scorecardresearch|googletagmanager|google-analytics|adservice|pubmatic|rubiconproject/i;
+
+const MEDIA_EXT_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|m4a)(\?|#|$)/i;
 
 /* ---------------------------------------------------------------- util ---- */
 const now = () => Date.now();
@@ -139,6 +145,8 @@ function addStream(tabId, url, kind, extra) {
   if (tabId == null || tabId < 0 || !url) return;
   if (!/^https?:/i.test(url)) return;
   if (IGNORE_RE.test(url)) return;
+  // veio do padrão de URL: exige extensão de mídia de verdade (evita site.webmanifest etc.)
+  if (!kind && !MEDIA_EXT_RE.test(url)) return;
 
   const list = listOf(tabId);
   const hit = list.find((x) => x.url === url);
@@ -528,32 +536,32 @@ function buildMenus(fabEnabled) {
     const ctx = ["page", "link", "video", "image"];
     chrome.contextMenus.create({
       id: "noevfx-download-best",
-      title: "Baixar na qualidade nativa — NOÉ VFX",
+      title: t("menuBest"),
       contexts: ctx
     });
     chrome.contextMenus.create({
       id: "noevfx-download-all",
-      title: "Baixar TODOS os vídeos desta página",
+      title: t("menuAll"),
       contexts: ctx
     });
     chrome.contextMenus.create({ id: "noevfx-sep1", type: "separator", contexts: ctx });
     chrome.contextMenus.create({
       id: "noevfx-icon-on", type: "radio",
-      title: "Ícone nos vídeos: ativado", checked: on, contexts: ctx
+      title: t("menuIconOn"), checked: on, contexts: ctx
     });
     chrome.contextMenus.create({
       id: "noevfx-icon-off", type: "radio",
-      title: "Ícone nos vídeos: desativado", checked: !on, contexts: ctx
+      title: t("menuIconOff"), checked: !on, contexts: ctx
     });
     chrome.contextMenus.create({ id: "noevfx-sep2", type: "separator", contexts: ctx });
     chrome.contextMenus.create({
       id: "noevfx-open-folder",
-      title: "Abrir pasta de downloads",
+      title: t("menuOpenFolder"),
       contexts: ctx
     });
     chrome.contextMenus.create({
       id: "noevfx-options",
-      title: "Configurações (pasta padrão)…",
+      title: t("menuOptions"),
       contexts: ["page", "action", "video", "link", "image"]
     });
   });

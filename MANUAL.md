@@ -140,18 +140,22 @@ Mudar depois: ícone da extensão → **⚙️**.
 
 ---
 
-## 6. Por que funciona em sites que bloqueiam
+## 6. Conteúdo autenticado e compatibilidade
 
-| Camada | O que faz |
+| Situação | Como a ferramenta trata |
 |---|---|
-| Cookies da sessão | envia os cookies do seu login (Globo, cursos, redes sociais) |
-| Impersonate Chrome | o yt-dlp se disfarça de navegador real |
-| Referer + Origin + UA | se apresenta como se fosse o próprio site |
-| 16 fragmentos paralelos | HLS/DASH baixados em paralelo |
-| Retentativas | 10 gerais e 20 por fragmento |
-| Fallback em cadeia | página → stream capturado → modo compatível |
-| yt-dlp atualizado | o instalador baixa sempre a versão mais recente |
-| Argumentos extras | campo livre nas configurações |
+| Vídeo aberto na página | encontra o stream que o player já carrega |
+| Vídeo atrás do **seu próprio login** | usa a sessão que você já tem aberta (cookies do seu navegador) |
+| Qualidade | a melhor que o player oferece, ou 1080p / 720p / somente áudio |
+| HLS / DASH / MP4 / WebM | suportados |
+| Conteúdo protegido por **DRM** | **não** é suportado — a ferramenta não contorna proteções |
+| Assinatura de terceiros | **não** é contornada: o acesso é sempre o que você já possui |
+
+O download é feito pelo `yt-dlp` no seu computador, com retentativas e
+fragmentos paralelos para ser rápido e estável. A sessão usada é a sua: a
+ferramenta não cria acesso, não quebra login e não ignora assinatura.
+
+> Use apenas com conteúdo que você tem o direito de salvar. Veja `TERMS.md`.
 
 ---
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Noe VFX Downloader — Configurações</title>
+  <title>Noe VFX Downloader — Settings</title>
   <style>
     :root[data-theme="dark"] {
       --bg: #0b0d13;
@@ -150,6 +150,43 @@
     summary { cursor: pointer; font-size: 12px; color: var(--muted); font-weight: 600; }
     details .row { margin-top: 10px; }
     code { background: var(--card-2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 5px; font-size: 11.5px; }
+    .support { margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+    .support a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+    /* ---- Sobre / PIX ---- */
+    .about-head { display: flex; gap: 14px; align-items: flex-start; }
+    .about-badge {
+      font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px;
+      background: rgba(0,102,255,.16); color: #4d94ff; border: 1px solid rgba(0,102,255,.35);
+      margin-left: 6px; vertical-align: middle; letter-spacing: .02em;
+    }
+    .about-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .about-links a {
+      display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 9px;
+      border: 1px solid var(--border); background: var(--card-2); color: var(--text);
+      text-decoration: none; font-size: 12px; font-weight: 600;
+    }
+    .about-links a:hover { border-color: var(--accent); background: var(--card); }
+    .pix {
+      display: flex; gap: 16px; align-items: flex-start; margin-top: 14px; padding: 14px;
+      border-radius: 12px; border: 1px solid var(--border); background: var(--card-2);
+    }
+    .pix-qr { width: 132px; height: 132px; border-radius: 10px; background: #fff; padding: 6px; flex-shrink: 0; image-rendering: pixelated; }
+    .pix-body { flex: 1; min-width: 0; }
+    .pix-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .pix-row code {
+      flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
+    }
+    .mini {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card); color: var(--text);
+      font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; text-decoration: none;
+      white-space: nowrap;
+    }
+    .mini:hover { border-color: var(--accent); }
+    .mini.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .mini.primary:hover { background: var(--accent-hover); }
   </style>
 </head>
 <body>
@@ -161,11 +198,11 @@
       </svg>
       <div class="brand">
         <h1>Noe VFX Downloader</h1>
-        <p>Configurações — <a href="https://noevfx.com" target="_blank" rel="noreferrer">noevfx.com</a></p>
+        <p><span data-i18n="settingsTitle"></span> — <a href="https://noevfx.com" target="_blank" rel="noreferrer">noevfx.com</a></p>
       </div>
       <div class="top-right">
-        <span id="srvPill" class="pill">verificando…</span>
-        <button id="themeBtn" class="icon-btn" type="button" title="Tema claro/escuro">
+        <span id="srvPill" class="pill" data-i18n="checking"></span>
+        <button id="themeBtn" class="icon-btn" type="button" data-i18n-title="tipTheme">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         </button>
       </div>
@@ -174,113 +211,167 @@
     <div id="welcome" class="welcome">
       <div style="font-size:22px;line-height:1">👋</div>
       <div>
-        <h2>Bem-vindo! Vamos configurar em 1 minuto</h2>
-        <p>Escolha onde os vídeos serão salvos. Você pode mudar isso quando quiser clicando no ícone da extensão → ⚙️.</p>
+        <h2 data-i18n="welcomeTitle"></h2>
+        <p data-i18n="welcomeText"></p>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="step">1</span><h3>Servidor local</h3></div>
-      <p class="hint">É ele que baixa os vídeos. Deve ficar rodando em segundo plano (o instalador já configura para iniciar com o computador).</p>
-      <div class="checks" id="checks">
-        <span class="check">Verificando…</span>
-      </div>
+      <div class="card-head"><span class="step">1</span><h3 data-i18n="step1"></h3></div>
+      <p class="hint" data-i18n="step1Hint"></p>
+      <div class="checks" id="checks"><span class="check">…</span></div>
       <div class="row" style="margin-top:12px">
-        <button id="retestBtn" class="btn" type="button">Testar novamente</button>
-        <span class="tiny" id="srvHint">Se estiver offline, rode o instalador do NOÉ VFX.</span>
+        <button id="retestBtn" class="btn" type="button" data-i18n="retest"></button>
+        <span class="tiny" id="srvHint" data-i18n="step1Offline"></span>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="step">2</span><h3>Pasta padrão dos downloads</h3></div>
-      <p class="hint">Todo vídeo baixado vai para esta pasta. Ela é criada automaticamente se não existir.</p>
+      <div class="card-head"><span class="step">2</span><h3 data-i18n="step2"></h3></div>
+      <p class="hint" data-i18n="step2Hint"></p>
       <div class="row">
-        <input id="outDir" type="text" placeholder="Ex.: C:\Videos\NoeVFX  •  /Users/voce/Movies/NoeVFX  •  /home/voce/Videos/NoeVFX" />
-        <button id="pickBtn" class="btn" type="button">Escolher pasta…</button>
+        <input id="outDir" type="text" data-i18n-ph="outDirPh" />
+        <button id="pickBtn" class="btn" type="button" data-i18n="pickFolder"></button>
       </div>
       <div class="row">
-        <button id="openBtn" class="btn" type="button">Abrir pasta</button>
-        <button id="defaultBtn" class="btn" type="button">Usar a pasta padrão do sistema</button>
+        <button id="openBtn" class="btn" type="button" data-i18n="openFolder"></button>
+        <button id="defaultBtn" class="btn" type="button" data-i18n="useDefault"></button>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="step">3</span><h3>Ao clicar no ícone que aparece sobre o vídeo</h3></div>
-      <p class="hint">O ícone azul do NOÉ VFX aparece no canto do vídeo quando você passa o mouse.</p>
+      <div class="card-head"><span class="step">3</span><h3 data-i18n="step3"></h3></div>
+      <p class="hint" data-i18n="step3Hint"></p>
       <div class="choice" id="hoverChoice">
         <label class="opt" data-v="menu">
           <input type="radio" name="hover" value="menu" />
           <div>
-            <div class="t">Perguntar antes de salvar (recomendado)</div>
-            <div class="d">Abre um menu mostrando a pasta padrão com opções: nativa, 1080p, 720p, só áudio e baixar todos.</div>
+            <div class="t" data-i18n="optMenuT"></div>
+            <div class="d" data-i18n="optMenuD"></div>
           </div>
         </label>
         <label class="opt" data-v="direct">
           <input type="radio" name="hover" value="direct" />
           <div>
-            <div class="t">Salvar direto na pasta padrão</div>
-            <div class="d">Um clique e o download começa na qualidade escolhida abaixo. Sem perguntas.</div>
+            <div class="t" data-i18n="optDirectT"></div>
+            <div class="d" data-i18n="optDirectD"></div>
           </div>
         </label>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="step">4</span><h3>Qualidade padrão</h3></div>
-      <p class="hint">Usada quando você clica no ícone do vídeo ou em "Baixar todos".</p>
+      <div class="card-head"><span class="step">4</span><h3 data-i18n="step4"></h3></div>
+      <p class="hint" data-i18n="step4Hint"></p>
       <div class="row">
         <select id="quality">
-          <option value="best">Nativa / Máxima (recomendado)</option>
-          <option value="1080">1080p Full HD</option>
-          <option value="720">720p HD</option>
-          <option value="audio">Somente áudio (M4A)</option>
+          <option value="best" data-i18n="qBest"></option>
+          <option value="1080" data-i18n="q1080"></option>
+          <option value="720" data-i18n="q720"></option>
+          <option value="audio" data-i18n="qAudio2"></option>
         </select>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="step">5</span><h3>Opções avançadas</h3></div>
-      <p class="hint">Ajudam em sites que bloqueiam downloads (login, assinatura, proteção anti-bot).</p>
+      <div class="card-head"><span class="step">5</span><h3 data-i18n="step5"></h3></div>
+      <p class="hint" data-i18n="step5Hint"></p>
       <div class="switch">
         <div>
-          <div class="t">Usar os cookies do navegador</div>
-          <div class="d">A extensão envia os cookies da página para o servidor. Resolve vídeos que só abrem logado (Globo, cursos, redes sociais).</div>
+          <div class="t" data-i18n="useCookiesT"></div>
+          <div class="d" data-i18n="useCookiesD"></div>
         </div>
         <label class="toggle"><input id="useCookies" type="checkbox" checked /><span></span></label>
       </div>
       <div class="switch">
         <div>
-          <div class="t">Separar em subpasta por site</div>
-          <div class="d">Cria uma subpasta com o nome do site dentro da pasta padrão (ex.: <code>NoeVFX/youtube.com</code>).</div>
+          <div class="t" data-i18n="organizeT"></div>
+          <div class="d" data-i18n="organizeD"></div>
         </div>
         <label class="toggle"><input id="organize" type="checkbox" /><span></span></label>
       </div>
       <div class="switch">
         <div>
-          <div class="t">Mostrar o ícone sobre os vídeos</div>
-          <div class="d">O botão azul que aparece no canto do vídeo (dá para arrastar e ele some sozinho após 2 s parado). Desligado, a detecção continua no popup e no botão direito.</div>
+          <div class="t" data-i18n="showIconT"></div>
+          <div class="d" data-i18n="showIconD"></div>
         </div>
         <label class="toggle"><input id="fabEnabled" type="checkbox" checked /><span></span></label>
       </div>
       <details>
-        <summary>Argumentos extras do yt-dlp (avançado)</summary>
+        <summary data-i18n="extraArgs"></summary>
         <div class="row">
-          <input id="extraArgs" type="text" placeholder="ex.: --extractor-args youtube:player_client=web_safari" />
+          <input id="extraArgs" type="text" data-i18n-ph="extraArgsPh" />
         </div>
-        <p class="tiny" style="margin:8px 0 0">Deixe vazio se não souber. Separe por espaço.</p>
+        <p class="tiny" style="margin:8px 0 0" data-i18n="extraArgsHint"></p>
       </details>
     </div>
 
-    <p class="tiny">Versão <span id="ver">3.0.0</span> • Chrome, Edge, Brave, Opera, Vivaldi e outros Chromium (Windows, macOS e Linux).</p>
+    <div class="card">
+      <div class="about-head">
+        <svg class="logo" viewBox="0 0 722.36 722.36" width="52" height="52">
+          <rect fill="#0066FF" width="722.36" height="722.36" rx="102.3" ry="102.3"/>
+          <path fill="#FFFFFF" d="M550.64,561.37H168.59c-4.19,0-7.59-3.4-7.59-7.59V171.73l389.63,389.63ZM553.77,161H171.72l389.63,389.63V168.58c0-4.17-3.39-7.59-7.59-7.59Z"/>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:15px">
+            Noe VFX Downloader <span class="about-badge" id="aboutVer">v3.0.0</span>
+          </div>
+          <div class="tiny" data-i18n="aboutTagline"></div>
+          <p class="hint" style="margin:8px 0 0" data-i18n="aboutDesc"></p>
+          <div class="about-links">
+            <a href="https://noevfx.com" target="_blank" rel="noreferrer">🌐 <span data-i18n="linkSite"></span></a>
+            <a href="https://noevfx.com/scripts" target="_blank" rel="noreferrer">&lt;/&gt; <span data-i18n="linkScripts"></span></a>
+            <a href="https://github.com/noevfx" target="_blank" rel="noreferrer">GitHub <span data-i18n="linkGithub"></span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="step">☕</span><h3 data-i18n="coffeeTitle"></h3></div>
+      <p class="hint" data-i18n="coffeeText"></p>
+      <div class="pix">
+        <canvas id="pixQr" class="pix-qr" width="264" height="264"></canvas>
+        <div class="pix-body">
+          <div class="tiny" data-i18n="pixKeyLabel"></div>
+          <div class="pix-row">
+            <code id="pixKey"></code>
+            <button class="mini" id="copyKey" type="button" data-i18n="pixCopyKey"></button>
+          </div>
+          <div class="tiny" style="margin-top:10px" data-i18n="pixCodeLabel"></div>
+          <div class="pix-row">
+            <code id="pixPayload"></code>
+            <button class="mini primary" id="copyPix" type="button" data-i18n="pixCopy"></button>
+          </div>
+          <div class="tiny" style="margin-top:8px" data-i18n="pixQrNote"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="step">✉</span><h3 data-i18n="supportTitle"></h3></div>
+      <p class="hint" data-i18n="supportText"></p>
+      <div class="pix-row">
+        <code>labs@noevfx.com</code>
+        <button class="mini" id="copyMail" type="button" data-i18n="supportCopy"></button>
+        <a class="mini primary" href="mailto:labs@noevfx.com" data-i18n="supportSend"></a>
+      </div>
+    </div>
+
+    <p class="tiny"><span data-i18n="versionLine"></span></p>
+    <p class="tiny" data-i18n="legalNote" style="margin-top:6px"></p>
+    <p class="support">Bugs / support: <a href="mailto:labs@noevfx.com">labs@noevfx.com</a></p>
   </div>
 
   <div class="actions-bar">
     <div class="wrap-in">
-      <span id="saveStatus">Alterações não salvas.</span>
-      <button id="saveBtn" class="btn primary" type="button">Salvar configurações</button>
+      <span id="saveStatus" data-i18n="unsaved"></span>
+      <button id="saveBtn" class="btn primary" type="button" data-i18n="saveBtn"></button>
     </div>
   </div>
 
+  <script src="vendor/qrcode.js"></script>
+  <script src="i18n.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

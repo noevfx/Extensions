@@ -1,9 +1,11 @@
 /* ============================================================================
-   Noe VFX Downloader — Popup v3.0
+   Noe VFX Downloader — Popup v3.0 (i18n pt/en)
    ========================================================================== */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+const t = (k, ...s) => (globalThis.__nvfT ? globalThis.__nvfT(k, ...s) : k);
+
 const srv = $("srv");
 const urlInput = $("urlInput");
 const streamsEl = $("streams");
@@ -26,7 +28,7 @@ let streams = [];
 let cfg = null;
 let serverOnline = false;
 
-const RANK = { "HLS": 5, "DASH": 4, "MP4": 3, "WebM": 2, "Áudio": 1, "HTML5": 3, "Rede": 3, "Embed": 4, "YouTube": 6, "Globo/G1": 6 };
+const RANK = { "HLS": 5, "DASH": 4, "MP4": 3, "WebM": 2, "Áudio": 1, "Audio": 1, "HTML5": 3, "Rede": 3, "Network": 3, "Embed": 4, "YouTube": 6, "Globo/G1": 6 };
 
 const send = (msg) =>
   new Promise((resolve) => {
@@ -37,9 +39,11 @@ const send = (msg) =>
     }
   });
 
-/* ---------------------------------------------------------------- tema ---- */
+/* ---------------------------------------------------------------- idioma -- */
+if (globalThis.__nvfI18n) globalThis.__nvfI18n.applyStatic();
 if (verEl) verEl.textContent = "v" + chrome.runtime.getManifest().version;
 
+/* ---------------------------------------------------------------- tema ---- */
 chrome.storage.local.get(["theme"], (res) => {
   document.documentElement.setAttribute("data-theme", (res && res.theme) || "dark");
 });
@@ -51,7 +55,7 @@ themeBtn.addEventListener("click", () => {
 
 /* ------------------------------------------------------------ configuração - */
 function prettyFolder(p) {
-  if (!p) return "Downloads/NoeVFX";
+  if (!p) return t("folderLabel");
   const parts = String(p).split(/[\\/]+/).filter(Boolean);
   return parts.slice(-2).join("/") || p;
 }
@@ -65,7 +69,7 @@ function applyConfig(c) {
   const on = c.fab_enabled !== false;
   fabBtn.classList.toggle("on", on);
   fabBtn.classList.toggle("off", !on);
-  fabBtn.title = on ? "Ícone sobre os vídeos: ativado (clique para desligar)" : "Ícone sobre os vídeos: desativado (clique para ligar)";
+  fabBtn.title = on ? t("iconEnabled") : t("iconDisabled");
 }
 
 async function loadConfig(force) {
@@ -78,12 +82,10 @@ async function loadConfig(force) {
 async function checkHealth() {
   const r = await send({ type: "HEALTH" });
   serverOnline = !!(r && r.ok);
-  srv.textContent = serverOnline ? "Online" : "Offline";
+  srv.textContent = serverOnline ? t("online") : t("offline");
   srv.classList.toggle("on", serverOnline);
   srv.classList.toggle("off", !serverOnline);
-  if (!serverOnline) {
-    statusEl.textContent = "Servidor local offline — rode o instalador (windows/mac/linux)";
-  }
+  if (!serverOnline) statusEl.textContent = t("offlineHint");
   return serverOnline;
 }
 
@@ -149,7 +151,7 @@ function render() {
   if (!groups.length) {
     const d = document.createElement("div");
     d.className = "empty";
-    d.textContent = "Nenhum stream capturado ainda. Dê play no vídeo e clique em ⟳.";
+    d.textContent = t("empty");
     streamsEl.appendChild(d);
     return;
   }
@@ -185,13 +187,13 @@ function render() {
     const btn = document.createElement("button");
     btn.className = "stream-btn";
     btn.type = "button";
-    btn.textContent = "Baixar";
+    btn.textContent = t("download");
     btn.addEventListener("click", () => {
       btn.disabled = true;
       btn.textContent = "…";
       startDownload(g.best.url, "best", g.best.url, () => {
         btn.disabled = false;
-        btn.textContent = "Baixar";
+        btn.textContent = t("download");
       });
     });
 
@@ -256,22 +258,22 @@ function track(jobId, onDone) {
     if (!st || !st.ok) {
       if (Date.now() - started > 8000) {
         clearInterval(timer);
-        statusEl.textContent = "Conexão perdida com o servidor local.";
+        statusEl.textContent = t("lost");
         onDone && onDone(false);
       }
       return;
     }
     const d = st.data || {};
-    if (d.status === "queued") statusEl.textContent = "Na fila...";
-    else if (d.status === "downloading") statusEl.textContent = d.progress ? `Baixando ${d.progress}${d.speed ? " • " + d.speed : ""}` : "Extraindo vídeo...";
-    else if (d.status === "merging") statusEl.textContent = "Unindo A/V (ffmpeg)...";
+    if (d.status === "queued") statusEl.textContent = t("queue");
+    else if (d.status === "downloading") statusEl.textContent = d.progress ? t("downloading", d.progress) : t("extracting");
+    else if (d.status === "merging") statusEl.textContent = t("merging");
     else if (d.status === "done") {
       clearInterval(timer);
-      statusEl.textContent = "Salvo em " + prettyFolder(d.output_dir || (cfg && cfg.output_dir));
+      statusEl.textContent = t("savedIn", prettyFolder(d.output_dir || (cfg && cfg.output_dir)));
       onDone && onDone(true);
     } else if (d.status === "error") {
       clearInterval(timer);
-      statusEl.textContent = "Erro: " + String(d.error || "indisponível").slice(0, 70);
+      statusEl.textContent = t("errX", String(d.error || "-").slice(0, 70));
       onDone && onDone(false);
     }
   }, 700);
@@ -280,11 +282,11 @@ function track(jobId, onDone) {
 async function startDownload(targetUrl, quality, fallbackStream, onDone) {
   const url = (targetUrl || "").trim();
   if (!/^https?:/i.test(url)) {
-    statusEl.textContent = "Abra uma página com vídeo.";
+    statusEl.textContent = t("openPage");
     onDone && onDone(false);
     return;
   }
-  statusEl.textContent = "Iniciando download...";
+  statusEl.textContent = t("starting");
   const res = await send({
     type: "DOWNLOAD",
     url,
@@ -296,7 +298,7 @@ async function startDownload(targetUrl, quality, fallbackStream, onDone) {
   });
 
   if (!res || !res.ok || !res.job_id) {
-    statusEl.textContent = "Servidor local offline.";
+    statusEl.textContent = t("startFail");
     await checkHealth();
     onDone && onDone(false);
     return;
@@ -324,12 +326,11 @@ async function downloadAll() {
   });
 
   if (!res || !res.ok) {
-    statusEl.textContent = "Falha ao enfileirar. Servidor offline?";
+    statusEl.textContent = t("enqueueFail");
     await checkHealth();
     return;
   }
-  statusEl.textContent = `${res.queued} download(s) na fila do NOÉ VFX.`;
-  if (!res.queued) statusEl.textContent = "Nada para baixar nesta aba.";
+  statusEl.textContent = res.queued ? t("queuedN", res.queued) : t("nothing");
 }
 
 /* ------------------------------------------------------------------ boot -- */
@@ -382,17 +383,15 @@ fabBtn.addEventListener("click", async () => {
   const r = await send({ type: "SAVE_CONFIG", patch: { fab_enabled: turningOn } });
   if (r && r.ok && r.config) {
     applyConfig(r.config);
-    statusEl.textContent = turningOn
-      ? "Ícone ativado sobre os vídeos."
-      : "Ícone desativado. A detecção continua funcionando.";
+    statusEl.textContent = turningOn ? t("iconOnMsg") : t("iconOffMsg");
   } else {
-    statusEl.textContent = "Não consegui salvar (servidor local offline?).";
+    statusEl.textContent = t("saveFailMsg");
   }
 });
 
 openFolderBtn.addEventListener("click", async () => {
   const r = await send({ type: "OPEN_FOLDER", path: (cfg && cfg.output_dir) || "" });
-  if (!r || !r.ok) statusEl.textContent = "Não consegui abrir a pasta (servidor offline?).";
+  if (!r || !r.ok) statusEl.textContent = t("openFolderFail");
 });
 
 allBtn.addEventListener("click", downloadAll);
