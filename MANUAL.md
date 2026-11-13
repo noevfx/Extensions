@@ -39,7 +39,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 | **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
 | **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **no feed ainda não está confirmado** (em ajuste) |
 | **X (Twitter)** | um item por tweet com vídeo (testado no feed real); baixa **todos os vídeos do tweet** |
-| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos**; vídeo do feed vira item com a própria miniatura e o ícone baixa (sem link de pin sai como `Vídeo do Pinterest [código]`) |
 | **Vimeo** | vídeos públicos e embutidos em outras páginas |
 | **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
 | **Sites comuns** | players com MP4, HLS (.m3u8) e DASH; players embutidos (iframe) de cursos |
@@ -55,6 +55,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 | "Servidor local offline" | rode o instalador de novo |
 | Vídeo sem áudio | confira o selo **FFmpeg** nas configurações; rode o instalador |
 | Extensão sumiu / cinza | você apagou a pasta de onde carregou: carregue a pasta **instalada** |
+| Botão de atualizar não acha nada | a extensão está carregada da pasta extraída do zip: remova e carregue a pasta **instalada** |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
 **Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.

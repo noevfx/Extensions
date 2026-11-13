@@ -65,7 +65,7 @@ Testadas com sites reais no Windows (Edge e Chrome), com o aplicativo local, o y
 | **Instagram** | posts e reels; **carrossel: baixa todos os vídeos** (as fotos são ignoradas); cada vídeo com a própria miniatura |
 | **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
 | **X (Twitter)** | um item por tweet com vídeo (confirmado no feed real); baixa **todos os vídeos do tweet** |
-| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos**; vídeo do feed vira item com a própria miniatura e o ícone baixa (sem link de pin sai como `Vídeo do Pinterest [código]`) |
 | **Vimeo** | vídeos públicos e embutidos em outras páginas |
 | **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
 | **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **o feed ainda não está confirmado** (em ajuste) |
@@ -75,8 +75,8 @@ Testadas com sites reais no Windows (Edge e Chrome), com o aplicativo local, o y
 login e transmissão ao vivo cancelada no meio (o parcial se perde). Para conteúdo que exige login, entre na sua conta no navegador e
 deixe **Usar os cookies do navegador** ligado nas Configurações.
 
-**Limites conhecidos:** o feed do Facebook (em ajuste); no Pinterest, sem estar logado, o site não põe link nos cartões do feed, então
-vídeo solto do feed pode não virar item (abra o pin e baixe de lá); macOS e Linux têm o instalador testado pela CI, mas o uso no
+**Limites conhecidos:** o feed do Facebook (em ajuste); no Pinterest, o vídeo do feed sem link de pin é baixado pelo stream do player e sai com nome genérico
+(abra o pin para ter o nome e o carrossel inteiro); macOS e Linux têm o instalador testado pela CI, mas o uso no
 navegador foi validado só no Windows. Se algum item vier sem miniatura ou com o arquivo errado, mande o print e o link do post.
 
 ---
@@ -269,6 +269,7 @@ posições salvas são preservadas.
 | "Esse vídeo tem proteção DRM" | Não baixa: a ferramenta não contorna DRM |
 | Aviso "não achei o link deste post/tweet/pin" | Abra o post, tweet ou pin (clique nele ou na data) e baixe de lá |
 | Extensão sumiu ou ficou cinza | Você apagou a pasta de onde carregou: carregue a pasta **instalada** |
+| O botão de atualizar não acha nada, ou o popup mostra uma versão diferente da instalada | A extensão está carregada da pasta **extraída do zip** (ex.: `Desktop\windows\extension`). Em `edge://extensions` remova-a e carregue `%LOCALAPPDATA%\NoeVFXDownloader\extension` (no macOS/Linux, `~/.local/share/NoeVFXDownloader/extension`) |
 | Erro 403 | O yt-dlp já se atualiza sozinho (1x por dia, com o app ligado). Se persistir, reinicie o computador para o app subir e atualizar, ou rode `yt-dlp -U` (ou o instalador) |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
@@ -283,8 +284,8 @@ macOS `~/Library/Logs/NoeVFXDownloader.log`
 
 | Teste | O que cobre | Como rodar |
 |---|---|---|
-| `tests/test_server.py` | regras do servidor (33 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
-| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar): 50 checagens | `node tests/e2e_sites.js` |
+| `tests/test_server.py` | regras do servidor (34 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
+| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar): 52 checagens | `node tests/e2e_sites.js` |
 | `tests/popup_group.js` | agrupamento da lista do popup | `node tests/popup_group.js` |
 | `tests/real_site.js <url>` | uma página real com a extensão, o servidor, o yt-dlp e o ffprobe | `node tests/real_site.js <url> [segundos]` |
 | `tests/dl_url.js <url>` | baixar um link pelo servidor e conferir o arquivo | `node tests/dl_url.js <url>` |

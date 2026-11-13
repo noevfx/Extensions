@@ -198,7 +198,7 @@ com as opções de qualidade. (O YouTube precisa do **Deno**, que o instalador j
 | **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
 | **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **no feed ainda não está confirmado** (em ajuste) |
 | **X (Twitter)** | um item por tweet com vídeo (testado no feed real); baixa **todos os vídeos do tweet** |
-| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos**; vídeo do feed vira item com a própria miniatura e o ícone baixa (sem link de pin sai como `Vídeo do Pinterest [código]`) |
 | **Vimeo** | vídeos públicos e embutidos em outras páginas |
 | **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
 | **Sites comuns** | players com MP4, HLS (.m3u8) e DASH; players embutidos (iframe) de cursos |
