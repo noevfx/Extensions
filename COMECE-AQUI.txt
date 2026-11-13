@@ -1,4 +1,4 @@
-Noe VFX Downloader 3.0.15 — noevfx.com
+Noe VFX Downloader 3.0.16 — noevfx.com
 =====================================
 
 Qual versão é? Está no nome do ZIP (noevfx-downloader-X.Y.Z.zip) e no arquivo VERSION.txt.

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.15-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.16-0066FF">
   <img alt="sistemas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
   <img alt="telemetria" src="https://img.shields.io/badge/telemetria-zero-171a24">
@@ -43,7 +43,7 @@ Feita para uso próprio e de amigos: **não está em nenhuma loja**; instala-se 
 ## Baixar
 
 **Pacote completo (extensão + aplicativo local + instaladores):**
-[`noevfx-downloader-3.0.15.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.15/noevfx-downloader-3.0.15.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
+[`noevfx-downloader-3.0.16.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.16/noevfx-downloader-3.0.16.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -285,7 +285,7 @@ macOS `~/Library/Logs/NoeVFXDownloader.log`
 | Teste | O que cobre | Como rodar |
 |---|---|---|
 | `tests/test_server.py` | regras do servidor (34 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
-| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar): 52 checagens | `node tests/e2e_sites.js` |
+| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar): 54 checagens | `node tests/e2e_sites.js` |
 | `tests/popup_group.js` | agrupamento da lista do popup | `node tests/popup_group.js` |
 | `tests/real_site.js <url>` | uma página real com a extensão, o servidor, o yt-dlp e o ffprobe | `node tests/real_site.js <url> [segundos]` |
 | `tests/dl_url.js <url>` | baixar um link pelo servidor e conferir o arquivo | `node tests/dl_url.js <url>` |

@@ -369,9 +369,20 @@
 
   // link do PIN de um <video>: o do próprio cartão (feed) ou o da página (pin aberto). Nunca procura fora do cartão: o pin aberto
   // também tem links /pin/ID/... que não são deste vídeo.
+  // O vídeo do PIN ABERTO. No Pinterest logado ele nem sempre está dentro de CloseupMainPin (às vezes o bloco de "relacionados" envolve a
+  // página toda, e o pôster não tem o código do vídeo): vale também o vídeo grande, que é o maior da página.
+  function pinIsMain(v) {
+    if (!PIN_PATH_RE.test(location.pathname)) return false;
+    if (v.closest('[data-test-id="CloseupMainPin"], [data-test-id="story-pin-closeup"], [data-test-id="closeup-body-landscape"]')) return true;
+    const r = v.getBoundingClientRect();
+    if (r.width < 380) return false;
+    const area = r.width * r.height;
+    return [...document.querySelectorAll("video")].every((o) => { if (o === v) return true; const q = o.getBoundingClientRect(); return q.width * q.height <= area; });
+  }
+
   function pinCardUrl(v) {
     try {
-      if (v.closest('[data-test-id="CloseupMainPin"]')) {
+      if (pinIsMain(v)) {
         const m = location.pathname.match(PIN_PATH_RE);
         return m ? `https://www.pinterest.com/pin/${m[1]}/` : "";
       }
@@ -637,7 +648,7 @@
       const mainUrl = pm ? `https://www.pinterest.com/pin/${pm[1]}/` : "";
       if (mainUrl) {
         const info = pinInfo(pm[1]);
-        const mv = vids.find((v) => v.closest('[data-test-id="CloseupMainPin"]'));
+        const mv = vids.find((v) => pinIsMain(v));
         if (info && info !== "-") push(mainUrl, "Pinterest", info.thumb, (info.title || "Pinterest") + (info.n > 1 ? ` (${info.n} vídeos)` : ""), 2);
         else if (info === "-" && mv) push(mainUrl, "Pinterest", frameOf(mv) || (/^https?:/i.test(mv.poster || "") ? mv.poster : ""), document.title, 2);
       }

@@ -6,6 +6,22 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.16] — 2026-11-13
+
+### Corrigido
+- **Pinterest logado, ícone no vídeo do pin aberto:** o ícone mostrava "não achei o link deste pin" e não baixava (o botão do popup
+  baixava normal). No Pinterest logado o vídeo do pin aberto não fica dentro do bloco `CloseupMainPin` (o bloco de "relacionados"
+  envolve a página toda) e o pôster dele não traz o código do vídeo, então a extensão não achava nem o link nem o stream. Agora o
+  **vídeo grande da página de um pin é o próprio pin** (o maior vídeo da tela, com 380 px ou mais de largura), em qualquer layout.
+  Vídeos pequenos de cartões continuam usando o link do cartão ou o stream pelo código do pôster.
+
+### Como foi testado
+- Reproduzido no Edge do Eduardo (Pinterest logado): clicar em "Baixar na pasta padrão" no ícone mostrava o aviso.
+- Teste novo no navegador de teste com esse layout (vídeo grande dentro de `relatedPins`, sem `CloseupMainPin`, pôster sem código,
+  sem links): o ícone pede o pin da página. 54 checagens ao todo; 34 testes do servidor.
+
+---
+
 ## [3.0.15] — 2026-11-13
 
 ### Corrigido

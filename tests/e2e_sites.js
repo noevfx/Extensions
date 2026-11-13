@@ -101,6 +101,14 @@ function rawReq(port, method, p, body, headers = {}) {
     }
     if (url.startsWith("/fbv/")) { res.writeHead(200, { "Content-Type": "video/mp4", "Access-Control-Allow-Origin": "*" }); return res.end(vids[0]); }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    if (host === "www.pinterest.com" && url.startsWith("/pin/3333")) {
+      return res.end(`<!doctype html><meta charset=utf-8><title>Pin logado</title><body style="margin:0;background:#111;color:#fff">
+        <div data-test-id="relatedPins"><div data-test-id="feed"><div>
+          ${"<div>".repeat(6)}<video muted playsinline autoplay loop width=500 height=640 data-i=0 poster="https://i.pinimg.com/736x/b8/3b/95/b83b95aaaaaaaaaaaaaaaaaaaaaaaaaa.jpg"></video>${"</div>".repeat(6)}
+          <div role="listitem" style="width:200px"><video muted playsinline autoplay loop width=200 height=260 data-i=1></video></div>
+        </div></div></div>
+        <script>${blobJs}; document.querySelectorAll("video").forEach((v) => loadBlob(v, v.dataset.i));</script>`);
+    }
     if (host === "www.pinterest.com") {
       // pin aberto: o pin principal só tem IMAGENS no DOM (o carrossel); abaixo, "relacionados": cartões com vídeo blob:, um com link
       // /pin/ID/ e outro SEM link; o link /pin/ID/repin do pin principal fica num ancestral de TODOS os cartões (não pode vazar)
@@ -380,6 +388,16 @@ function rawReq(port, method, p, body, headers = {}) {
     info("mensagem", updTxt);
     check("a faixa de atualização aparece com o resultado (versão mais recente / nova versão / erro claro)", updVis && /mais recente|latest|Nova versão|New version|Não consegui|Could not/.test(updTxt), updTxt);
     check("a pasta de desenvolvimento nunca oferece 'Atualizar agora'", await page.eval(`document.getElementById("updBtn").hidden`));
+
+    console.log("\n== Pin aberto no Pinterest LOGADO (vídeo grande dentro de relatedPins, sem CloseupMainPin, pôster sem código)");
+    await goto(`https://www.pinterest.com:${fp}/pin/3333333333333333333/`);
+    const cpl = await page.eval(`(()=>{const r=document.querySelectorAll("video")[0].getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
+    await hover(cpl[0], cpl[1]);
+    check("ícone aparece sobre o vídeo do pin aberto", await fabVisible());
+    await clickFabMain();
+    await sleep(2800);
+    const dll = (await rec()).filter((m) => m.type === "DOWNLOAD").pop();
+    check("o ícone pede o PIN da página (não avisa 'não achei o link')", !!dll && dll.url.replace(/:\d+/, "") === "https://www.pinterest.com/pin/3333333333333333333/", dll ? dll.url : "sem DOWNLOAD");
 
     /* ============================ TikTok (SPA) ============================ */
     console.log("\n== Site de página única estilo TikTok (troca de vídeo sem recarregar)");

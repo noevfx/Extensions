@@ -1,4 +1,4 @@
-# Noe VFX Downloader 3.0.15 — Manual rápido
+# Noe VFX Downloader 3.0.16 — Manual rápido
 
 **Site:** https://noevfx.com · **Navegadores:** Chrome, Edge, Brave, Opera, Vivaldi · **Sistemas:** Windows, macOS, Linux
 
