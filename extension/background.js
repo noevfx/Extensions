@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0.1  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.5  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -520,6 +520,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           streams: listOf(tabId).map((x) => (x.thumb ? x : { ...x, thumb: pageThumb })),
           added: res && res.items ? res.items.length : 0
         };
+      }
+
+      case "RESET_TAB": {                    // o content script pede para zerar a PRÓPRIA aba (troca de vídeo no YouTube)
+        if (ownTab != null) clearTab(ownTab);
+        return { ok: true };
       }
 
       case "CLEAR_TAB": {

@@ -43,14 +43,14 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.1"
+VERSION = "3.0.5"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("NOEVFX_PORT", "8765"))
 
 # ID fixo da extensão (vem da chave pública no manifest.json). Outros IDs
-# (ex.: versão publicada na loja) entram por "allowed_extension_ids" no
+# (ex.: uma cópia da extensão carregada de outra pasta) entram por "allowed_extension_ids" no
 # config.json ou pela variável NOEVFX_EXT_IDS (separados por vírgula).
 EXT_IDS_BUILTIN = {"hdmfifeopbmjcfjbjpkfjinejneohlji"}
 
@@ -1164,13 +1164,18 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def _auth(self, path: str):
-        """'ext' = extensão autorizada | 'probe' = diagnóstico do instalador (só /health) | None = negado."""
+        """'ext' = extensão com ID conhecido (cabeçalho Origin) | 'read' = LEITURA (GET) com o cabeçalho próprio | None = negado.
+
+        O Chrome só manda Origin nos POST: um GET feito pela extensão (config, status, miniatura) chega SEM Origin.
+        Por isso a leitura aceita o cabeçalho X-NoeVFX-Client, que um site não consegue enviar (exige o
+        preflight CORS, que só a extensão passa) e que o teste de Host já protege contra DNS rebinding.
+        Escrever ou executar qualquer coisa (POST) continua exigindo o ID da extensão."""
         if not self._host_ok():            # barra DNS rebinding
             return None
         if self.headers.get("Origin"):
             return "ext" if self._origin_id() in allowed_ext_ids() else None
-        if path == "/health" and self.headers.get("X-NoeVFX-Client", "") == "1":
-            return "probe"
+        if self.command == "GET" and self.headers.get("X-NoeVFX-Client", "") == "1":
+            return "read"
         return None
 
     def _cors(self):
@@ -1246,9 +1251,6 @@ class Handler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
 
         if parsed.path == "/health":
-            if level == "probe":                       # instaladores: só dizem "estou vivo"
-                self._json(200, {"ok": True, "brand": BRAND, "version": VERSION, "api_version": API_VERSION})
-                return
             yt = exe_path("yt-dlp")
             fst = ffmpeg_state()
             ff = fst["path"]

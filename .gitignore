@@ -21,3 +21,7 @@ desktop.ini
 
 # backups locais das versoes estaveis (fora do git)
 /_backups/
+
+# pacotes gerados: ficam nas Releases do GitHub (e no Drive), nao no git
+/dist/
+/release/

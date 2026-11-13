@@ -54,7 +54,6 @@ def main():
 
     print("\n[1/5] Gerando pacotes")
     run([sys.executable, "tools/build.py"])
-    run([sys.executable, "tools/build-store-zip.py"])
 
     print("\n[2/5] Commit")
     run(["git", "add", "-A"])
@@ -68,11 +67,9 @@ def main():
     run(["git", "push", "origin", tag])
 
     print("\n[5/5] GitHub Release")
-    store_zip = ROOT / "dist" / ("noevfx-extension-%s.zip" % version)
     run([
         "gh", "release", "create", tag,
-        str(ROOT / "dist" / "noevfx-downloader.zip"),
-        str(store_zip),
+        str(ROOT / "dist" / ("noevfx-downloader-%s.zip" % version)),
         "--title", "Noe VFX Downloader %s" % version,
         "--generate-notes",
     ], check=False)

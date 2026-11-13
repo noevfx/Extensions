@@ -140,13 +140,15 @@ class ServerCase(unittest.TestCase):
     def test_sem_origem_nem_cabecalho_nega(self):
         self.assertEqual(self.req("GET", "/config")[0], 403)
 
-    def test_cabecalho_sozinho_so_vale_para_health(self):
+    def test_leitura_sem_origin_vale_com_cabecalho_mas_escrita_nao(self):
+        # o Chrome NÃO manda Origin nos GET da extensão (só nos POST): a leitura aceita o cabeçalho próprio
         h = {"X-NoeVFX-Client": "1"}
-        self.assertEqual(self.req("GET", "/config", h)[0], 403)
-        self.assertEqual(self.req("GET", "/jobs", h)[0], 403)
-        st, _, js = self.req("GET", "/health", h)
-        self.assertEqual(st, 200)
-        self.assertNotIn("output_dir", js)                 # health do instalador é mínimo
+        for p in ("/config", "/jobs", "/health"):
+            self.assertEqual(self.req("GET", p, h)[0], 200, p)
+        self.assertEqual(self.req("GET", "/config")[0], 403)                                    # sem nada: nega
+        for p, body in (("/config", {"fab_enabled": False}), ("/download", {"url": "http://x.com/a.mp4"}),
+                        ("/open-folder", {}), ("/pick-folder", {}), ("/cancel", {"id": "x"})):
+            self.assertEqual(self.req("POST", p, h, body)[0], 403, p)                           # escrever/executar exige o ID
 
     def test_site_malicioso_nega(self):
         self.assertEqual(self.req("GET", "/config", {"Origin": "http://evil.com", "X-NoeVFX-Client": "1"})[0], 403)

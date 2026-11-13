@@ -1,9 +1,10 @@
-"""Monta o pacote distribuível (windows/mac/linux) e gera dist/noevfx-downloader.zip.
+"""Monta o pacote distribuível (windows/mac/linux) e gera dist/noevfx-downloader-<versão>.zip.
 
 Uso:
     python tools/build.py
 """
 
+import json
 import os
 import shutil
 import zipfile
@@ -44,8 +45,12 @@ def main():
         shutil.rmtree(WORK)
     DIST.mkdir(parents=True, exist_ok=True)
 
+    # a versão vem do manifest da extensão (fonte única) e entra no NOME do zip e num VERSION.txt dentro dele
+    version = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))["version"]
+
     pkg = WORK / PKG_NAME
     pkg.mkdir(parents=True)
+    (pkg / "VERSION.txt").write_text("Noe VFX Downloader %s\n" % version, encoding="utf-8")
 
     # docs comuns
     for f in ("COMECE-AQUI.txt", "MANUAL.md", "README.md"):
@@ -72,7 +77,11 @@ def main():
             data = crlf(data) if f.endswith((".bat", ".ps1")) else data.replace(b"\r\n", b"\n")
             (dest / f).write_bytes(data)
 
-    zip_path = DIST / "noevfx-downloader.zip"
+    zip_path = DIST / ("noevfx-downloader-%s.zip" % version)
+    # só o zip da versão atual fica na dist (zips de versões antigas e o nome antigo, sem versão, saem)
+    for old in DIST.glob("noevfx-downloader*.zip"):
+        if old != zip_path:
+            old.unlink()
     if zip_path.exists():
         zip_path.unlink()
 
@@ -93,6 +102,7 @@ def main():
     with zipfile.ZipFile(zip_path) as z:
         assert z.testzip() is None
 
+    print("versao:", version)
     print("pacote:", zip_path)
     print("arquivos:", count)
     print("tamanho:", round(zip_path.stat().st_size / 1024, 1), "KB")

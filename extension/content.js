@@ -200,7 +200,9 @@
   function ytId() {
     if (!isYT()) return "";
     const p = new URLSearchParams(location.search).get("v");
-    return p && /^[\w-]{6,}$/.test(p) ? p : "";
+    if (p && /^[\w-]{6,}$/.test(p)) return p;
+    const m = location.pathname.match(/^\/(?:shorts|live|embed)\/([\w-]{6,})/);      // Shorts, lives e embeds
+    return m ? m[1] : "";
   }
 
   function resolveBestPageOrVideoUrl(videoEl) {
@@ -321,10 +323,10 @@
       });
     } catch (_) {}
 
-    if (isYT()) {
-      const u = resolveBestPageOrVideoUrl(null);
-      if (u && u !== location.href) push(u, "YouTube");
-    }
+    // Página de vídeo do YouTube: o vídeo entra SEMPRE na lista (antes só entrava se a URL tivesse algo além de
+    // "watch?v=...", e na URL limpa o popup ficava com "0 vídeos detectados" e sem miniatura).
+    const yv = ytId();
+    if (yv) push(`https://www.youtube.com/watch?v=${yv}`, "YouTube");
 
     return { items, thumb, count: items.length };
   }
@@ -986,7 +988,9 @@
   document.addEventListener("yt-navigate-finish", () => {
     state.sent.clear();
     state.thumb = "";
-    setTimeout(() => { publish(true); injectYouTubeButton(); }, 350);
+    // o YouTube troca de vídeo sem recarregar a aba: zera a lista da aba para não ficar o vídeo anterior
+    try { chrome.runtime.sendMessage({ type: "RESET_TAB" }, () => { void chrome.runtime.lastError; }); } catch (_) {}
+    setTimeout(() => { publish(true); injectYouTubeButton(); }, 400);
   });
 
   chrome.runtime.onMessage.addListener((msg, _sender, respond) => {

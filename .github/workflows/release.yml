@@ -20,14 +20,10 @@ jobs:
           python-version: "3.x"
 
       - name: Gerar pacotes
-        run: |
-          python tools/build.py
-          python tools/build-store-zip.py
+        run: python tools/build.py
 
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/noevfx-downloader.zip
-            dist/noevfx-extension-*.zip
+          files: dist/noevfx-downloader-*.zip
           generate_release_notes: true

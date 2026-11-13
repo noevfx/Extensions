@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           export NOEVFX_TARGET="$RUNNER_TEMP/noevfx"
-          unzip -q dist/noevfx-downloader.zip -d "$RUNNER_TEMP/pkg"
+          unzip -q dist/noevfx-downloader-*.zip -d "$RUNNER_TEMP/pkg"
           bash "$RUNNER_TEMP/pkg/noevfx-downloader/${{ matrix.plat }}/instalar-noevfx.sh"
           echo "--- install.log"; cat "$NOEVFX_TARGET/install.log" || true
 
@@ -54,7 +54,7 @@ jobs:
         shell: pwsh
         run: |
           $env:NOEVFX_TARGET = Join-Path $env:RUNNER_TEMP 'noevfx'
-          Expand-Archive dist/noevfx-downloader.zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'pkg')
+          Expand-Archive (Get-ChildItem dist/noevfx-downloader-*.zip).FullName -DestinationPath (Join-Path $env:RUNNER_TEMP 'pkg')
           powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:RUNNER_TEMP 'pkg\noevfx-downloader\windows\instalar-noevfx.ps1')
           Get-Content (Join-Path $env:NOEVFX_TARGET 'install.log') -ErrorAction SilentlyContinue
 
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           export NOEVFX_TARGET="$RUNNER_TEMP/noevfx"
-          unzip -q dist/noevfx-downloader.zip -d "$RUNNER_TEMP/pkg"
+          unzip -q dist/noevfx-downloader-*.zip -d "$RUNNER_TEMP/pkg"
           bash "$RUNNER_TEMP/pkg/noevfx-downloader/${{ matrix.plat }}/instalar-noevfx.sh"
           sleep 5
           curl -fsS -H "X-NoeVFX-Client: 1" "http://127.0.0.1:$NOEVFX_PORT/health"

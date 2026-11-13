@@ -6,6 +6,56 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.5] — 2026-11-13
+
+### Alterado
+- **O zip agora leva a versão no nome**: `noevfx-downloader-3.0.5.zip` (antes era sempre `noevfx-downloader.zip` e não dava
+  para saber qual versão era). O pacote também traz um `VERSION.txt`, e o build deixa na `dist\` só o zip da versão atual.
+- **Guia do navegador redesenhado**: passos numerados, ilustração de "arrastar a pasta `extension` do Explorer/Finder para a
+  página de extensões" e a alternativa do botão "Carregar sem pacote" explicada (com o aviso de não colar o caminho da própria
+  `extension`).
+- **Documentação atualizada** para o fluxo novo (manual com telas, README, COMECE-AQUI e MANUAL.md); seção de instalação
+  do manual reescrita (atualizar por cima, último passo da extensão).
+
+---
+## [3.0.4] — 2026-11-13
+
+### Corrigido
+- **Desinstalar + instalar não trocava a versão:** um servidor antigo iniciado à mão continuava rodando e
+  **segurava a porta 8765**; o instalador novo dizia "servidor online" porque quem respondia era o antigo. Agora:
+  - o **instalador** encerra qualquer servidor do Noe VFX que esteja escutando na porta (confere pelo `/health`
+    que é nosso) e **só diz "online" quando o servidor responde já na versão recém-instalada** (senão tenta de
+    novo e avisa); vale para Windows, Mac e Linux;
+  - os **desinstaladores** também encerram esse servidor e avisam se algo ficou rodando ou em uso.
+- **Passo da extensão:** colar o caminho da pasta `extension` no seletor abria *dentro* dela, onde não há nada para
+  selecionar. Agora o instalador copia o caminho da **pasta acima**, abre o **Explorer/Finder com `extension` já
+  selecionada** (é só arrastar para a página de extensões) e o guia explica as duas formas.
+
+---
+## [3.0.3] — 2026-11-12
+
+### Corrigido
+- **YouTube: a lista de vídeos do popup ficava vazia ("0 vídeos detectados") e sem miniatura** quando o
+  endereço era o puro `watch?v=...` (o vídeo só entrava na lista se a URL tivesse algo a mais). Agora o
+  vídeo do YouTube **sempre** aparece, com miniatura, e a lista **troca junto** quando você muda de vídeo
+  dentro do YouTube (antes ficava o vídeo anterior). Shorts, lives e embeds também são reconhecidos.
+
+---
+## [3.0.2] — 2026-11-12
+
+### Corrigido
+- **As consultas de leitura da extensão eram recusadas (403) pelo servidor novo.** O Chrome só envia o
+  cabeçalho `Origin` nos POST; um GET feito pela extensão (configuração, andamento do download,
+  miniaturas) chegava sem ele. Efeitos: o popup mostrava "Defina a pasta" mesmo configurado, o andamento
+  do download não aparecia (avisava "servidor offline" com o download funcionando) e não havia miniaturas
+  geradas pelo servidor. Os downloads em si (POST) funcionavam. Agora a **leitura** aceita o cabeçalho
+  `X-NoeVFX-Client` (com `Host` local); **escrever e executar** continua exigindo o ID da extensão.
+- Teste ponta a ponta agora confere a configuração e o andamento do download pela extensão.
+
+### Adicionado
+- **Manual de uso com telas** em `docs/MANUAL-DE-USO.md` e gerador das telas (`tools/capturar-telas.js`).
+
+---
 ## [3.0.1] — 2026-11-12
 
 Revisão completa de segurança, confiabilidade e instalação.
@@ -45,6 +95,11 @@ Revisão completa de segurança, confiabilidade e instalação.
 - **Cancelar download** e barra de progresso no popup; downloads repetidos são deduplicados.
 - Aviso de versão: a extensão avisa se o app local está desatualizado ou recusou a extensão.
 - Testes: `tests/test_server.py` (stdlib) e `tests/e2e.js` (Edge/Chrome via CDP, com mouse real).
+
+### Removido
+- Todo o material de **loja** (Edge Add-ons / Chrome Web Store): pasta `store/`, `docs/STORE.md`, o zip
+  da loja e o script `build-store-zip.py`. O projeto é de **uso próprio e de amigos**, distribuído só
+  pelo `noevfx-downloader.zip` e pelos instaladores.
 
 ### Visual e instalação
 - Popup mais equilibrado: botão principal + 3 opções iguais (1080p / 720p / só áudio), fonte única em

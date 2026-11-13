@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Noe VFX Downloader 3.0.1 - Instalador (macOS e Linux)          noevfx.com
+#  Noe VFX Downloader 3.0.5 - Instalador (macOS e Linux)          noevfx.com
 #
 #  Instala TUDO sozinho, sem sudo e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -75,7 +75,7 @@ case "$OS-$ARCH" in
 esac
 
 printf "\n\033[1m============================================================\033[0m\n"
-printf "        Noe VFX Downloader  v3.0.1  -  INSTALADOR\n"
+printf "        Noe VFX Downloader  v3.0.5  -  INSTALADOR\n"
 printf "                 https://noevfx.com\n"
 printf "\033[1m============================================================\033[0m\n\n"
 printf "Sistema:        %s (%s)\n" "$OS" "$ARCH"
@@ -225,8 +225,34 @@ fi
 # ----------------------------------------------------------- 6. servico -----
 step "[6/6] Servidor em segundo plano"
 SRV_PATH="$BIN:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-# encerra a instancia antiga (atualizacao)
-pkill -f "$DEST/server/server.py" 2>/dev/null; sleep 1
+PLIST="$HOME/Library/LaunchAgents/com.noevfx.downloader.plist"
+WANT="$(sed -n 's/^VERSION = "\(.*\)"/\1/p' "$DEST/server/server.py" | head -n1)"
+
+health_json() { curl -fs --max-time 4 -H "X-NoeVFX-Client: 1" "http://127.0.0.1:$PORT/health" 2>/dev/null; }
+listener_pids() {
+  if command -v lsof >/dev/null 2>&1; then lsof -ti "tcp:$PORT" -sTCP:LISTEN 2>/dev/null
+  elif command -v ss >/dev/null 2>&1; then ss -ltnp "sport = :$PORT" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p'
+  elif command -v fuser >/dev/null 2>&1; then fuser -n tcp "$PORT" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$'
+  fi
+}
+# Encerra servidores do Noe VFX que estejam rodando: o servico desta instalacao E qualquer um escutando na porta
+# (ex.: versao antiga iniciada a mao: ela segura a porta e o servidor novo nunca assumiria).
+stop_old_servers() {
+  if [ "$OS" = "Darwin" ]; then launchctl bootout "gui/$(id -u)/com.noevfx.downloader" >/dev/null 2>&1
+  else systemctl --user stop noevfx-downloader.service >/dev/null 2>&1; fi
+  pkill -f "$DEST/server/server.py" 2>/dev/null
+  local h p; h="$(health_json)"
+  case "$h" in
+    *noevfx.com*)
+      for p in $(listener_pids); do say "Encerrando o servidor anterior que usava a porta $PORT (PID $p)..."; kill "$p" 2>/dev/null; done
+      sleep 1
+      for p in $(listener_pids); do kill -9 "$p" 2>/dev/null; done ;;
+    "") ;;
+    *) warn "A porta $PORT esta ocupada por outro programa. Feche-o e rode o instalador de novo." ;;
+  esac
+  sleep 1
+}
+stop_old_servers
 
 start_now() {
   NOEVFX_PORT="$PORT" PATH="$SRV_PATH:$PATH" nohup "$PY" "$DEST/server/server.py" >>"$DEST/server.log" 2>&1 &
@@ -308,33 +334,49 @@ DESKEOF
   fi
 fi
 
-printf "\n   Verificando o servidor..."
-SRV_OK=0
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -fs --max-time 4 -H "X-NoeVFX-Client: 1" "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then SRV_OK=1; break; fi
-  sleep 2
-done
-printf "\n"
-if [ "$SRV_OK" = "1" ]; then ok "Servidor online em http://127.0.0.1:$PORT"
-else err "O servidor nao respondeu. Veja o log: $DEST/server.log (ou ~/Library/Logs/NoeVFXDownloader.log)"; fi
+# so conta como pronto se JA responde na versao que acabou de ser instalada (a antiga nao vale)
+wait_server() {
+  local i h
+  for i in 1 2 3 4 5 6 7 8; do
+    h="$(health_json)"
+    case "$h" in *"\"version\": \"$WANT\""*) return 0 ;; esac
+    sleep 2
+  done
+  return 1
+}
+restart_server() {
+  if [ "${NOEVFX_NO_SERVICE:-0}" = "1" ]; then start_now
+  elif [ "$OS" = "Darwin" ]; then launchctl bootstrap "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || launchctl load -w "$PLIST" >/dev/null 2>&1 || start_now
+  else systemctl --user start noevfx-downloader.service >/dev/null 2>&1 || start_now; fi
+}
+printf "\n   Verificando o servidor...\n"
+if ! wait_server; then
+  CUR="$(health_json)"
+  if [ -n "$CUR" ] && [ -n "$WANT" ]; then
+    warn "Ainda responde uma versao antiga (esperado $WANT). Tentando de novo..."
+    stop_old_servers; restart_server
+  fi
+  wait_server
+fi
+if wait_server; then ok "Servidor online (versao $WANT) em http://127.0.0.1:$PORT"
+else err "O servidor novo nao respondeu. Veja o log: $DEST/server.log (ou ~/Library/Logs/NoeVFXDownloader.log). Se uma versao antiga ficou rodando, reinicie o computador e rode o instalador de novo."; fi
 
 # ------------------------------------------------- ultimo passo: extensao ----
-if [ "$OS" = "Darwin" ] && command -v pbcopy >/dev/null 2>&1; then printf "%s" "$DEST/extension" | pbcopy
-elif command -v wl-copy >/dev/null 2>&1; then printf "%s" "$DEST/extension" | wl-copy
-elif command -v xclip >/dev/null 2>&1; then printf "%s" "$DEST/extension" | xclip -selection clipboard
-elif command -v xsel >/dev/null 2>&1; then printf "%s" "$DEST/extension" | xsel --clipboard --input; fi
+# copia a pasta ACIMA: no seletor o usuario entra nela, ve a pasta "extension" e a seleciona
+# (colar o caminho da propria "extension" abre DENTRO dela, onde nao ha nada para selecionar)
+if [ "$OS" = "Darwin" ] && command -v pbcopy >/dev/null 2>&1; then printf "%s" "$DEST" | pbcopy
+elif command -v wl-copy >/dev/null 2>&1; then printf "%s" "$DEST" | wl-copy
+elif command -v xclip >/dev/null 2>&1; then printf "%s" "$DEST" | xclip -selection clipboard
+elif command -v xsel >/dev/null 2>&1; then printf "%s" "$DEST" | xsel --clipboard --input; fi
 
-# guia visual com o caminho ja preenchido (abre no proprio navegador)
+# guia visual com os caminhos ja preenchidos (abre no proprio navegador)
 GUIDE="$DEST/guia-extensao.html"
 if [ -f "$BASE/guia-extensao.html" ]; then
-  EXTP="$DEST/extension"
-  "$PY" -c "import sys,html; t=open(sys.argv[1],encoding='utf-8').read().replace('__EXT_PATH__', html.escape(sys.argv[2])); open(sys.argv[3],'w',encoding='utf-8').write(t)" \
-    "$BASE/guia-extensao.html" "$EXTP" "$GUIDE" 2>>"$LOG" || GUIDE=""
+  "$PY" -c "import sys,html; t=open(sys.argv[1],encoding='utf-8').read().replace('__EXT_PATH__', html.escape(sys.argv[2])).replace('__APP_PATH__', html.escape(sys.argv[3])); open(sys.argv[4],'w',encoding='utf-8').write(t)" \
+    "$BASE/guia-extensao.html" "$DEST/extension" "$DEST" "$GUIDE" 2>>"$LOG" || GUIDE=""
 else GUIDE=""; fi
-# se existir store-url.txt (extensao publicada na loja), abre a pagina da loja: so clicar em "Adicionar"
 OPEN_URL=""
-if [ -f "$BASE/store-url.txt" ] && grep -q '^https://' "$BASE/store-url.txt" 2>/dev/null; then OPEN_URL="$(head -n1 "$BASE/store-url.txt" | tr -d '\r\n')"
-elif [ -n "$GUIDE" ]; then OPEN_URL="file://$GUIDE"; fi
+[ -n "$GUIDE" ] && OPEN_URL="file://$GUIDE"
 
 if [ "${NOEVFX_NO_BROWSER:-0}" != "1" ] && [ -n "$OPEN_URL" ]; then
   if [ "$OS" = "Darwin" ]; then
@@ -348,6 +390,11 @@ if [ "${NOEVFX_NO_BROWSER:-0}" != "1" ] && [ -n "$OPEN_URL" ]; then
     [ "$OPENED" = "0" ] && command -v xdg-open >/dev/null 2>&1 && xdg-open "$OPEN_URL" >/dev/null 2>&1 &
   fi
 fi
+# Finder/gerenciador de arquivos na pasta do programa, com "extension" JA SELECIONADA (Mac): e so arrastar
+if [ "${NOEVFX_NO_BROWSER:-0}" != "1" ]; then
+  if [ "$OS" = "Darwin" ]; then open -R "$DEST/extension" >/dev/null 2>&1
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$DEST" >/dev/null 2>&1 & fi
+fi
 
 cat <<EOF
 
@@ -355,17 +402,18 @@ cat <<EOF
         ULTIMO PASSO - SO 3 CLIQUES (2 minutos)
 ============================================================
 
- (um guia com estes passos abriu no seu navegador)
+ (um guia com estes passos abriu no seu navegador; o Finder/gerenciador de arquivos
+  abriu na pasta do programa)
 
  1. No navegador (Chrome, Edge, Brave...) abra  chrome://extensions
  2. Ligue "Modo do desenvolvedor"  (canto da pagina)
- 3. Clique em "Carregar sem compactacao" e escolha a pasta:
+ 3. ARRASTE a pasta "extension" (do Finder) para dentro dessa pagina.
+    Ou: "Carregar sem compactacao", cole o caminho abaixo (ja copiado; no Mac use
+    Cmd+Shift+G), entre nessa pasta, clique UMA vez em "extension" e em "Selecionar":
 
-      $DEST/extension
+      $DEST
 
-    (o caminho ja esta copiado: no Mac use Cmd+Shift+G e cole)
-
- Use a pasta INSTALADA acima, nao a pasta extraida do ZIP.
+ Use a pasta INSTALADA, nao a pasta extraida do ZIP.
  Na primeira abertura a extensao pergunta onde salvar os videos.
 
  ATUALIZANDO? Falta 1 clique: em chrome://extensions, "Recarregar"

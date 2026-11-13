@@ -96,7 +96,10 @@ function rawReq(port, method, p, body, headers = {}) {
   const jobs = async () => (await rawReq(sp, "GET", "/jobs", null, H)).json.jobs || [];
 
   const br = spawn(BROWSER, ["--headless=new", `--remote-debugging-port=${dbg}`, `--user-data-dir=${path.join(tmp, "prof")}`, `--load-extension=${extDir}`,
-    "--no-first-run", "--no-default-browser-check", "--disable-features=DisableLoadExtensionCommandLineSwitch", "about:blank"], { stdio: "ignore" });
+    "--no-first-run", "--no-default-browser-check", "--disable-features=DisableLoadExtensionCommandLineSwitch",
+    // em CI (runners do GitHub) o Chrome não abre sem isto
+    ...(process.env.CI ? ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"] : []), "about:blank"],
+    { stdio: process.env.CI ? "inherit" : "ignore" });
   const targets = async () => (await fetch(`http://127.0.0.1:${dbg}/json`)).json();
   for (let i = 0; i < 80; i++) { try { await targets(); break; } catch (_) { await sleep(250); } }
   await sleep(1500);
@@ -148,6 +151,10 @@ function rawReq(port, method, p, body, headers = {}) {
     info("bytes em storage.session", await pop.eval("chrome.storage.session.getBytesInUse(null)"));
     const t0 = await pop.eval(`(async()=>{const a=performance.now();await chrome.runtime.sendMessage({type:'GET_TAB_STREAMS',tabId:${tabId}});return Math.round(performance.now()-a)})()`);
     info("GET_TAB_STREAMS quente (ms)", t0);
+
+    // o Chrome NÃO manda "Origin" nos GET da extensão: leitura de config/andamento precisa funcionar sem ele
+    const cfgR = await pop.eval(`chrome.runtime.sendMessage({type:'GET_CONFIG',force:true}).then(r=>({ok:r.ok,offline:r.offline,forbidden:r.forbidden,dir:(r.config||{}).output_dir||'',onb:(r.config||{}).onboarded}))`);
+    check("a extensão LÊ a configuração do servidor (GET sem Origin)", !!cfgR && cfgR.ok && !cfgR.offline && !cfgR.forbidden && cfgR.onb === true && path.resolve(cfgR.dir || "x").toLowerCase() === path.resolve(dl).toLowerCase(), JSON.stringify(cfgR));
 
     console.log("\n== Uso real (mouse de verdade)");
     const findNode = async (sel) => {
@@ -203,6 +210,8 @@ function rawReq(port, method, p, body, headers = {}) {
     let j1 = null;
     for (let i = 0; i < 120; i++) { await sleep(500); const js = await jobs(); if (js.length > before && ["done", "error"].includes(js[0].status)) { j1 = js[0]; break; } }
     check("1º download terminou (arquivo criado)", !!j1 && j1.status === "done" && j1.file && fs.existsSync(j1.file), j1 ? `${j1.status} ${j1.error || ""}` : "sem job");
+    const stR = j1 ? await pop.eval(`chrome.runtime.sendMessage({type:'STATUS',jobId:'${j1.id}'}).then(r=>({ok:r.ok,status:(r.data||{}).status}))`) : null;
+    check("a extensão LÊ o andamento do download (STATUS)", !!stR && stR.ok === true && stR.status === "done", JSON.stringify(stR));
     await sleep(1500);
 
     // 2º download na mesma página (antes do conserto o botão ficava preso)

@@ -1,5 +1,7 @@
-﻿Noe VFX Downloader 3.0.1 — noevfx.com
+Noe VFX Downloader 3.0.5 — noevfx.com
 =====================================
+
+Qual versão é? Está no nome do ZIP (noevfx-downloader-X.Y.Z.zip) e no arquivo VERSION.txt.
 
 O instalador faz TUDO sozinho (Python, yt-dlp, FFmpeg, Deno e o servidor).
 Você NÃO precisa instalar nada antes e NÃO precisa de senha de administrador.
@@ -32,8 +34,8 @@ WINDOWS
   2. Entre na pasta "windows" e dê duplo clique em INSTALAR_NOEVFX.bat
      (se o Windows avisar "protegeu seu PC": Mais informações > Executar assim mesmo)
      Não clique dentro da janela escura enquanto instala.
-  3. No final ele abre a pasta e o navegador. Siga o "ÚLTIMO PASSO"
-     (3 cliques) que aparece na tela.
+  3. No final ele abre o navegador (com um guia) e o Explorer já com a pasta "extension"
+     selecionada: ARRASTE essa pasta para a página de extensões (3 cliques no total).
 
 MAC
   1. Dê duplo clique no ZIP para extrair
@@ -42,7 +44,8 @@ MAC
      Se preferir o Terminal:   bash instalar-noevfx.sh
   3. No final ele abre o Chrome em chrome://extensions. Siga o
      "ÚLTIMO PASSO" (3 cliques): Modo do desenvolvedor > Carregar sem
-     compactação > Cmd+Shift+G, cole o caminho (já está copiado) > Abrir
+     compactação > Cmd+Shift+G, cole o caminho (já copiado), entre na pasta, clique 1x em "extension" > Selecionar.
+     (Mais fácil: ARRASTE a pasta "extension" do Finder, que já abre selecionada, para a página.)
   Safari não é suportado: use Chrome, Edge ou Brave.
 
 LINUX

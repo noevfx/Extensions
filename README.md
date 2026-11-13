@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.1-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.5-0066FF">
   <img alt="plataformas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
 </p>
@@ -21,9 +21,9 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`noevfx-downloader.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.1/noevfx-downloader.zip)
+[`noevfx-downloader-3.0.5.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.5/noevfx-downloader-3.0.5.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele)</sub>
 
-<sub>Também em [`dist/noevfx-downloader.zip`](dist/noevfx-downloader.zip) e na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
+<sub>Todas as versões ficam na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -84,6 +84,27 @@
 
 ---
 
+## Como fica
+
+<p align="center">
+  <img src="docs/img/02-painel-no-video.png" alt="Painel de download sobre o vídeo" width="720">
+</p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/05-popup.png" alt="Popup com os vídeos detectados"></td>
+<td width="50%"><img src="docs/img/06-popup-baixando.png" alt="Popup baixando, com progresso e botão Cancelar"></td>
+</tr>
+<tr>
+<td align="center"><sub>Popup: tudo que a página carrega, com miniatura</sub></td>
+<td align="center"><sub>Progresso e botão Cancelar</sub></td>
+</tr>
+</table>
+
+📖 **[Manual de uso completo, com todas as telas](docs/MANUAL-DE-USO.md)** — instalar, configurar, baixar
+(ícone no vídeo, popup, botão direito, YouTube), qualidades, cursos com login e o que fazer quando algo falha.
+
+---
 ## Instalação
 
 ### Windows
@@ -97,7 +118,8 @@ Pode rodar de novo para atualizar.
    - copia tudo para `%LOCALAPPDATA%\NoeVFXDownloader`
    - cria o aplicativo oculto que inicia com o Windows
    - abre um **guia visual** no navegador com o último passo
-3. No navegador: **Modo de desenvolvedor** → **Carregar sem pacote** → cole o caminho da pasta `extension` (já copiado)
+3. No navegador: **Modo de desenvolvedor** → **arraste a pasta `extension`** (o Explorer abre com ela selecionada) para a página de extensões
+   (ou **Carregar sem pacote** → cole o caminho copiado → entre na pasta → clique 1x em `extension` → **Selecionar pasta**)
 
 ### macOS / Linux
 
@@ -144,7 +166,7 @@ A instalação nos três sistemas é testada automaticamente a cada versão
 
 ## Atualizar
 
-Extensões carregadas fora da loja **não têm auto-update**. Para atualizar:
+A extensão é carregada da pasta instalada e **não tem auto-update**. Para atualizar:
 
 1. Rode o instalador do zip novo — ele detecta a instalação existente, substitui
    os arquivos e reinicia o aplicativo local
@@ -195,22 +217,18 @@ extension/                 extensão MV3 (fonte)
 server/server.py           aplicativo local (Python puro, sem dependências)
 
 installers/
-  windows/                 INSTALAR_NOEVFX.bat · DESINSTALAR_NOEVFX.bat
-  mac/                     instalar-noevfx.sh · desinstalar-noevfx.sh
+  windows/                 INSTALAR_NOEVFX.bat + instalar-noevfx.ps1 · DESINSTALAR_NOEVFX.bat
+  mac/                     INSTALAR-MAC.command · instalar-noevfx.sh · desinstalar-noevfx.sh
   linux/                   instalar-noevfx.sh · desinstalar-noevfx.sh
+  common/                  guia-extensao.html (guia visual do último passo)
 
-store/                     material para publicar na loja
-  upload/                  zip pronto para subir
-  listing/en-US, pt-BR     textos e justificativas de permissão
-  screenshots/             imagens 1280×800
-
+docs/                      MANUAL-DE-USO.md + img/ (telas; geradas por tools/capturar-telas.js)
+tests/                     test_server.py · e2e.js · install_smoke.py
 tools/
-  build.py                 gera dist/noevfx-downloader.zip
-  build-store-zip.py       gera o zip só da extensão (loja)
+  build.py                 gera dist/noevfx-downloader-<versão>.zip (+ VERSION.txt dentro)
   release.py               build + commit + tag + GitHub Release
 
-docs/STORE.md              guia de publicação (Edge e Chrome)
-dist/                      pacotes prontos
+
 MANUAL.md · TERMS.md · PRIVACY.md · CHANGELOG.md · LICENSE
 ```
 
@@ -220,7 +238,6 @@ MANUAL.md · TERMS.md · PRIVACY.md · CHANGELOG.md · LICENSE
 
 ```bash
 python tools/build.py           # pacote completo (windows/mac/linux)
-python tools/build-store-zip.py # zip da loja (só a extensão)
 python tools/release.py         # release completa no GitHub
 ```
 

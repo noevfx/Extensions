@@ -1,5 +1,5 @@
 # =============================================================================
-#  Noe VFX Downloader 3.0.1 - Instalador (Windows)                 noevfx.com
+#  Noe VFX Downloader 3.0.5 - Instalador (Windows)                 noevfx.com
 #
 #  Instala TUDO sozinho, sem administrador e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -35,7 +35,7 @@ function Say($m)  { Write-Host ('   ' + $m) }
 
 Write-Host ''
 Write-Host '============================================================'
-Write-Host '        Noe VFX Downloader  v3.0.1  -  INSTALADOR'
+Write-Host '        Noe VFX Downloader  v3.0.5  -  INSTALADOR'
 Write-Host '                 https://noevfx.com'
 Write-Host '============================================================'
 Write-Host ''
@@ -236,60 +236,104 @@ if ((Test-Path $DenoExe) -or (Get-Command deno.exe -ErrorAction SilentlyContinue
 
 # ----------------------------------------------------------- 6. servico -----
 Step '[6/6] Servidor em segundo plano'
-# encerra a instancia antiga DESTA instalacao (atualizacao)
-Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine -like '*server.py*' -and $_.CommandLine -like ('*' + $Target + '*') } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-Start-Sleep -Seconds 1
-
 $Launcher = Join-Path $Target 'Iniciar-Servidor.bat'
 $ServerPy = Join-Path $Target 'server\server.py'
+$Want = ''
+try { $Want = (Select-String -LiteralPath $ServerPy -Pattern '^VERSION = "([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value } catch {}
+
+function Get-Health {
+    try { return (Invoke-RestMethod -Uri ('http://127.0.0.1:' + $Port + '/health') -Headers @{ 'X-NoeVFX-Client' = '1' } -TimeoutSec 4) } catch { return $null }
+}
+
+# Encerra servidores do NOE VFX que estejam rodando: (1) os desta instalacao e (2) QUALQUER um escutando na porta
+# (ex.: uma versao antiga iniciada a mao, de outra pasta: ela segura a porta e o servidor novo nunca assume).
+function Stop-OldServers {
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine -like '*server.py*' -and $_.CommandLine -like ('*' + $Target + '*') } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    $h = Get-Health
+    if ($h -and ($h.brand -like '*VFX*noevfx.com*')) {
+        foreach ($c in @(Get-NetTCPConnection -LocalPort ([int]$Port) -State Listen -ErrorAction SilentlyContinue)) {
+            Say ('Encerrando o servidor anterior que usava a porta ' + $Port + ' (versao ' + $h.version + ', PID ' + $c.OwningProcess + ')...')
+            Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+    } elseif ($h) {
+        Warn ('A porta ' + $Port + ' esta ocupada por outro programa. Feche-o e rode o instalador de novo.')
+    }
+    for ($i = 0; $i -lt 12; $i++) {
+        if (-not (Get-NetTCPConnection -LocalPort ([int]$Port) -State Listen -ErrorAction SilentlyContinue)) { break }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 $lines = @('@echo off', ('cd /d "' + (Join-Path $Target 'server') + '"'))
 if ($Port -ne '8765') { $lines += ('set NOEVFX_PORT=' + $Port) }
 $lines += ('"' + $Pyw + '" "' + $ServerPy + '" >> "' + (Join-Path $Target 'server.log') + '" 2>&1')
 Set-Content -LiteralPath $Launcher -Value $lines -Encoding ASCII
 
-if ($env:NOEVFX_NO_STARTUP -eq '1') {
-    $env:NOEVFX_PORT = $Port
-    Start-Process -FilePath $Pyw -ArgumentList ('"' + $ServerPy + '"') -WindowStyle Hidden -WorkingDirectory (Join-Path $Target 'server')
-    Ok 'Servidor iniciado (sem instalar a inicializacao automatica: teste)'
-} else {
+$Vbs = ''
+if ($env:NOEVFX_NO_STARTUP -ne '1') {
     $Startup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
     New-Item -ItemType Directory -Force -Path $Startup | Out-Null
     $Vbs = Join-Path $Startup 'NoeVFXDownloader.vbs'
     $vbsLines = @('Set sh = CreateObject("WScript.Shell")', ('sh.Run Chr(34) & "' + $Launcher + '" & Chr(34), 0, False'), 'Set sh = Nothing')
     Set-Content -LiteralPath $Vbs -Value $vbsLines -Encoding ASCII
-    Start-Process -FilePath 'wscript.exe' -ArgumentList ('"' + $Vbs + '"') -WindowStyle Hidden
-    Ok 'Inicializacao automatica criada (o servidor liga junto com o Windows)'
 }
 
-Say 'Verificando o servidor...'
-$srvOk = $false
-for ($i = 0; $i -lt 20; $i++) {
-    try {
-        $r = Invoke-RestMethod -Uri ('http://127.0.0.1:' + $Port + '/health') -Headers @{ 'X-NoeVFX-Client' = '1' } -TimeoutSec 4
-        if ($r.ok) { $srvOk = $true; break }
-    } catch {}
-    Start-Sleep -Seconds 2
+function Start-Server {
+    if ($env:NOEVFX_NO_STARTUP -eq '1') {
+        $env:NOEVFX_PORT = $Port
+        Start-Process -FilePath $Pyw -ArgumentList ('"' + $ServerPy + '"') -WindowStyle Hidden -WorkingDirectory (Join-Path $Target 'server')
+    } else {
+        Start-Process -FilePath 'wscript.exe' -ArgumentList ('"' + $Vbs + '"') -WindowStyle Hidden
+    }
 }
-if ($srvOk) { Ok ('Servidor online em http://127.0.0.1:' + $Port) }
-else { Err ('O servidor nao respondeu. Veja o log: ' + (Join-Path $Target 'server.log')) }
+
+# espera responder JA na versao que acabou de ser instalada (se ainda responde a antiga, nao conta como pronto)
+function Wait-Server([string]$WantVer, [int]$Tries) {
+    for ($i = 0; $i -lt $Tries; $i++) {
+        $h = Get-Health
+        if ($h -and $h.ok -and ((-not $WantVer) -or ($h.version -eq $WantVer))) { return $h }
+        Start-Sleep -Seconds 2
+    }
+    return $null
+}
+
+Stop-OldServers
+Start-Server
+if ($env:NOEVFX_NO_STARTUP -eq '1') { Ok 'Servidor iniciado (sem instalar a inicializacao automatica: teste)' }
+else { Ok 'Inicializacao automatica criada (o servidor liga junto com o Windows)' }
+
+Say 'Verificando o servidor...'
+$h = Wait-Server $Want 8
+if (-not $h) {
+    $cur = Get-Health
+    if ($cur -and $cur.ok -and $Want -and ($cur.version -ne $Want)) {
+        Warn ('Ainda responde a versao ' + $cur.version + ' (esperado ' + $Want + '). Tentando de novo...')
+        Stop-OldServers
+        Start-Server
+        $h = Wait-Server $Want 10
+    } elseif (-not $cur) {
+        Start-Sleep -Seconds 4
+        $h = Wait-Server $Want 6
+    }
+}
+if ($h) { Ok ('Servidor online (versao ' + $h.version + ') em http://127.0.0.1:' + $Port) }
+else { Err ('O servidor novo nao respondeu. Veja o log: ' + (Join-Path $Target 'server.log') + ' (se uma versao antiga ficou rodando, reinicie o Windows e rode o instalador de novo)') }
 
 # ------------------------------------------------- ultimo passo: extensao ----
 $ExtPath = Join-Path $Target 'extension'
-try { Set-Clipboard -Value $ExtPath } catch {}
-# guia visual com o caminho ja preenchido (abre no proprio navegador)
+# copia a pasta ACIMA: no seletor o usuario entra nela, ve a pasta "extension" e a seleciona
+# (colar o caminho da propria "extension" abre DENTRO dela, onde nao ha nada para selecionar)
+try { Set-Clipboard -Value $Target } catch {}
 $Guide = Join-Path $Target 'guia-extensao.html'
 try {
     $tpl = Join-Path $Base 'guia-extensao.html'
     if (Test-Path $tpl) {
-        $html = (Get-Content -LiteralPath $tpl -Raw -Encoding UTF8).Replace('__EXT_PATH__', [System.Net.WebUtility]::HtmlEncode($ExtPath))
+        $html = (Get-Content -LiteralPath $tpl -Raw -Encoding UTF8).Replace('__EXT_PATH__', [System.Net.WebUtility]::HtmlEncode($ExtPath)).Replace('__APP_PATH__', [System.Net.WebUtility]::HtmlEncode($Target))
         [IO.File]::WriteAllText($Guide, $html, (New-Object System.Text.UTF8Encoding($false)))
     }
 } catch { Note ('guia: ' + $_.Exception.Message) }
-# se existir store-url.txt (extensao publicada na loja), abre a pagina da loja: so clicar em "Adicionar"
-$StoreUrl = ''
-try { $sf = Join-Path $Base 'store-url.txt'; if (Test-Path $sf) { $StoreUrl = (Get-Content -LiteralPath $sf -Raw).Trim() } } catch {}
-$OpenTarget = if ($StoreUrl -match '^https://') { $StoreUrl } elseif (Test-Path $Guide) { $Guide } else { '' }
+$OpenTarget = if (Test-Path $Guide) { $Guide } else { '' }
 
 if ($env:NOEVFX_NO_BROWSER -ne '1') {
     $pf86 = ${env:ProgramFiles(x86)}
@@ -301,12 +345,13 @@ if ($env:NOEVFX_NO_BROWSER -ne '1') {
         @("$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe", 'chrome://extensions/'),
         @("$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe", 'brave://extensions/')
     )
-    $opened = $false
     if ($OpenTarget) {
+        $opened = $false
         foreach ($b in $browsers) { if (Test-Path $b[0]) { Start-Process -FilePath $b[0] -ArgumentList ('"' + $OpenTarget + '"'); $opened = $true; break } }
-        if (-not $opened) { try { Start-Process -FilePath $OpenTarget; $opened = $true } catch {} }
+        if (-not $opened) { try { Start-Process -FilePath $OpenTarget } catch {} }
     }
-    if (-not $opened) { Start-Process explorer.exe -ArgumentList ('"' + $Target + '"') }
+    # Explorer na pasta do programa, com "extension" JA SELECIONADA: e so arrastar para a pagina de extensoes
+    Start-Process explorer.exe -ArgumentList ('/select,"' + $ExtPath + '"')
 }
 
 Write-Host ''
@@ -314,17 +359,18 @@ Write-Host '============================================================'
 Write-Host '         ULTIMO PASSO - SO 3 CLIQUES  (2 minutos)'
 Write-Host '============================================================'
 Write-Host ''
-Write-Host '  (um guia com estes passos abriu no seu navegador)'
+Write-Host '  (um guia com estes passos abriu no seu navegador, e o Explorer abriu'
+Write-Host '   na pasta do programa com a pasta "extension" selecionada)'
 Write-Host ''
 Write-Host '  1. No navegador abra  edge://extensions  ou  chrome://extensions'
 Write-Host '  2. Ligue "Modo do desenvolvedor"'
-Write-Host '  3. Clique em "Carregar sem pacote" e escolha a pasta:'
+Write-Host '  3. ARRASTE a pasta "extension" (do Explorer) para dentro dessa pagina.'
+Write-Host '     Ou: "Carregar sem pacote", cole o caminho abaixo (ja copiado), entre nessa'
+Write-Host '     pasta, clique UMA vez em "extension" e em "Selecionar pasta":'
 Write-Host ''
-Write-Host ('       ' + $ExtPath)
+Write-Host ('       ' + $Target)
 Write-Host ''
-Write-Host '     (o caminho ja esta copiado: cole na barra do seletor de pastas)'
-Write-Host ''
-Write-Host '  Use a pasta INSTALADA acima, nao a pasta extraida do ZIP.'
+Write-Host '  Use a pasta INSTALADA, nao a pasta extraida do ZIP.'
 Write-Host '  Na primeira abertura a extensao pergunta onde salvar os videos.'
 Write-Host ''
 Write-Host '  ATUALIZANDO? Falta 1 clique: em edge://extensions (ou chrome://extensions)'
