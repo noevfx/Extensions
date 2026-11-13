@@ -1,5 +1,5 @@
 # =============================================================================
-#  Noe VFX Downloader 3.0.20 - Instalador (Windows)                 noevfx.com
+#  Noe VFX Downloader 3.0.21 - Instalador (Windows)                 noevfx.com
 #
 #  Instala TUDO sozinho, sem administrador e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -35,7 +35,7 @@ function Say($m)  { Write-Host ('   ' + $m) }
 
 Write-Host ''
 Write-Host '============================================================'
-Write-Host '        Noe VFX Downloader  v3.0.20  -  INSTALADOR'
+Write-Host '        Noe VFX Downloader  v3.0.21  -  INSTALADOR'
 Write-Host '                 https://noevfx.com'
 Write-Host '============================================================'
 Write-Host ''

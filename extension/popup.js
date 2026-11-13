@@ -331,7 +331,7 @@ function track(jobId, onDone) {
   }, 700);
 }
 
-async function startDownload(targetUrl, quality, fallbackStream, onDone) {
+async function startDownload(targetUrl, quality, fallbackStream, onDone, sendTo) {
   const url = (targetUrl || "").trim();
   if (!/^https?:/i.test(url)) {
     statusEl.textContent = t("openPage");
@@ -346,12 +346,13 @@ async function startDownload(targetUrl, quality, fallbackStream, onDone) {
     referer: (currentTab && currentTab.url) || url,
     title: (currentTab && currentTab.title) || "",
     pageUrl: (currentTab && currentTab.url) || url,
-    quality: quality || "best"
+    quality: quality || "best",
+    target: sendTo || ""
   });
 
   if (!res || !res.ok || !res.job_id) {
     statusEl.textContent = res && res.error === "forbidden" ? t("forbiddenMsg")
-      : res && res.error && res.error !== "Servidor local offline" ? String(res.error).slice(0, 70)
+      : res && res.error && res.error !== "Servidor local offline" ? String(res.error).slice(0, sendTo ? 160 : 70)
       : t("startFail");
     const keep = statusEl.textContent;
     await checkHealth();
@@ -360,6 +361,7 @@ async function startDownload(targetUrl, quality, fallbackStream, onDone) {
     return;
   }
   if (res.duplicate) statusEl.textContent = t("dupNote");
+  else if (sendTo) statusEl.textContent = t("sentProject", prettyFolder(res.output_dir));
   track(res.job_id, onDone);
 }
 
@@ -552,6 +554,16 @@ document.querySelectorAll("button[data-q]").forEach((btn) => {
     const target = (urlInput.value || (currentTab && currentTab.url) || "").trim();
     const bestStream = streams[0] ? streams[0].url : "";
     startDownload(target, quality, bestStream);
+  });
+});
+
+// "Enviar para o Premiere / After Effects": só no Windows (é onde o app sabe ler o projeto aberto)
+if (/Windows/i.test(navigator.userAgent)) $("sendRow").hidden = false;
+document.querySelectorAll("button[data-target]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const target = (urlInput.value || (currentTab && currentTab.url) || "").trim();
+    const bestStream = streams[0] ? streams[0].url : "";
+    startDownload(target, (cfg && cfg.default_quality) || "best", bestStream, null, btn.dataset.target);
   });
 });
 

@@ -70,6 +70,15 @@
       color:#9fc0ff; border:1px dashed rgba(0,102,255,.45);
     }
     .panel .all button:hover { background: rgba(0,102,255,.16); }
+    .panel .send { display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px; }
+    .panel .send button {
+      all: unset; cursor:pointer; text-align:center; padding:7px 4px; border-radius:9px; font-size:11px; font-weight:700;
+      color:#e6ebf5; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); white-space:nowrap;
+    }
+    .panel .send button:hover { border-color:#0066ff; background: rgba(0,102,255,.16); }
+    .panel .send b { font-size:9.5px; font-weight:800; padding:1px 4px; border-radius:4px; margin-right:3px; }
+    .panel .send b.pr { background:#2a1450; color:#c4a6ff; }
+    .panel .send b.ae { background:#1b1450; color:#a6a6ff; }
     .panel .compat {
       display:flex; align-items:center; gap:7px; margin-top:9px; font-size:10.5px; color:#b3bdd1; cursor:pointer; user-select:none;
     }
@@ -1072,6 +1081,10 @@
         <button type="button" class="opt" data-q="best">${t("native")}</button>
         <button type="button" class="opt" data-q="audio">${t("audioOnly")}</button>
       </div>
+      ${/Windows/i.test(navigator.userAgent) ? `<div class="send">
+        <button type="button" data-target="premiere" title="${esc(t("sendTip"))}"><b class="pr">Pr</b>${t("sendPr")}</button>
+        <button type="button" data-target="aftereffects" title="${esc(t("sendTip"))}"><b class="ae">Ae</b>${t("sendAe")}</button>
+      </div>` : ""}
       <div class="all"><button type="button" class="all-btn">${t("allPage")}</button></div>
       <label class="compat" title="${esc(t("compatTip"))}"><input type="checkbox" data-compat ${cfg.compat_h264 === true ? "checked" : ""}><span>${t("compatShort")}</span></label>
       <div class="foot">
@@ -1094,6 +1107,16 @@
         closePanel();
         hideFab();
         startOne(b.dataset.q);
+      });
+    });
+
+    state.panel.querySelectorAll("button[data-target]").forEach((b) => {
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!e.isTrusted) return;
+        closePanel();
+        hideFab();
+        startOne((state.cfg && state.cfg.default_quality) || "best", b.dataset.target);
       });
     });
 
@@ -1174,7 +1197,7 @@
     return master || hls[hls.length - 1];
   }
 
-  async function startOne(quality) {
+  async function startOne(quality, sendTo) {
     if (state.busy) return;
     state.busy = true;
     const cfg = state.cfg || {};
@@ -1239,22 +1262,24 @@
       referer: (window !== window.top && /^https?:/i.test(document.referrer || "")) ? document.referrer : page,
       title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : igUrl && isPin() ? pinTitle(igUrl, t("pinVideo")) : document.title,
       pageUrl: page,
-      quality: quality || "best"
+      quality: quality || "best",
+      target: sendTo || ""
     });
 
     if (!res || !res.ok || !res.job_id) {
       state.busy = false;
-      toast(failText(res), "err", 6500);
+      toast(failText(res), "err", sendTo ? 9000 : 6500);
       return;
     }
     if (res.duplicate) toast(t("dupNote"), "ok");
+    else if (sendTo) toast(t("sentProject", folderName(res.output_dir || "")), "ok", 6000);
     trackJob(res.job_id, res.output_dir || cfg.output_dir, () => { state.busy = false; });
   }
 
   // texto de erro conforme a causa (servidor recusou a extensão x offline x outro erro)
   function failText(res) {
     if (res && res.error === "forbidden") return t("forbiddenMsg");
-    if (res && res.error && res.error !== "Servidor local offline" && !res.timeout) return String(res.error).slice(0, 90);
+    if (res && res.error && res.error !== "Servidor local offline" && !res.timeout) return String(res.error).slice(0, 160);
     return t("serverOffline");
   }
 

@@ -6,6 +6,32 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.21] — 2026-11-13
+
+### Novo
+- **"Enviar p/ Premiere" e "Enviar p/ After Effects"** (Windows), no popup e no painel do ícone dentro do vídeo. Salva na pasta
+  **`_Noe VFX Downloader`** do trabalho cujo projeto está aberto no programa (não na pasta padrão), já em **H.264 + AAC**.
+  - Regra da pasta: projeto dentro de uma pasta do programa (`Premiere`, `AE`, `After Effects`...) -> a pasta nova fica um nível acima,
+    na pasta do trabalho; projeto solto na pasta do trabalho -> a pasta nova fica ali.
+  - Antes de baixar, confere: programa fechado ("abra o Premiere"), aberto sem projeto, projeto sem salvar ("salve o projeto"), mais de um
+    projeto aberto ou arquivo não encontrado -> **não baixa** e diz o motivo. Nunca cai na pasta padrão em silêncio.
+  - Não instala nada no Premiere/After Effects: lê o caminho no título da janela do programa; quando o After Effects abrevia caminhos
+    longos ("D:\Jobs\Clie ... \AE\x.aep"), completa pelos arquivos recentes do Windows ou procurando o arquivo na pasta do início.
+  - Não importa o arquivo para dentro do projeto nem cria bin (isso exigiria instalar uma extensão dentro do Premiere/AE).
+
+### Corrigido
+- Conversão para H.264 com vários downloads na mesma pasta: duas conversões nunca pegam o mesmo arquivo ao mesmo tempo, e arquivos
+  que o yt-dlp ainda está juntando (`.temp.mp4`) não são tocados.
+
+### Como foi testado
+- No PC do Eduardo: Premiere aberto com um projeto real -> destino `...\2026 10 27 - Painel LED\_Noe VFX Downloader`; After Effects com
+  título abreviado -> caminho exato achado em ~1 s; After Effects fechado -> "Abra o After Effects".
+- 39 testes do servidor (títulos, pasta organizada/solta, estados: fechado, sem projeto, sem salvar, abreviado, ambíguo) e 66 checagens no
+  navegador (aviso com o Premiere fechado, envio para `Comercial Teste\_Noe VFX Downloader`, botões no popup e no painel).
+- Não visto: Premiere com **dois projetos abertos** (a janela deve mostrar o projeto ativo; se mostrar mais de um, o app recusa).
+
+---
+
 ## [3.0.20] — 2026-11-13
 
 ### Corrigido

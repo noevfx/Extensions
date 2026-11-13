@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.20"
+VERSION = "3.0.21"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -554,6 +554,7 @@ FORMAT_NO_FFMPEG = {
 COMPAT_SORT = "res,vcodec:h264,acodec:aac"
 
 
+COMPAT_LOCK = threading.Lock()
 VIDEO_BAD_CODECS = {"av1", "vp9", "vp8"}               # não abrem no Premiere (nem em muitos editores)
 AUDIO_OK_CODECS = {"aac", "mp3", "alac", "pcm_s16le", "pcm_s24le", "ac3", "eac3"}
 
@@ -587,54 +588,231 @@ def compat_fix(job_id: str, out_dir: Path, since: float) -> list:
     done = []
     if not (st.get("ok") and st.get("probe_path")):
         return done
-    files = [p for p in _videos_since(out_dir, since) if p.suffix.lower() in (".mp4", ".mkv", ".webm", ".mov", ".m4v")]
+    # ".temp.mp4" = o yt-dlp ainda está juntando vídeo e áudio; ".compat.mp4" = conversão de outro download em andamento
+    files = [p for p in _videos_since(out_dir, since) if p.suffix.lower() in (".mp4", ".mkv", ".webm", ".mov", ".m4v")
+             and not re.search(r"\.(temp|compat|part|ytdl)\.", p.name, re.I)]
     for n, p in enumerate(files, 1):
         if _is_canceled(job_id):
             break
-        info = _probe_codecs(p)
-        if not info:
-            continue
-        cv, ca = compat_plan(info[0], info[1])
-        if not (cv or ca):
-            continue
-        tmp = p.with_name(p.stem + ".compat.mp4")
-        cmd = [st["path"], "-y", "-v", "error", "-nostats", "-progress", "pipe:1", "-i", str(p), "-map", "0:v:0", "-map", "0:a:0?"]
-        cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"] if cv else ["-c:v", "copy"]
-        cmd += ["-c:a", "aac", "-b:a", "192k"] if ca else ["-c:a", "copy"]
-        cmd += ["-movflags", "+faststart", str(tmp)]
-        label = "convertendo para H.264" if cv else "convertendo o áudio para AAC"
-        if len(files) > 1:
-            label += " (%d de %d)" % (n, len(files))
-        job_update(job_id, progress=label + "...")
-        try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
-                                    creationflags=NO_WINDOW, start_new_session=not IS_WIN)
-            with JOBS_LOCK:
-                PROCS[job_id] = proc
-            for line in proc.stdout:
-                if _is_canceled(job_id):
-                    kill_proc(proc)
-                    break
-                m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
-                if m and info[2] > 0:
-                    pct = min(99, int(int(m.group(1)) / 1e6 / info[2] * 100))
-                    job_update(job_id, progress="%s %d%%" % (label, pct))
-            proc.wait(timeout=60)
-            if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0 and not _is_canceled(job_id):
-                final = p.with_suffix(".mp4")
-                if final != p:
-                    p.unlink()                                  # o AV1/WebM que o próprio download criou: vira o MP4 compatível
-                os.replace(str(tmp), str(final))
-                done.append(final)
-                continue
-        except Exception:
-            pass
-        try:
-            tmp.unlink()
-        except Exception:
-            pass
-        done.append(p)                                          # não deu para converter: fica o original (melhor que perder o vídeo)
+        with COMPAT_LOCK:                                       # dois downloads na mesma pasta nunca convertem o mesmo arquivo juntos
+            if not p.exists():
+                continue                                        # outro download já converteu e trocou este arquivo
+            r = _compat_one(job_id, p, n, len(files), st)
+        done.append(r)
     return done
+
+
+def _compat_one(job_id: str, p: Path, n: int, total: int, st: dict) -> Path:
+    """Converte UM arquivo (chamado com COMPAT_LOCK). Devolve o arquivo final (o original, se não precisar ou não der)."""
+    info = _probe_codecs(p)
+    if not info:
+        return p
+    cv, ca = compat_plan(info[0], info[1])
+    if not (cv or ca):
+        return p
+    tmp = p.with_name(p.stem + ".compat.mp4")
+    cmd = [st["path"], "-y", "-v", "error", "-nostats", "-progress", "pipe:1", "-i", str(p), "-map", "0:v:0", "-map", "0:a:0?"]
+    cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"] if cv else ["-c:v", "copy"]
+    cmd += ["-c:a", "aac", "-b:a", "192k"] if ca else ["-c:a", "copy"]
+    cmd += ["-movflags", "+faststart", str(tmp)]
+    label = "convertendo para H.264" if cv else "convertendo o áudio para AAC"
+    if total > 1:
+        label += " (%d de %d)" % (n, total)
+    job_update(job_id, progress=label + "...")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
+                                creationflags=NO_WINDOW, start_new_session=not IS_WIN)
+        with JOBS_LOCK:
+            PROCS[job_id] = proc
+        for line in proc.stdout:
+            if _is_canceled(job_id):
+                kill_proc(proc)
+                break
+            m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
+            if m and info[2] > 0:
+                pct = min(99, int(int(m.group(1)) / 1e6 / info[2] * 100))
+                job_update(job_id, progress="%s %d%%" % (label, pct))
+        proc.wait(timeout=60)
+        if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0 and not _is_canceled(job_id):
+            final = p.with_suffix(".mp4")
+            if final != p:
+                p.unlink()                                  # o AV1/WebM que o próprio download criou: vira o MP4 compatível
+            os.replace(str(tmp), str(final))
+            return final
+    except Exception:
+        pass
+    try:
+        tmp.unlink()
+    except Exception:
+        pass
+    return p                                                # não deu para converter: fica o original (melhor que perder o vídeo)
+
+
+# --------------------------------------------------------------------------- #
+# "Enviar para o Premiere / After Effects": salva na pasta do PROJETO aberto (não na pasta padrão), já em H.264.
+# Windows: o título da janela do programa traz o caminho do projeto ("Adobe Premiere - D:\...\x.prproj *"). Caminho comprido vem
+# ABREVIADO ("D:\Jobs\Clie ... \AE\x.aep"): completa-se pelos arquivos recentes do Windows ou procurando o arquivo na pasta do início.
+# Sem certeza = não baixa (nada de cair na pasta padrão em silêncio).
+# --------------------------------------------------------------------------- #
+ADOBE_APPS = {
+    "premiere": {"ext": ".prproj", "exes": {"adobe premiere pro.exe"}, "name": "Premiere"},
+    "aftereffects": {"ext": ".aep", "exes": {"afterfx.exe"}, "name": "After Effects"},
+}
+PROJECT_FOLDER = "_Noe VFX Downloader"
+# pasta "do programa" dentro da pasta do trabalho: o projeto está organizado, então a pasta nova vai um nível acima
+PROGRAM_DIRS = {"premiere", "premiere pro", "premierepro", "adobe premiere", "adobe premiere pro", "pr", "ppro", "prproj",
+                "after effects", "aftereffects", "after", "adobe after effects", "ae", "aep"}
+_TITLE_ELIDED = r"([A-Za-z]:\\.*?)\s\.\.\.\s(.*?{ext})(?:\s*\*)?\s*$"
+_TITLE_WHOLE = r"([A-Za-z]:\\.*?{ext})(?:\s*\*)?\s*$"
+
+
+def parse_project_title(title: str, ext: str):
+    """(prefixo, sufixo) do caminho no título da janela; sufixo None = caminho inteiro; None = sem projeto salvo."""
+    m = re.search(_TITLE_ELIDED.format(ext=re.escape(ext)), title or "", re.I)
+    if m:
+        return m.group(1), m.group(2)
+    m = re.search(_TITLE_WHOLE.format(ext=re.escape(ext)), title or "", re.I)
+    if m:
+        return m.group(1), None
+    return None
+
+
+def project_dest(project_file) -> Path:
+    """Pasta onde o vídeo entra: projeto dentro de uma pasta do programa (Premiere/AE...) -> sobe um nível; solto -> a própria pasta."""
+    folder = Path(project_file).parent
+    if folder.name.strip().lower() in PROGRAM_DIRS and folder.parent != folder:
+        folder = folder.parent
+    return folder / PROJECT_FOLDER
+
+
+def _adobe_window_titles(exes: set) -> list:
+    fake = os.environ.get("NOEVFX_ADOBE_TITLES_FILE")          # só para os testes automáticos (sem Premiere/AE de verdade)
+    if fake:
+        try:
+            data = json.loads(Path(fake).read_text(encoding="utf-8"))
+            return [t for e in exes for t in data.get(e, [])]
+        except Exception:
+            return []
+    if not IS_WIN:
+        return []
+    import ctypes
+    from ctypes import wintypes
+    user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+    out = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def cb(hwnd, _l):
+        try:
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            n = user32.GetWindowTextLengthW(hwnd)
+            if n <= 0:
+                return True
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            h = kernel32.OpenProcess(0x1000, False, pid.value)          # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return True
+            try:
+                buf = ctypes.create_unicode_buffer(1024)
+                size = wintypes.DWORD(1024)
+                if kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)) and os.path.basename(buf.value).lower() in exes:
+                    t = ctypes.create_unicode_buffer(n + 1)
+                    user32.GetWindowTextW(hwnd, t, n + 1)
+                    out.append(t.value)
+            finally:
+                kernel32.CloseHandle(h)
+        except Exception:
+            pass
+        return True
+
+    user32.EnumWindows(cb, 0)
+    return out
+
+
+def _recent_project_paths(ext: str) -> list:
+    """Caminhos completos guardados pelo Windows nos atalhos de arquivos recentes (mais novos primeiro)."""
+    if not IS_WIN:
+        return []
+    rec = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Recent"
+    try:
+        lnks = sorted((p for p in rec.glob("*" + ext + ".lnk")), key=lambda p: -p.stat().st_mtime)[:60]
+    except Exception:
+        return []
+    if not lnks:
+        return []
+    ps = "$s=New-Object -ComObject WScript.Shell; " + "; ".join(
+        "$s.CreateShortcut('%s').TargetPath" % str(p).replace("'", "''") for p in lnks)
+    try:
+        txt = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True, text=True,
+                             timeout=20, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL).stdout
+        return [l.strip() for l in txt.splitlines() if l.strip()]
+    except Exception:
+        return []
+
+
+def _search_project(prefix: str, suffix: str, budget: float = 4.0) -> list:
+    root = prefix
+    while root and not os.path.isdir(root):
+        root = root.rsplit("\\", 1)[0] if "\\" in root else ""
+    if not root:
+        return []
+    name = suffix.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+    t0, hits = time.time(), []
+    for d, dirs, files in os.walk(root):
+        dirs[:] = [x for x in dirs if x.lower() not in ("node_modules", ".git", "$recycle.bin", "system volume information")]
+        for f in files:
+            if f.lower() == name:
+                full = os.path.join(d, f)
+                if full.lower().startswith(prefix.lower()) and full.lower().endswith(suffix.lower()):
+                    hits.append(full)
+        if time.time() - t0 > budget:
+            break
+    return hits
+
+
+def find_adobe_project(app: str) -> dict:
+    """{status, message, project, dest}. status: ok | not_running | no_project | unsaved | not_found | ambiguous | unsupported."""
+    info = ADOBE_APPS.get(app)
+    if not info:
+        return {"status": "unsupported", "message": "Programa desconhecido."}
+    nm = info["name"]
+    if not IS_WIN and not os.environ.get("NOEVFX_ADOBE_TITLES_FILE"):
+        return {"status": "unsupported", "message": "Enviar para o %s por enquanto só funciona no Windows." % nm}
+    titles = _adobe_window_titles(info["exes"])
+    if not titles:
+        return {"status": "not_running", "message": "Abra o %s com o seu projeto e tente de novo." % nm}
+    found, unsaved, cache = set(), False, {}
+    for t in titles:
+        p = parse_project_title(t, info["ext"])
+        if not p:
+            if info["ext"] in t.lower() or re.search(r"untitled|sem t[ií]tulo|sin t[ií]tulo", t, re.I):
+                unsaved = True                         # "Untitled Project.aep": projeto novo, ainda sem pasta
+            continue
+        prefix, suffix = p
+        if suffix is None:
+            if os.path.isfile(prefix):
+                found.add(os.path.normcase(os.path.abspath(prefix)) + "|" + prefix)
+            continue
+        if "recent" not in cache:
+            cache["recent"] = _recent_project_paths(info["ext"])
+        hit = next((r for r in cache["recent"] if r.lower().startswith(prefix.lower()) and r.lower().endswith(suffix.lower())
+                    and os.path.isfile(r)), "")
+        hits = [hit] if hit else _search_project(prefix, suffix)
+        if len(hits) == 1:
+            found.add(os.path.normcase(os.path.abspath(hits[0])) + "|" + hits[0])
+        elif len(hits) > 1:
+            return {"status": "ambiguous", "message": "Achei mais de um projeto com esse nome e não sei qual está aberto no %s. Nada foi baixado." % nm}
+    if len(found) == 1:
+        project = next(iter(found)).split("|", 1)[1]
+        return {"status": "ok", "message": "", "project": project, "dest": str(project_dest(project))}
+    if len(found) > 1:
+        return {"status": "ambiguous", "message": "Há mais de um projeto aberto no %s. Deixe só o projeto certo aberto e tente de novo." % nm}
+    if unsaved:
+        return {"status": "unsaved", "message": "Salve o projeto do %s dentro da pasta do trabalho e tente de novo." % nm}
+    if any(parse_project_title(t, info["ext"]) for t in titles):
+        return {"status": "not_found", "message": "Não consegui achar o arquivo do projeto aberto no %s. Nada foi baixado." % nm}
+    return {"status": "no_project", "message": "O %s está aberto, mas sem projeto. Abra o projeto do trabalho e tente de novo." % nm}
 
 
 PCT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
@@ -1012,7 +1190,17 @@ def run_job(job_id: str, req: dict):
         extra = []                      # config antiga com opção hoje proibida: ignora
 
     out_dir = Path(cfg.get("output_dir") or DEFAULT_CFG["output_dir"]).expanduser()
-    if req.get("organizeBySite") or cfg.get("organize_by_site"):
+    project_dir = req.get("project_dir") or ""
+    compat = bool(req.get("force_compat")) or bool(cfg.get("compat_h264", False))
+    if project_dir:
+        try:
+            Path(project_dir).mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            job_update(job_id, status="error", finished=time.time(),
+                       error="Não consegui criar a pasta %s na pasta do projeto (%s)." % (PROJECT_FOLDER, str(exc)[:120]))
+            return
+        out_dir = Path(project_dir)
+    elif req.get("organizeBySite") or cfg.get("organize_by_site"):
         try:
             site = urlparse(url).netloc.replace(":", "_") or "outros"
             site = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", site)
@@ -1056,7 +1244,7 @@ def run_job(job_id: str, req: dict):
             def once(ff_on):
                 fm = (FORMAT_MAP if ff_on else FORMAT_NO_FFMPEG).get(quality, FORMAT_MAP["best"])
                 ex = list(extra)
-                if quality != "audio" and cfg.get("compat_h264", False):
+                if quality != "audio" and compat:
                     ex += ["-S", COMPAT_SORT]
                 if quality == "audio" and ff_on:
                     ex += ["-x", "--audio-format", "m4a"]       # (se der erro de FFmpeg, o attempt refaz sem isto)
@@ -1090,7 +1278,7 @@ def run_job(job_id: str, req: dict):
                     c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", imp, str(out_dir / (stem + ".%(ext)s")))
                     if c_ != 0 and imp and not _is_canceled(job_id):
                         c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", False, str(out_dir / (stem + ".%(ext)s")))
-                if cfg.get("compat_h264", False) and quality != "audio":
+                if compat and quality != "audio":
                     compat_fix(job_id, out_dir, started - 2)
                 got = _videos_since(out_dir, started - 2)
                 if _is_canceled(job_id):
@@ -1119,7 +1307,7 @@ def run_job(job_id: str, req: dict):
             if code != 0 and imp and not _is_canceled(job_id):
                 code, tail, _pct = attempt(fallback, fb_ref, False)
 
-        if cfg.get("compat_h264", False) and quality != "audio" and not _is_canceled(job_id):
+        if compat and quality != "audio" and not _is_canceled(job_id):
             compat_fix(job_id, out_dir, started - 2)
         ig_videos = _videos_since(out_dir, started - 2) if (IG_POST_URL_RE.match(url or "") and code != 0) else []
         if _is_canceled(job_id):
@@ -1567,6 +1755,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, load_cfg())
             return
 
+        if parsed.path == "/adobe/project":
+            self._json(200, find_adobe_project((qs.get("app") or [""])[0]))
+            return
+
         if parsed.path == "/update/check":
             try:
                 self._json(200, update_check(force=(qs.get("force") or [""])[0] == "1"))
@@ -1651,6 +1843,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "URL inválida"})
                 return
             quality = body.get("quality")
+            target = body.get("target") if body.get("target") in ADOBE_APPS else ""
+            proj = None
+            if target:
+                proj = find_adobe_project(target)
+                if proj.get("status") != "ok":
+                    self._json(409, {"error": proj.get("message") or "Projeto não encontrado.", "project_status": proj.get("status")})
+                    return
             req = {
                 "url": url,
                 "fallback_stream": clean_url(body.get("fallbackStream") or body.get("fallback_stream")),
@@ -1663,13 +1862,16 @@ class Handler(BaseHTTPRequestHandler):
                 "organizeBySite": body.get("organizeBySite") is True,
                 "single": body.get("single") is not False,
             }
+            if proj:
+                req.update(project_dir=proj["dest"], force_compat=True, organizeBySite=False)
             try:
                 job_id, dup = new_job(req)
             except QueueFull:
                 self._json(429, {"error": "fila cheia (%d downloads)" % MAX_ACTIVE})
                 return
             self._json(200, {"job_id": job_id, "duplicate": dup,
-                             "output_dir": load_cfg().get("output_dir", "")})
+                             "output_dir": proj["dest"] if proj else load_cfg().get("output_dir", ""),
+                             "project": proj["project"] if proj else ""})
             return
 
         if path == "/cancel":

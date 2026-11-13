@@ -214,7 +214,9 @@ function rawReq(port, method, p, body, headers = {}) {
       </script>`);
   }).listen(fp, "127.0.0.1");
 
-  const srv = spawn(process.platform === "win32" ? "python" : "python3", [path.join(srvDir, "server.py")], { env: { ...process.env, NOEVFX_PORT: String(sp) }, stdio: "ignore", cwd: tmp });
+  const adobeTitles = path.join(tmp, "adobe-titulos.json");
+  fs.writeFileSync(adobeTitles, "{}");
+  const srv = spawn(process.platform === "win32" ? "python" : "python3", [path.join(srvDir, "server.py")], { env: { ...process.env, NOEVFX_PORT: String(sp), NOEVFX_ADOBE_TITLES_FILE: adobeTitles }, stdio: "ignore", cwd: tmp });
   const H = { Origin: "chrome-extension://" + EXT_ID, "X-NoeVFX-Client": "1" };
   for (let i = 0; i < 60; i++) { if ((await rawReq(sp, "GET", "/health", null, H)).status === 200) break; await sleep(250); }
   await rawReq(sp, "POST", "/config", { output_dir: dl, onboarded: true }, H);
@@ -408,6 +410,27 @@ function rawReq(port, method, p, body, headers = {}) {
     await page.eval(`document.getElementById("compatBox").click()`);
     await sleep(900);
     check("popup: marcar grava compat_h264=true no servidor", (await cfgNow()).compat_h264 === true, JSON.stringify((await cfgNow()).compat_h264));
+    // Enviar para o Premiere: sem o programa aberto, avisa e NÃO baixa; com projeto organizado, salva na pasta do trabalho em H.264
+    check("popup: botões 'Enviar p/ Premiere' e 'Enviar p/ After Effects' aparecem (Windows)", await page.eval(`!document.getElementById("sendRow").hidden && document.querySelectorAll("#sendRow button[data-target]").length === 2`));
+    const jobsAntes = (await jobs()).length;
+    await page.eval(`document.getElementById("urlInput").value = "https://www.exemplo.test:${fp}/video.mp4"`);
+    await page.eval(`document.querySelector('#sendRow button[data-target="premiere"]').click()`);
+    await sleep(1500);
+    const stNo = await page.eval(`document.getElementById("status").textContent`);
+    check("Premiere fechado: o popup avisa para abrir e nenhum download começa", /Abra o Premiere/.test(stNo) && (await jobs()).length === jobsAntes, stNo);
+    const projDir = path.join(tmp, "Comercial Teste", "Premiere");
+    fs.mkdirSync(projDir, { recursive: true });
+    fs.writeFileSync(path.join(projDir, "corte final.prproj"), "x");
+    fs.writeFileSync(adobeTitles, JSON.stringify({ "adobe premiere pro.exe": ["Adobe Premiere - " + path.join(projDir, "corte final.prproj") + " *"] }));
+    await page.eval(`document.getElementById("urlInput").value = "https://www.exemplo.test:${fp}/video.mp4"`);
+    await page.eval(`document.querySelector('#sendRow button[data-target="premiere"]').click()`);
+    let jp = null;
+    for (let i = 0; i < 20 && !jp; i++) { await sleep(300); const js = await jobs(); if (js.length > jobsAntes) jp = js[0]; }
+    const stOk = await page.eval(`document.getElementById("status").textContent`);
+    info("pasta do envio", jp ? jp.output_dir : "sem job");
+    check("Premiere com projeto em Comercial Teste\\Premiere: salva em Comercial Teste\\_Noe VFX Downloader", !!jp && jp.output_dir === path.join(tmp, "Comercial Teste", "_Noe VFX Downloader"), jp ? jp.output_dir : "sem job");
+    check("o popup diz que está enviando para a pasta do projeto", /pasta do projeto/.test(stOk), stOk);
+    fs.writeFileSync(adobeTitles, "{}");
     check("nunca oferece 'Atualizar agora' quando o app já está na frente: só 'Recarregar extensão'", await page.eval(`(()=>{const b=document.getElementById("updBtn"); return !b.hidden && b.dataset.mode==="reload" && /Recarregar|Reload/.test(b.textContent)})()`));
 
     console.log("\n== Pin aberto no Pinterest LOGADO (vídeo grande dentro de relatedPins, sem CloseupMainPin, pôster sem código)");
@@ -425,6 +448,7 @@ function rawReq(port, method, p, body, headers = {}) {
     await hover(cpl2[0], cpl2[1]);
     const fab2 = await findNode(".fab"); const fc2 = await center(fab2);
     await click(fc2[0], fc2[1]); await sleep(700);
+    check("painel do vídeo: botões 'Enviar p/ Premiere' e 'Enviar p/ After Effects' no painel", !!(await findNode('.send button[data-target="premiere"]')) && !!(await findNode('.send button[data-target="aftereffects"]')));
     const cmp = await findNode("input[data-compat]");
     const cmpChecked = async () => { const o = await page.send("DOM.resolveNode", { nodeId: cmp }); const r = await page.send("Runtime.callFunctionOn", { objectId: o.result.object.objectId, functionDeclaration: "function(){return this.checked}", returnByValue: true }); return r.result.result.value; };
     check("painel do vídeo: o checkbox H.264 existe e reflete o que o popup marcou", !!cmp && (await cmpChecked()) === true);

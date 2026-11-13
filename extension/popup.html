@@ -179,6 +179,10 @@
     button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .bar { height: 3px; margin-top: 8px; background: var(--border); border-radius: 3px; overflow: hidden; }
     .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+    .send { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+    .send b { font-size: 10px; font-weight: 800; padding: 1px 4px; border-radius: 4px; }
+    .send b.pr { background: #2a1450; color: #c4a6ff; }
+    .send b.ae { background: #1b1450; color: #a6a6ff; }
     .compat {
       display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11px; color: var(--muted);
       cursor: pointer; user-select: none;
@@ -257,6 +261,10 @@
     <button class="act" data-q="720" data-i18n="q720"></button>
     <button class="act" data-q="audio" data-i18n="audioOnly"></button>
   </div>
+  <div class="send" id="sendRow" hidden>
+    <button class="act send-btn" type="button" data-target="premiere" data-i18n-title="sendTip"><b class="pr">Pr</b> <span data-i18n="sendPr"></span></button>
+    <button class="act send-btn" type="button" data-target="aftereffects" data-i18n-title="sendTip"><b class="ae">Ae</b> <span data-i18n="sendAe"></span></button>
+  </div>
   <label class="compat" id="compatRow" data-i18n-title="compatTip">
     <input type="checkbox" id="compatBox" />
     <span><b data-i18n="compatShort"></b><br><small data-i18n="compatHint"></small></span>
@@ -282,7 +290,7 @@
   <footer>
     <div id="status" data-i18n="ready" role="status" aria-live="polite"></div>
     <button id="cancelBtn" class="mini-btn" type="button" hidden data-i18n="cancel" data-i18n-title="cancelTip"></button>
-    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.0.20</button>
+    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.0.21</button>
     <a class="mail" href="mailto:labs@noevfx.com" title="labs@noevfx.com">labs@noevfx.com</a>
   </footer>
   <script src="i18n.js"></script>

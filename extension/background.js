@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0.20  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.21  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -487,6 +487,7 @@ async function startDownload(payload, sender) {
     organizeBySite: !!cfg.organize_by_site,
     single: payload.single !== false
   };
+  if (payload.target === "premiere" || payload.target === "aftereffects") body.target = payload.target;   // pasta do projeto aberto, em H.264
 
   const r = await fetchJson(SERVER + "/download", {
     method: "POST",
@@ -498,7 +499,7 @@ async function startDownload(payload, sender) {
   if (!r.ok || !r.data || !r.data.job_id) {
     return { ok: false, error: (r.data && r.data.error) || "Servidor local offline" };
   }
-  return { ok: true, job_id: r.data.job_id, duplicate: !!r.data.duplicate, output_dir: r.data.output_dir || cfg.output_dir };
+  return { ok: true, job_id: r.data.job_id, duplicate: !!r.data.duplicate, output_dir: r.data.output_dir || cfg.output_dir, project: r.data.project || "" };
 }
 
 /* Mensagens */

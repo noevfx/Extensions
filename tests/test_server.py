@@ -444,11 +444,68 @@ class SiteRulesCase(unittest.TestCase):
             else:
                 self.skipTest("este ffmpeg não codifica AV1")
             self.assertEqual(m._probe_codecs(src)[:2], ("av1", "opus"))
+            import shutil
+            meio = Path(d) / "outro.temp.mp4"                              # outro download ainda juntando vídeo+áudio: não mexe
+            shutil.copy(src, meio)
             m.JOBS["jc"] = {"id": "jc", "status": "downloading"}
             out = m.compat_fix("jc", Path(d), time.time() - 60)
             self.assertEqual([p.name for p in out], ["av1.mp4"])
             self.assertEqual(m._probe_codecs(out[0])[:2], ("h264", "aac"))
             self.assertFalse(src.exists())                                # o AV1 que o download criou foi trocado pelo MP4
+            self.assertTrue(meio.exists())                                # o ".temp.mp4" de outro download ficou intacto
+
+    def test_titulo_da_janela_do_premiere_e_after(self):
+        m = self.m
+        P = m.parse_project_title
+        self.assertEqual(P(r"Adobe Premiere - G:\Meu Drive\Job\Premiere\_Modelo.prproj *", ".prproj"), (r"G:\Meu Drive\Job\Premiere\_Modelo.prproj", None))
+        self.assertEqual(P(r"Adobe After Effects 2026 - D:\Jobs\X\AE\filme.aep", ".aep"), (r"D:\Jobs\X\AE\filme.aep", None))
+        self.assertEqual(P(r"Adobe After Effects 2026 - D:\Noe VFX\.Labs\Chrom ... Downloader\AE\t.aep *", ".aep"), (r"D:\Noe VFX\.Labs\Chrom", r"Downloader\AE\t.aep"))
+        self.assertIsNone(P("Adobe After Effects 2026 - Untitled Project.aep", ".aep"))      # sem salvar
+        self.assertIsNone(P("Adobe Premiere Pro 2026", ".prproj"))                           # sem projeto
+
+    def test_pasta_do_projeto_organizado_ou_solto(self):
+        d = self.m.project_dest
+        self.assertEqual(d(r"D:\Jobs\Comercial Teste\Premiere\corte.prproj"), Path(r"D:\Jobs\Comercial Teste\_Noe VFX Downloader"))
+        self.assertEqual(d(r"D:\Jobs\Comercial Teste\AE\filme.aep"), Path(r"D:\Jobs\Comercial Teste\_Noe VFX Downloader"))
+        self.assertEqual(d(r"D:\Jobs\Comercial Teste\After Effects\filme.aep"), Path(r"D:\Jobs\Comercial Teste\_Noe VFX Downloader"))
+        self.assertEqual(d(r"D:\Jobs\Comercial Teste\filme.aep"), Path(r"D:\Jobs\Comercial Teste\_Noe VFX Downloader"))     # solto na pasta do trabalho
+        self.assertEqual(d(r"D:\Jobs\Comercial Teste\Edicao\corte.prproj"), Path(r"D:\Jobs\Comercial Teste\Edicao\_Noe VFX Downloader"))
+
+    def test_estados_do_projeto_aberto(self):
+        import tempfile
+        m = self.m
+        with tempfile.TemporaryDirectory() as d:
+            job = Path(d) / "Comercial Teste" / "Premiere"
+            job.mkdir(parents=True)
+            proj = job / "corte final.prproj"
+            proj.write_text("x", encoding="utf-8")
+            fake = Path(d) / "titulos.json"
+            old = os.environ.get("NOEVFX_ADOBE_TITLES_FILE")
+            os.environ["NOEVFX_ADOBE_TITLES_FILE"] = str(fake)
+            try:
+                def st(titles, app="premiere"):
+                    fake.write_text(json.dumps({"adobe premiere pro.exe": titles, "afterfx.exe": titles if app == "aftereffects" else []}), encoding="utf-8")
+                    return m.find_adobe_project(app)
+                self.assertEqual(st([])["status"], "not_running")
+                self.assertEqual(st(["Adobe Premiere Pro 2026"])["status"], "no_project")
+                self.assertEqual(st(["Adobe After Effects 2026 - Untitled Project.aep"], "aftereffects")["status"], "unsaved")
+                r = st(["Adobe Premiere - %s *" % proj])
+                self.assertEqual(r["status"], "ok")
+                self.assertEqual(Path(r["dest"]), Path(d) / "Comercial Teste" / "_Noe VFX Downloader")
+                cut = str(proj)
+                r = st(["Adobe Premiere - %s ... %s" % (cut[:len(str(d)) + 5], cut[-30:])])   # como o AE faz: começo do caminho (pasta que existe) + fim          # título abreviado: acha procurando na pasta
+                self.assertEqual(r["status"], "ok", r)
+                self.assertEqual(Path(r["project"]), proj)
+                self.assertEqual(st(["Adobe Premiere - %s" % (Path(d) / "sumiu.prproj")])["status"], "not_found")
+                outro = Path(d) / "Outro" / "b.prproj"
+                outro.parent.mkdir()
+                outro.write_text("x", encoding="utf-8")
+                self.assertEqual(st(["Adobe Premiere - %s" % proj, "Adobe Premiere - %s" % outro])["status"], "ambiguous")
+            finally:
+                if old is None:
+                    os.environ.pop("NOEVFX_ADOBE_TITLES_FILE", None)
+                else:
+                    os.environ["NOEVFX_ADOBE_TITLES_FILE"] = old
 
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
