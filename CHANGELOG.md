@@ -6,6 +6,131 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.12] — 2026-11-13
+
+### Novo
+- **X (Twitter):** o vídeo vem em pedaços de `video.twimg.com` (a lista mostrava 44 "(1) Página Inicial / X" sem miniatura, e o arquivo
+  baixado era um pedaço de 1 KB). Agora cada vídeo é **um item**, com o **link do tweet** (`/usuario/status/ID`, pelo link da data),
+  **miniatura própria** (um quadro do vídeo) e nome (usuário + texto). O download é pelo tweet: o yt-dlp junta vídeo e áudio e pega
+  **todos os vídeos do tweet** (foto sem vídeo é ignorada). Mensagens claras: "esse tweet não tem vídeo" e "exige login".
+- **Facebook:** idem. Cada vídeo da timeline/Watch/Reels vira um item com o link do **vídeo/reel** (`/pagina/videos/ID`, `/reel/ID`,
+  `/watch/?v=ID`, `/share/v/…`, ou o post), miniatura própria e nome; pedaços de `fbcdn.net` não entram mais na lista.
+- Pedaços de `twimg.com` e `fbcdn.net` nunca entram na lista nem servem de plano B.
+
+### Como foi testado
+- X e Facebook: teste no navegador com mouse de verdade que reproduz a estrutura (vídeo `blob:` fundo no `article`, link da data, vários
+  links no cartão, pedaços no CDN): 40 checagens ao todo, 31 no servidor. No servidor real: vídeo público do Facebook baixado
+  (h264 + aac) e tweet sem vídeo reconhecido.
+- **Não** foi visto em timeline real de X/Facebook logado (precisa de login); se o link do vídeo não for achado, a extensão avisa
+  em vez de baixar o pedaço errado.
+
+---
+## [3.0.11] — 2026-11-13
+
+### Corrigido
+- **Vimeo: 20 "streams" na lista para um único vídeo.** O Vimeo entrega o vídeo em **faixas de bytes** e a faixa vai codificada no próprio
+  endereço (`/v2/range/prot/<faixa>/avf/arquivo.mp4`): um pedido por faixa. No vídeo real conferido eram 13 URLs `.mp4` para só 4
+  arquivos, e cada uma aparecia como um item. Agora pedidos por faixa (`/range/prot/`, `bytestart`/`byteend`) **não entram na lista** e
+  nunca servem de plano B. Sem eles, o vídeo aparece pela **página** (um item só) ou pelo HLS, quando existe.
+- Teste novo no navegador (faixas de bytes não viram itens) e no servidor: 30 + 29 checagens.
+
+---
+## [3.0.10] — 2026-11-13
+
+### Corrigido
+- **G1: o mesmo vídeo aparecia 2 vezes** (uma pelo player, `/v/ID/`, e outra pelo stream HLS que o player puxa, `…/ID.m3u8`). Agora
+  os dois viram **um item só** (o do player, que é o mais confiável), no popup e no número do ícone. Matéria com 2 vídeos = 2 itens.
+- Vimeo com **DRM**: o manifesto criptografado não entra mais na lista nem serve de plano B (incluso nesta versão; o vídeo em si
+  continua sem poder ser baixado).
+- Teste novo `tests/popup_group.js` (o caso real do G1: 4 itens viram 2).
+
+---
+## [3.0.9] — 2026-11-13
+
+### Corrigido
+- **Vídeos com DRM no Vimeo (ex.: Vimeo Originals):** a lista mostrava o manifesto criptografado (`.../drm/cenc/playlist.mpd`) como se
+  desse para baixar e o usava de plano B. Agora esses itens **não entram mais na lista** e nunca são plano B. O vídeo em si continua sem
+  poder ser baixado (o Vimeo entrega só versões criptografadas, que nenhum programa baixa) e a mensagem diz isso.
+
+---
+## [3.0.8] — 2026-11-13
+
+### Novo
+- **Instagram: carrossel baixa TODOS os vídeos do post** (antes só o 1º). As **fotos do carrossel são ignoradas** (o yt-dlp pula os
+  itens sem vídeo e segue para o próximo). Conferido no carrossel real de 14 itens: 1 vídeo salvo, 13 fotos ignoradas.
+- **Vimeo:** `vimeo.com/ID` agora é baixado pelo **player** (`player.vimeo.com/video/ID`) com o Referer do site — o yt-dlp recusa a
+  página sem login, mas aceita o player. Conferido no servidor com vídeo real (baixou sem login). Vídeos com **DRM** (criptografia
+  do próprio Vimeo, como o 76979871) não têm como baixar: a mensagem agora diz isso.
+- **Qualquer site com player `blob:`** (Vimeo e muitos outros) e sem URL de arquivo: o vídeo entra na lista pelo **endereço da
+  página** (que o yt-dlp resolve) com o quadro do próprio vídeo de miniatura. Só quando não há um stream de rede válido.
+- Player em **iframe**: o Referer do download passa a ser o da página que embute o player.
+
+### Corrigido
+- Pedaços de DASH/HLS (`segment.mp4`, `init.mp4`, `frag-1.m4s`…) não entram mais na lista e nunca servem de "plano B": no
+  Vimeo isso gerava um arquivo-lixo de poucos segundos marcado como concluído.
+- Download de post do Instagram com fotos no meio não faz mais uma 2ª tentativa à toa nem mostra erro antigo.
+- Testes: 28 do servidor (regras de Vimeo, Instagram e extrator genérico) e 28 no navegador (`tests/e2e_sites.js`).
+
+---
+## [3.0.7] — 2026-11-13
+
+Corrigido a partir de testes em **sites reais** (G1, TikTok, YouTube, Instagram e uma página HTML5 comum), não só em simulação.
+
+### Corrigido
+- **Instagram: não detectava e dava "endereço não suportado".** No Instagram real o `<video>` fica **20 a 30 níveis** dentro do
+  `<article>` do post; a busca do link parava em 14. Agora procura no `<article>` inteiro, usa o link da **data** do post
+  (`/p/CÓDIGO/`) e ignora links que não são o post (`/reels/audio/…`). Conferido no feed real: 4 de 4 vídeos com o link certo
+  e a miniatura (um quadro do próprio vídeo); download de 2 posts reais pelo servidor, 1080p, com áudio quando o post tem.
+  O vídeo entra na lista mesmo antes de a miniatura estar pronta (ela chega depois).
+- **G1: o único download que funcionava era de um vídeo sem relação.** A extensão listava como "da página" qualquer bloco com
+  `data-video-id`, inclusive cartões de "veja também". Agora só entram players que têm um `<video>` de verdade.
+- **G1 ao vivo (id de 6 dígitos):** o yt-dlp não entende esse id nem a URL da matéria ("0 itens", terminava sem arquivo). Agora a
+  extensão baixa pela **playlist HLS principal** que o player pediu, e o servidor força o **extrator genérico** em URLs que já são
+  arquivo/playlist de mídia (`.m3u8`, `.mpd`, `.mp4`…): o extrator de matérias da Globo "sequestrava" qualquer `*.globo.com`
+  (inclusive `video.globo.com`) e quebrava com `'NoneType' has no attribute 'strip'`, mesmo com o HLS respondendo 200.
+- No popup, dentro de um grupo HLS vale a **playlist principal**, não a de uma qualidade só (`…-video=1320960.m3u8`).
+- **TikTok:** itens de lixo da tela de login (`ttwstatic.com`, `playback1.mp4`) não entram mais na lista. Conferido ao vivo:
+  vídeo listado com miniatura própria, download 1080x1920 de 70 s com áudio.
+- Mensagem mais clara quando o yt-dlp não acha nada ("dê play no vídeo, espere carregar e baixe pelo ícone").
+- Aviso próprio quando, no Instagram, não é possível achar o link do post (em vez de mandar a URL do feed).
+
+### Novo
+- `tests/real_site.js` (site real com extensão + servidor + yt-dlp + ffprobe) e `tests/dl_url.js` (baixa uma URL pelo servidor
+  e confere o arquivo). `tests/e2e_sites.js` agora cobre também vídeo muito fundo no `<article>`, cartão "veja também" e G1 ao vivo (26 checagens).
+
+### Limitações conhecidas
+- Transmissão **ao vivo** grava até você cancelar; ao cancelar, o yt-dlp não guarda o trecho parcial.
+- Carrossel do Instagram: baixa o **primeiro** vídeo do post.
+- Instagram/TikTok pedem login para alguns conteúdos: entre na conta no navegador e deixe os cookies ligados.
+
+---
+## [3.0.6] — 2026-11-13
+
+Comportamento **igual em todos os sites** (Instagram, TikTok, G1 e qualquer outro): ícone, lista, miniatura e download.
+
+### Corrigido
+- **O ícone não aparecia no Instagram, no G1 e em vários players.** Ele dependia de o mouse estar *exatamente sobre* o `<video>`,
+  mas esses sites cobrem o vídeo com camadas (ou o vídeo é vertical e estreito dentro de uma moldura preta larga). Agora a
+  extensão acha o vídeo pela **posição do ponteiro** (inclui a moldura do player e players dentro de *shadow DOM*).
+- **Instagram: baixava arquivos sem extensão e que não abriam** (`AQMgw4PN-...`). Eram *pedaços* do CDN (vídeo e áudio
+  separados, `bytestart/byteend`). Agora esses pedaços **não entram mais na lista** (Instagram, Facebook e TikTok) e cada
+  vídeo é baixado pela **URL do post** (`/p/…`, `/reel/…`), pelo yt-dlp, com áudio e vídeo juntos.
+- **Miniatura repetida em todos os itens.** A miniatura da *página* era copiada para todos os vídeos da lista. Agora cada vídeo
+  tem a **sua** miniatura (um quadro do próprio vídeo); a da página só vale quando a aba tem um único vídeo, e um player que
+  ainda não carregou fica sem imagem em vez de mostrar a de outro vídeo.
+- **Lista e miniatura presas na primeira página (TikTok, Instagram, YouTube...).** Sites de página única trocam de vídeo sem
+  recarregar a aba. A extensão agora percebe a troca de endereço, **zera a lista da aba** e lê o vídeo novo.
+- **G1 (várias matérias/players na página): baixava um vídeo diferente do que você apontou.** Agora o ícone baixa o vídeo
+  **do player apontado** (pelo `data-video-id`) e não o primeiro da página.
+- Item que carregava **depois** da primeira varredura ficava sem miniatura para sempre; agora é atualizado.
+
+### Novo
+- O vídeo que está **tocando** (ou à vista) aparece **primeiro** na lista.
+- O **popup se atualiza sozinho** enquanto está aberto (troca de vídeo, player que carrega depois, mudança de endereço).
+- Teste novo `tests/e2e_sites.js` (navegador real, mouse de verdade): feed estilo Instagram, TikTok com troca de vídeo,
+  matéria estilo G1 e player em shadow DOM (24 checagens).
+
+---
 ## [3.0.5] — 2026-11-13
 
 ### Alterado

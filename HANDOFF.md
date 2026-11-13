@@ -4,13 +4,13 @@ Para quem for continuar o projeto (pessoa ou agente). O resto da documentação:
 `docs/MANUAL-DE-USO.md` (manual com telas), `CHANGELOG.md` (histórico). Regras de versão e release:
 `D:\.IA agents\global\RELEASES.md`.
 
-## Estado (12/11/2026)
+## Estado (13/11/2026)
 
-- **Versão atual: 3.0.5** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual).
-- Pacote pronto: `release\v3.0.5\noevfx-downloader-3.0.5.zip` (+ `SHA256.txt`). As anteriores (`release\v3.0.2` a `v3.0.4`) foram enviadas antes aos amigos e têm falhas já corrigidas (lista do YouTube; servidor antigo segurando a porta); mandar a 3.0.5 (o nome do zip traz a versão).
-- **GitHub:** a release `v3.0.1` está publicada **com um bug** (leitura da extensão recusada com 403: config
-  some, progresso não aparece). **Não distribuir a 3.0.1.** A `3.0.5` está só local, aguardando
-  "pode subir pro git" (commit + tag `v3.0.5` + um único push; a Action `release` publica o zip).
+- **Versão atual: 3.0.12** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Publicada no GitHub como `v3.0.12`.
+- Pacote: `release\v3.0.12\noevfx-downloader-3.0.12.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X e Facebook (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
+- **Testes de sites** (`tests/e2e_sites.js`, 40 checagens com sites simulados em HTTPS; `tests/real_site.js` e `tests/dl_url.js` para site real). Ainda não vistos em feed real logado: X e Facebook. Limites: lives (cancelar perde o parcial), vídeos com DRM, Mac/Linux sem máquina real.
+- **GitHub:** as releases **`v3.0.5` e `v3.0.12`** estão publicadas com `noevfx-downloader-3.0.5.zip`; o SHA-256 do asset está nas notas e em `release\v3.0.5\SHA256.txt`. A `v3.0.1` ficou com um aviso nas notas: tem um bug (leitura da extensão recusada com 403), **não distribuir**.
+- **PC do Eduardo:** instalação feita pelo próprio Eduardo (3.0.12 em teste em 13/11/2026; antes: 3.0.5) (backup em `_backups\instalacao-do-pc-2026-11-13-antes-3.0.5`). Espelho no Drive feito.
 - Sem loja: projeto de **uso próprio e de amigos**. Todo o material de loja foi removido (v3.0.5).
 
 ## Como é feito
@@ -56,7 +56,7 @@ node tools/capturar-telas.js                # refaz as telas do manual em docs/i
 
 ## Pendências / atenção
 
-1. **Publicar a 3.0.5** (ver Estado) e acompanhar a CI: `gh run list`.
+1. Acompanhar a CI da 3.0.5 (`gh run list`; `gh run rerun <id> --failed` se o runner Apple Silicon não vier).
 2. **macOS Apple Silicon** na CI: nas últimas rodadas o GitHub não entregou o runner ("capacity"); rodar
    de novo (`gh run rerun <id> --failed`). O resto da matriz (Windows, Linux x64/ARM, macOS Intel, serviços)
    passou.

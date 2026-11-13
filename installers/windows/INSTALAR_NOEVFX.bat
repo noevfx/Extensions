@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions
-title Noe VFX Downloader 3.0.5 - Instalador (noevfx.com)
+title Noe VFX Downloader 3.0.12 - Instalador (noevfx.com)
 color 0B
 cls
 echo.
 echo  ============================================================
-echo        Noe VFX Downloader  v3.0.5  -  AUTO-INSTALADOR
+echo        Noe VFX Downloader  v3.0.12  -  AUTO-INSTALADOR
 echo                    https://noevfx.com
 echo  ============================================================
 echo.

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.5-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.12-0066FF">
   <img alt="plataformas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
 </p>
@@ -21,7 +21,7 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`noevfx-downloader-3.0.5.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.5/noevfx-downloader-3.0.5.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele)</sub>
+[`noevfx-downloader-3.0.12.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.12/noevfx-downloader-3.0.12.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele)</sub>
 
 <sub>Todas as versões ficam na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 

@@ -44,7 +44,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.5.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.12.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -265,4 +265,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.5 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.0.12 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

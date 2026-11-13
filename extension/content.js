@@ -112,7 +112,7 @@
     panelOpen: false,
     lastMove: 0,
     thumb: "",
-    sent: new Set(),
+    sent: new Map(),            // url -> assinatura (miniatura? prioridade): reenvia quando algo MUDA
     busy: false,
     pos: null,
     dragMoved: false,
@@ -121,7 +121,14 @@
     posReady: false      // só grava a posição padrão depois de ler a salva (senão sobrescreveria)
   };
 
+  const sigOf = (it) => (it.thumb ? 1 : 0) + "|" + (it.pri || 0);
   const isYT = () => /(^|\.)youtube\.com$/.test(location.hostname);
+  const isIG = () => /(^|\.)instagram\.com$/.test(location.hostname);
+  const isFB = () => /(^|\.)facebook\.com$/.test(location.hostname);
+  // CDNs do Instagram/Facebook entregam o vídeo em pedaços (video-only / audio-only): nunca servem como arquivo
+  const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
+  const isTT = () => /(^|\.)tiktok\.com$/.test(location.hostname);
+  const isX = () => /(^|\.)(x|twitter)\.com$/.test(location.hostname);
   const fabOn = () => !state.cfg || state.cfg.fab_enabled !== false;
 
   /* -------------------------------------------------------------- mensagens */
@@ -205,6 +212,166 @@
     return m ? m[1] : "";
   }
 
+  /* Instagram: cada vídeo é baixado pela URL do POST (yt-dlp), não pelos pedaços de rede do CDN.
+     Procura o link do post (/p/, /reel/, /tv/) subindo a partir do <video>; no feed, o mais próximo é o do próprio post. */
+  const IG_POST_RE = /^\/(?:[\w.]+\/)?(p|reel|reels|tv)\/([\w-]{5,})/;
+  function igPostUrl(v) {
+    const toUrl = (m) => `https://www.instagram.com/${m[1] === "reels" ? "reel" : m[1]}/${m[2]}/`;
+    const BAD = new Set(["audio", "explore", "tagged", "saved", "liked_by"]);       // /reels/audio/123/ é a página do áudio, não o post
+    const find = (root) => {
+      // 1º o link da DATA do post (<time>), que é sempre o do próprio post; depois qualquer link de post válido
+      const t = root.querySelector("time");
+      const ta = t && t.closest("a");
+      const cands = [ta, ...root.querySelectorAll('a[href*="/p/"],a[href*="/reel/"],a[href*="/reels/"],a[href*="/tv/"]')].filter(Boolean);
+      for (const a of cands) {
+        const m = new URL(a.getAttribute("href"), location.href).pathname.match(IG_POST_RE);
+        if (m && !BAD.has(m[2])) return toUrl(m);
+      }
+      return "";
+    };
+    try {
+      // o <video> fica dezenas de níveis dentro do <article> do post (ou do diálogo do post aberto): procura nele todo
+      const box = v.closest && (v.closest("article") || v.closest('[role="dialog"]'));
+      if (box) { const u = find(box); if (u) return u; }
+      for (let el = v, d = 0; el && el !== document.body && d < 30; el = el.parentElement, d++) {
+        const u = find(el);
+        if (u) return u;
+      }
+      const m = location.pathname.match(IG_POST_RE);
+      if (m) return toUrl(m);
+      if (/^\/stories\//.test(location.pathname)) return location.origin + location.pathname;
+    } catch (_) {}
+    return "";
+  }
+
+  /* Facebook: o vídeo vem em pedaços de fbcdn.net (video e áudio separados). Baixa-se pelo link do VÍDEO/REEL do post
+     (/pagina/videos/ID, /reel/ID, /watch/?v=ID, /share/v/CÓDIGO...), que o yt-dlp resolve com áudio e vídeo juntos. */
+  function fbCandidate(href) {
+    let u;
+    try { u = new URL(href, location.href); } catch (_) { return null; }
+    if (!/(^|\.)facebook\.com$/.test(u.hostname)) return null;
+    const p = u.pathname;
+    let m;
+    if ((m = p.match(/^\/reel\/(\d+)/))) return { rank: 1, url: `https://www.facebook.com/reel/${m[1]}` };
+    if ((m = p.match(/^\/(?:[^/]+\/)*videos\/(?:[^/]+\/)?(\d{8,})/))) return { rank: 1, url: `https://www.facebook.com${p.replace(/\/$/, "")}` };
+    if (/^\/watch\/?$/.test(p) && u.searchParams.get("v")) return { rank: 1, url: `https://www.facebook.com/watch/?v=${u.searchParams.get("v")}` };
+    if ((m = p.match(/^\/share\/[vr]\/([\w-]+)/))) return { rank: 1, url: `https://www.facebook.com${m[0]}/` };
+    if (/^\/video\.php$/.test(p) && u.searchParams.get("v")) return { rank: 1, url: `https://www.facebook.com/watch/?v=${u.searchParams.get("v")}` };
+    if (/^\/[^/]+\/posts\/[\w-]{6,}/.test(p)) return { rank: 2, url: `https://www.facebook.com${p.replace(/\/$/, "")}` };
+    if (/^\/permalink\.php$/.test(p) && u.searchParams.get("story_fbid")) return { rank: 2, url: `https://www.facebook.com/permalink.php?story_fbid=${u.searchParams.get("story_fbid")}&id=${u.searchParams.get("id") || ""}` };
+    return null;
+  }
+
+  function fbVideoUrl(v) {
+    const best = (root) => {
+      let b = null;
+      root.querySelectorAll("a[href]").forEach((a) => {
+        const c = fbCandidate(a.getAttribute("href"));
+        if (c && (!b || c.rank < b.rank)) b = c;
+      });
+      return b ? b.url : "";
+    };
+    try {
+      const box = v.closest && (v.closest('[role="article"]') || v.closest('[role="dialog"]'));
+      if (box) { const u = best(box); if (u) return u; }
+      const here = fbCandidate(location.href);                        // página do próprio vídeo / reel / watch
+      if (here) return here.url;
+      for (let el = v, d = 0; el && el !== document.body && d < 30; el = el.parentElement, d++) {
+        const u = best(el);
+        if (u) return u;
+      }
+    } catch (_) {}
+    return "";
+  }
+
+  function fbTitle(v) {
+    try {
+      const box = v.closest('[role="article"]');
+      const h = box && box.querySelector("h2, h3, h4");
+      const t = h ? h.innerText.replace(/\s+/g, " ").trim().slice(0, 80) : "";
+      if (t) return t + " - Facebook";
+    } catch (_) {}
+    return document.title;
+  }
+
+  /* X/Twitter: o vídeo vem em pedaços de video.twimg.com (um pedaço de 1 KB não toca). Baixa-se pelo link do TWEET
+     (/usuario/status/ID): o yt-dlp resolve, junta vídeo e áudio e pega todos os vídeos do tweet. */
+  const X_STATUS_RE = /^\/(\w{1,30})\/status\/(\d{5,})/;
+  function xTweetUrl(v) {
+    const toUrl = (m) => `https://x.com/${m[1]}/status/${m[2]}`;
+    try {
+      const art = v.closest && v.closest("article");
+      if (art) {
+        // o link da DATA do tweet é sempre o do próprio tweet (os outros links do cartão levam a /analytics, /photo/1...)
+        const t = art.querySelector("time");
+        const ta = t && t.closest("a");
+        const cands = [ta, ...art.querySelectorAll('a[href*="/status/"]')].filter(Boolean);
+        for (const a of cands) {
+          const m = new URL(a.getAttribute("href"), location.href).pathname.match(X_STATUS_RE);
+          if (m) return toUrl(m);
+        }
+      }
+      const m = location.pathname.match(X_STATUS_RE);          // página do próprio tweet
+      if (m) return toUrl(m);
+    } catch (_) {}
+    return "";
+  }
+
+  function xTitle(v) {
+    try {
+      const art = v.closest("article");
+      const nm = art && art.querySelector('[data-testid="User-Name"]');
+      const tx = art && art.querySelector('[data-testid="tweetText"]');
+      const user = nm ? nm.innerText.split("\n")[0].trim() : "";
+      const text = tx ? tx.innerText.replace(/\s+/g, " ").trim().slice(0, 70) : "";
+      if (user || text) return ((user ? user + " - " : "") + (text || "X")).slice(0, 110);
+    } catch (_) {}
+    return document.title;
+  }
+
+  /* TikTok: idem, o vídeo é baixado pela URL da página do vídeo (/@usuario/video/ID). */
+  const TT_RE = /^\/(@[\w.]+)\/video\/(\d+)/;
+  function ttPostUrl(v) {
+    const toUrl = (m) => `https://www.tiktok.com/${m[1]}/video/${m[2]}`;
+    try {
+      let m = location.pathname.match(TT_RE);
+      if (m) return toUrl(m);
+      for (let el = v, d = 0; el && el !== document.body && d < 12; el = el.parentElement, d++) {
+        for (const a of el.querySelectorAll('a[href*="/video/"]')) {
+          m = new URL(a.getAttribute("href"), location.href).pathname.match(TT_RE);
+          if (m) return toUrl(m);
+        }
+      }
+    } catch (_) {}
+    return "";
+  }
+
+  // miniatura do TikTok pelo oEmbed do próprio site (mesma origem): vem certa para CADA vídeo
+  const ttCache = new Map();           // url -> link da miniatura | "-" (falhou) | "" (buscando)
+  function ttThumb(url) {
+    if (ttCache.has(url)) return ttCache.get(url);
+    ttCache.set(url, "");
+    fetch("/oembed?url=" + encodeURIComponent(url), { credentials: "omit" })
+      .then((r) => r.json())
+      .then((j) => {
+        const u = j && /^https?:/i.test(j.thumbnail_url || "") ? j.thumbnail_url : "-";
+        ttCache.set(url, u);
+        if (location.href) publish(true);
+      })
+      .catch(() => { ttCache.set(url, "-"); publish(true); });
+    return "";
+  }
+
+  function igTitle(v) {
+    try {
+      const box = (v.closest && (v.closest("article") || v.closest('[role="dialog"]'))) || document;
+      for (const a of box.querySelectorAll('a[href^="/"]')) {
+        if (/^\/[\w.]+\/$/.test(a.getAttribute("href")) && a.textContent.trim()) return a.textContent.trim().slice(0, 60) + " - Instagram";
+      }
+    } catch (_) {}
+    return document.title;
+  }
+
   function resolveBestPageOrVideoUrl(videoEl) {
     if (isYT()) {
       const v = ytId();
@@ -264,6 +431,9 @@
   const netSet = new Set();
   function noteNet(name) {
     if (!name || netSet.has(name) || !MEDIA_RE.test(name)) return;
+    if (/\/range\/prot\/|[?&](bytestart|byteend)=/i.test(name)) return;                      // pedido por faixa de bytes: um pedaço, não o vídeo
+    if (/\/drm\/(cenc|widevine|playready|fairplay)/i.test(name)) return;                      // manifesto com DRM: ninguém baixa
+    if (/(\/|[-_.])(segment|seg|frag|fragment|chunk|init)[-_\d]*\.(mp4|m4v|m4a|webm)(\?|#|$)/i.test(name)) return;   // pedaço de DASH/HLS: não toca sozinho
     netSet.add(name);
     netList.push(name);
     if (netList.length > 300) netSet.delete(netList.shift());
@@ -276,7 +446,7 @@
 
   function scan() {
     let thumb = state.thumb;
-    if (!thumb) {
+    if (!thumb && !isIG() && !isTT()) {      // no Instagram cada vídeo tem a própria miniatura (a do og:image é a mesma para todos)
       thumb = pageThumb();
       if (!thumb) {
         try {
@@ -288,28 +458,105 @@
     }
     const items = [];
     const seen = new Set();
-    const push = (url, kind) => {
+    const push = (url, kind, own, title, pri) => {
       if (!url || !/^https?:/i.test(url)) return;
       if (seen.has(url)) return;
+      const pg = kind === "TikTok" || kind === "Instagram" || kind === "Facebook" || kind === "Vimeo" || kind === "Página" || kind === "X";      // URL da PÁGINA do vídeo (yt-dlp)
+      if (!pg) { try { if (FRAG_HOST_RE.test(new URL(url).hostname)) return; } catch (_) { return; } }
       seen.add(url);
-      items.push({ url, kind: kind || "Player", title: document.title });   // a miniatura vai uma vez só, no nível da mensagem
+      const it = { url, kind: kind || "Player", title: title || document.title };
+      if (pg) it.pg = 1;
+      if (pri) it.pri = pri;
+      if (own) it.thumb = own;       // miniatura PRÓPRIA do vídeo (a da página vai uma vez só, no nível da mensagem)
+      items.push(it);
     };
 
     for (let i = netList.length - 1; i >= 0 && i > netList.length - 240; i--) push(netList[i], "Rede");
 
     let vids = [];
-    try { vids = Array.from(document.querySelectorAll("video")); } catch (_) {}
+    try { vidCacheAt = 0; vids = allVideos(); } catch (_) {}
 
     vids.forEach((v) => {
       const src = v.currentSrc || v.src ||
         (v.querySelector("source") && v.querySelector("source").src) || "";
-      if (src && /^https?:/i.test(src)) push(src, "HTML5");
+      if (src && /^https?:/i.test(src)) {
+        const own = frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : "");
+        push(src, "HTML5", own);
+      }
     });
+
+    if (isIG()) {
+      vids.forEach((v) => {
+        const r = v.getBoundingClientRect();
+        if (r.width < 120 || r.height < 120) return;
+        const u = igPostUrl(v);
+        const own = frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : "");
+        if (u) push(u, "Instagram", own, igTitle(v), v.paused ? 1 : 2);        // sem miniatura ainda: entra assim e ganha a imagem depois
+      });
+    }
+    if (/(^|\.)player\.vimeo\.com$/.test(location.hostname) && /^\/video\/\d+/.test(location.pathname)) {
+      const v = vids.find((x) => x.getBoundingClientRect().width >= 150);
+      if (v) push(location.href, "Vimeo", frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : ""), document.title, v.paused ? 1 : 2);
+    }
+    // Player com blob:/MSE (Vimeo e muitos outros) em site SEM tratamento próprio: não existe URL de arquivo para listar,
+    // então o item é o endereço da PÁGINA (o yt-dlp resolve), com o quadro do próprio vídeo de miniatura.
+    if (!isIG() && !isTT() && !isX() && !isYT() && !isFB() && !items.some((i) => i.kind === "Rede" || i.kind === "HTML5" || i.kind === "Globo/G1" || i.kind === "Embed")) {
+      const bv = vids.find((v) => {
+        const r = v.getBoundingClientRect();
+        const src = v.currentSrc || v.src || "";
+        return r.width >= 150 && r.height >= 90 && v.readyState >= 1 && (src === "" || /^blob:/i.test(src));
+      });
+      if (bv) push(location.href, "Página", frameOf(bv) || (/^https?:/i.test(bv.poster || "") ? bv.poster : ""), document.title, bv.paused ? 1 : 2);
+    }
+    if (isX()) {
+      vids.forEach((v) => {
+        const r = v.getBoundingClientRect();
+        if (r.width < 120 || r.height < 120) return;
+        const u = xTweetUrl(v);
+        if (u) push(u, "X", frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : ""), xTitle(v), v.paused ? 1 : 2);
+      });
+    }
+    if (isTT()) {
+      vids.forEach((v) => {
+        const r = v.getBoundingClientRect();
+        if (r.width < 120 || r.height < 120) return;
+        const u = ttPostUrl(v);
+        if (!u) return;
+        let own = frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : "");
+        if (!own) {
+          const c = ttThumb(u);
+          if (c === "") return;                  // buscando a miniatura: entra quando chegar
+          own = c === "-" ? "" : c;
+        }
+        push(u, "TikTok", own, document.title, v.paused ? 1 : 2);
+      });
+    }
+    if (isFB()) {
+      vids.forEach((v) => {
+        const r = v.getBoundingClientRect();
+        if (r.width < 120 || r.height < 120) return;
+        const u = fbVideoUrl(v);
+        if (u) push(u, "Facebook", frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : ""), fbTitle(v), v.paused ? 1 : 2);
+      });
+    }
 
     try {
       document.querySelectorAll("[data-video-id]").forEach((el) => {
         const vid = el.getAttribute("data-video-id");
-        if (vid && /^\d+$/.test(vid)) push(`https://globoplay.globo.com/v/${vid}/`, "Globo/G1");
+        if (!vid || !/^\d{7,}$/.test(vid)) return;       // 6 dígitos = transmissão ao vivo: baixa-se pelo HLS da rede
+        // SÓ conta como vídeo DA PÁGINA o bloco que tem um <video> (player de verdade). Outros blocos com data-video-id
+        // são cartões de "veja também" / outras matérias: listá-los fazia baixar um vídeo que não tem nada a ver.
+        const pv = el.tagName === "VIDEO" ? el : el.querySelector("video");
+        if (!pv) return;
+        let own = frameOf(pv) || (/^https?:/i.test(pv.poster || "") ? pv.poster : "");
+        const r = pv.getBoundingClientRect();
+        const seen = r.width > 60 && r.height > 60 && r.bottom > 0 && r.top < innerHeight;
+        const pri = !pv.paused && seen ? 2 : seen ? 1 : 0;
+        if (!own) {                                        // vídeo ainda sem quadro: usa a imagem do próprio player
+          const im = el.querySelector("img[src^='http']");
+          if (im && im.naturalWidth > 100) own = im.src;
+        }
+        push(`https://globoplay.globo.com/v/${vid}/`, "Globo/G1", own, undefined, pri);
       });
     } catch (_) {}
 
@@ -336,10 +583,10 @@
     if (!force && Date.now() - sendT < 1200) return;
     sendT = Date.now();
     const { items, thumb } = scan();
-    const fresh = items.filter((it) => !state.sent.has(it.url));
+    const fresh = items.filter((it) => state.sent.get(it.url) !== sigOf(it));    // novo OU ganhou miniatura/prioridade
     if (thumb) state.thumb = thumb;
     if (!fresh.length && !thumb) return;
-    fresh.forEach((it) => state.sent.add(it.url));
+    fresh.forEach((it) => state.sent.set(it.url, sigOf(it)));
     sendMsg({ type: "DOM_MEDIA_FOUND", items: fresh, thumb, title: document.title });
   }
 
@@ -538,26 +785,87 @@
     true
   );
 
+  let vidCache = [];
+  let vidCacheAt = 0;
+  function allVideos() {
+    const n = Date.now();
+    if (n - vidCacheAt < 700) return vidCache;
+    vidCacheAt = n;
+    const out = new Set(document.querySelectorAll("video"));
+    try {
+      // players feitos com web components escondem o <video> dentro de um shadowRoot aberto
+      const walk = (root, depth) => {
+        if (depth > 4) return;
+        root.querySelectorAll("*").forEach((el) => {
+          const sr = el.shadowRoot;
+          if (!sr) return;
+          sr.querySelectorAll("video").forEach((v) => out.add(v));
+          walk(sr, depth + 1);
+        });
+      };
+      walk(document, 0);
+    } catch (_) {}
+    vidCache = Array.from(out);
+    return vidCache;
+  }
+
+  /* O <video> do Instagram (e de vários players) fica COBERTO por camadas: o mouse nunca "está sobre" o <video>.
+     Por isso acha o vídeo pela POSIÇÃO do ponteiro, não pelo alvo do evento. */
+  // O vídeo vertical (G1, Reels, Shorts) é uma faixa estreita dentro de um player largo: o resto é fundo preto do
+  // container. A área "do vídeo" inclui essa moldura (o ancestral próximo que o contém e não é muito maior).
+  function hitRect(v) {
+    const r = v.getBoundingClientRect();
+    const va = r.width * r.height;
+    let box = r;
+    let el = v.parentElement;
+    for (let d = 0; el && d < 4; d++, el = el.parentElement) {
+      const pr = el.getBoundingClientRect();
+      const pa = pr.width * pr.height;
+      if (pa > va * 5 || pr.width > innerWidth * 0.98) break;
+      if (pr.left <= r.left + 1 && pr.right >= r.right - 1 && pr.top <= r.top + 1 && pr.bottom >= r.bottom - 1) box = pr;
+    }
+    return box;
+  }
+
+  function videoAt(x, y) {
+    let best = null;
+    let area = Infinity;
+    allVideos().forEach((v) => {
+      const r = v.getBoundingClientRect();
+      if (r.width < 150 || r.height < 90) return;
+      const h = hitRect(v);
+      if (x < h.left || x > h.right || y < h.top || y > h.bottom) return;
+      const a = h.width * h.height;
+      if (a < area) { best = v; area = a; }
+    });
+    return best;
+  }
+
   document.addEventListener(
     "mousemove",
     (e) => {
-      if (!state.video || state.dragging) return;
-      if (!fabOn()) return;
+      if (state.dragging || !fabOn()) return;
+      const n = Date.now();
+      if (n - state.lastMove < 110) return;
+      state.lastMove = n;
+      if (e.target === state.host) return;
 
-      // só age quando o ponteiro está de fato sobre o vídeo
-      let over = false;
-      try { over = state.video.matches(":hover"); } catch (_) { over = false; }
-      if (!over) {
-        if (!state.panelOpen) scheduleHide();
+      const v = videoAt(e.clientX, e.clientY);
+      if (!v) {
+        if (state.video && !state.panelOpen) scheduleHide();
         return;
       }
-
-      const t = Date.now();
-      if (t - state.lastMove < 110) return;
-      state.lastMove = t;
-      if (e.target === state.host) return;
-      if (!state.panelOpen) place(state.video);
-      armIdle();
+      if (v !== state.video) {
+        if (state.panelOpen) return;              // não troca de vídeo com o menu aberto
+        state.video = v;
+        publish(true);
+      }
+      clearTimeout(state.hideT);
+      loadPos();
+      if (!state.panelOpen) {
+        if (place(v)) armIdle();
+        else hideFab();
+      }
     },
     true
   );
@@ -707,6 +1015,14 @@
     if (ms !== 0) state.toastT = setTimeout(() => { t.style.display = "none"; }, ms || 4200);
   }
 
+  // HLS/DASH mais "mestre" que o player pediu (a playlist principal, não a de uma única qualidade "...-video=1320960.m3u8")
+  function liveStream() {
+    const hls = netList.filter((u) => /\.(m3u8|mpd)(\?|#|$)/i.test(u));
+    if (!hls.length) return "";
+    const master = hls.find((u) => !/[=_]\d+(-|\.)|-(video|audio)=|chunklist|\/(video|audio)_/i.test(u.split("?")[0].split("/").pop()));
+    return master || hls[hls.length - 1];
+  }
+
   async function startOne(quality) {
     if (state.busy) return;
     state.busy = true;
@@ -719,13 +1035,40 @@
     let primary = page;
     let fallback = "";
     const manyVideos = vids > 1;
-    if (direct && /^https?:/i.test(direct) && !isYT()) {
+    const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : "") : "";
+    if (igUrl) primary = igUrl;
+    else if (direct && /^https?:/i.test(direct) && !isYT()) {
       if (manyVideos) { primary = direct; fallback = page; }
       else { fallback = direct; }
     }
-    if (primary === page) {
+    const holder = !igUrl && state.video && state.video.closest ? state.video.closest("[data-video-id]") : null;
+    const hid = holder ? holder.getAttribute("data-video-id") : "";
+    if (!igUrl && hid && /^\d{7,}$/.test(hid)) {
+      primary = `https://globoplay.globo.com/v/${hid}/`;      // o vídeo que o usuário apontou, não o 1º da página
+      fallback = page;
+    } else if (!igUrl && hid && /^\d+$/.test(hid)) {
+      // id curto (6 dígitos) = AO VIVO: nem a URL do globoplay nem a da matéria servem; vale o HLS que o player pediu
+      const live = liveStream();
+      if (live) { primary = live; fallback = page; }
+    } else if (primary === page && !igUrl) {
       const alt = resolveBestPageOrVideoUrl(state.video);
       if (alt && alt !== page) fallback = alt;
+    }
+
+    if (isIG() && !igUrl && !/^https:\/\/www\.instagram\.com\/(p|reel|reels|tv|stories)\//.test(primary)) {
+      state.busy = false;
+      toast(/^pt/i.test(navigator.language) ? "Instagram: não achei o link deste post. Clique na data do post (abre o post) e baixe de lá." : "Instagram: could not find this post's link. Click the post date to open it, then download from there.", "err", 7000);
+      return;
+    }
+    if (isFB() && !igUrl && !fbCandidate(primary)) {
+      state.busy = false;
+      toast(/^pt/i.test(navigator.language) ? "Facebook: não achei o link deste vídeo. Abra o vídeo (clique nele ou na data do post) e baixe de lá." : "Facebook: could not find this video's link. Open the video (click it or the post date) and download from there.", "err", 7000);
+      return;
+    }
+    if (isX() && !igUrl && !X_STATUS_RE.test(new URL(primary, location.href).pathname)) {
+      state.busy = false;
+      toast(/^pt/i.test(navigator.language) ? "X: não achei o link deste tweet. Clique na data do tweet (abre o tweet) e baixe de lá." : "X: could not find this tweet's link. Click the tweet date to open it, then download from there.", "err", 7000);
+      return;
     }
 
     toast(t("starting"));
@@ -734,8 +1077,8 @@
       type: "DOWNLOAD",
       url: primary,
       fallbackStream: fallback,
-      referer: page,
-      title: document.title,
+      referer: (window !== window.top && /^https?:/i.test(document.referrer || "")) ? document.referrer : page,
+      title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : document.title,
       pageUrl: page,
       quality: quality || "best"
     });
@@ -965,8 +1308,26 @@
     } catch (_) {}
   }
 
+  // Sites de página única (TikTok, Instagram, YouTube...) trocam de vídeo sem recarregar a aba. Sem isto a lista
+  // e a miniatura ficavam presas na PRIMEIRA página aberta.
+  const baseUrl = () => location.href.split("#")[0];
+  let lastHref = baseUrl();
+  function onPageChange() {
+    lastHref = baseUrl();
+    state.sent.clear();
+    state.thumb = "";
+    netList.length = 0;
+    netSet.clear();
+    try { chrome.runtime.sendMessage({ type: "RESET_TAB" }, () => { void chrome.runtime.lastError; }); } catch (_) {}
+    setTimeout(() => { publish(true); injectYouTubeButton(); }, 500);
+  }
+
   const onReady = () => {
     startObserver();
+    const navTimer = setInterval(() => {
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(navTimer); return; }
+      if (baseUrl() !== lastHref) onPageChange();
+    }, 300);
     loadPos();
     loadCfg().then(() => {
       publish(true);
@@ -986,11 +1347,8 @@
   }
 
   document.addEventListener("yt-navigate-finish", () => {
-    state.sent.clear();
-    state.thumb = "";
-    // o YouTube troca de vídeo sem recarregar a aba: zera a lista da aba para não ficar o vídeo anterior
-    try { chrome.runtime.sendMessage({ type: "RESET_TAB" }, () => { void chrome.runtime.lastError; }); } catch (_) {}
-    setTimeout(() => { publish(true); injectYouTubeButton(); }, 400);
+    if (baseUrl() !== lastHref) onPageChange();      // o vigia de URL cuida; aqui só garante a troca no YouTube
+    else setTimeout(() => { publish(true); injectYouTubeButton(); }, 400);
   });
 
   chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
@@ -998,7 +1356,7 @@
     if (msg.type === "RESCAN") {
       const { items, thumb } = scan();
       state.thumb = thumb || state.thumb;
-      items.forEach((it) => state.sent.add(it.url));
+      items.forEach((it) => state.sent.set(it.url, sigOf(it)));
       publish(true);
       respond({ ok: true, items, thumb: state.thumb, title: document.title });
       return;

@@ -96,17 +96,32 @@ async function checkHealth() {
 }
 
 /* --------------------------------------------------------------- streams -- */
+/* O MESMO vídeo chega por dois caminhos: o player (Globo/G1 /v/ID/) e o stream que o player puxa pela rede
+   (…/ID.m3u8). Junta os dois num item só, pelo id do vídeo, e mostra o do player (o mais confiável). */
+function globoIdOf(it) { const m = it.kind === "Globo/G1" && String(it.url).match(/\/v\/(\d{7,})/); return m ? m[1] : ""; }
+
 function groupize(list) {
   const map = new Map();
+  const gids = list.map(globoIdOf).filter(Boolean);
+  const groupKeyOf = (it) => {
+    const own = globoIdOf(it);
+    if (own) return "globo:" + own;
+    for (const id of gids) if (new RegExp("(^|[^\d])" + id + "([^\d]|$)").test(String(it.url).split("?")[0])) return "globo:" + id;
+    return it.group || it.url;
+  };
   for (const it of list) {
-    const k = it.group || it.url;
+    const k = groupKeyOf(it);
     if (!map.has(k)) map.set(k, []);
     map.get(k).push(it);
   }
-  return [...map.entries()].map(([key, arr]) => {
-    arr.sort((a, b) => (RANK[b.kind] || 0) - (RANK[a.kind] || 0));
-    return { key, best: arr[0], count: arr.length };
+  // dentro de um grupo HLS, a playlist PRINCIPAL vale mais que a de uma qualidade só ("...-video=1320960.m3u8")
+  const variant = (u) => /[=_]\d+(-|\.)|-(video|audio)=|chunklist|\/(video|audio)_/i.test(String(u).split("?")[0].split("/").pop()) ? 1 : 0;
+  const out = [...map.entries()].map(([key, arr]) => {
+    arr.sort((a, b) => ((RANK[b.kind] || 0) - (RANK[a.kind] || 0)) || (variant(a.url) - variant(b.url)));
+    return { key, best: arr[0], count: arr.length, pri: Math.max(...arr.map((x) => x.pri || 0)) };
   });
+  // o vídeo que está TOCANDO (ou à vista) vem primeiro; o resto mantém a ordem de chegada
+  return out.map((g, i) => ({ g, i })).sort((a, b) => (b.g.pri - a.g.pri) || (a.i - b.i)).map((x) => x.g);
 }
 
 function hostOf(url) {
@@ -240,20 +255,26 @@ async function loadThumbs(pending) {
   await Promise.all([work(), work(), work()]);
 }
 
+/* Só redesenha a lista quando algo mudou (evita piscar) */
+let lastSig = "";
+const sigOf = (l) => l.map((x) => x.url + "|" + (x.thumb ? x.thumb.length : 0) + "|" + (x.title || "")).join("\n");
+function applyStreams(list) {
+  if (!Array.isArray(list)) return;
+  const sg = sigOf(list);
+  if (sg === lastSig) return;
+  lastSig = sg;
+  streams = list;
+  render();
+}
+
 async function refreshStreams(showSpinner) {
   if (!currentTab || currentTab.id == null) return;
   if (showSpinner) refreshBtn.classList.add("spin");
   try {
     const r = await send({ type: "GET_TAB_STREAMS", tabId: currentTab.id });
-    if (r && r.streams) {
-      streams = r.streams;
-      render();
-    }
+    if (r && r.streams) applyStreams(r.streams);
     const rr = await send({ type: "RESCAN_TAB", tabId: currentTab.id });
-    if (rr && rr.ok && rr.streams) {
-      streams = rr.streams;
-      render();
-    }
+    if (rr && rr.ok && rr.streams) applyStreams(rr.streams);
   } finally {
     refreshBtn.classList.remove("spin");
   }
@@ -380,10 +401,7 @@ async function boot() {
 
   if (currentTab && currentTab.id != null) {
     const r = await send({ type: "GET_TAB_STREAMS", tabId: currentTab.id });
-    if (r && r.streams && r.streams.length) {
-      streams = r.streams;
-      render();
-    }
+    if (r && r.streams && r.streams.length) applyStreams(r.streams);
   }
   refreshStreams(false);
 
@@ -391,11 +409,24 @@ async function boot() {
   setTimeout(async () => {
     if (streams.length || !currentTab || currentTab.id == null) return;
     const r = await send({ type: "GET_TAB_STREAMS", tabId: currentTab.id });
-    if (r && r.streams && r.streams.length) {
-      streams = r.streams;
-      render();
-    }
+    if (r && r.streams && r.streams.length) applyStreams(r.streams);
   }, 800);
+
+  // atualização automática enquanto o popup está aberto: a página troca de vídeo, o player carrega depois, etc.
+  let urlEdited = false;
+  urlInput.addEventListener("input", () => { urlEdited = true; });
+  setInterval(async () => {
+    if (document.hidden || !currentTab || currentTab.id == null) return;
+    try {
+      const [tb] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tb && tb.id === currentTab.id && tb.url && tb.url !== currentTab.url) {
+        currentTab = tb;
+        if (!urlEdited && tb.url.startsWith("http")) urlInput.value = tb.url;
+      }
+      const rr = await send({ type: "RESCAN_TAB", tabId: currentTab.id });
+      if (rr && rr.ok && rr.streams) applyStreams(rr.streams);
+    } catch (_) {}
+  }, 1800);
 }
 
 refreshBtn.addEventListener("click", async (e) => {

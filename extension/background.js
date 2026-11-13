@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0.5  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.12  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -31,14 +31,17 @@ const DEFAULT_CONFIG = {
   onboarded: false
 };
 
-const IGNORE_RE = /\.(ts|m4s|m4f|aac|vtt|srt|jpg|jpeg|png|gif|webp|avif|svg|css|js|json|woff2?|ico|txt|xml|webmanifest)(\?|#|$)|doubleclick|googlesyndication|adsystem|scorecardresearch|googletagmanager|google-analytics|adservice|pubmatic|rubiconproject/i;
+const IGNORE_RE = /\/range\/prot\/|[?&](bytestart|byteend)=|\/drm\/(cenc|widevine|playready|fairplay)|(\/|[-_.])(segment|seg|frag|fragment|chunk|init)[-_\d]*\.(mp4|m4v|m4a|webm)(\?|#|$)|\.(ts|m4s|m4f|aac|vtt|srt|jpg|jpeg|png|gif|webp|avif|svg|css|js|json|woff2?|ico|txt|xml|webmanifest)(\?|#|$)|doubleclick|googlesyndication|adsystem|scorecardresearch|googletagmanager|google-analytics|adservice|pubmatic|rubiconproject/i;
 
 const MEDIA_EXT_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|m4a|mkv|flv|ogv)(\?|#|$)/i;
 
 // vídeo/áudio/manifesto reconhecido pelo cabeçalho Content-Type (URLs sem extensão)
 const CT_RE = /^(video\/|audio\/(mp4|mpeg|aac|ogg|webm|x-m4a)|application\/(vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i;
 // o YouTube é baixado pela URL da página (yt-dlp); pedaços de "videoplayback" não servem
-const SKIP_CT_HOST_RE = /(^|\.)(googlevideo\.com|youtube\.com|ytimg\.com)$/i;
+const SKIP_CT_HOST_RE = /(^|\.)(googlevideo\.com|youtube\.com|ytimg\.com|cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
+// Instagram/Facebook: o vídeo vem em pedaços (video-only/audio-only, bytestart/byteend) que não tocam sozinhos.
+// O download certo é pela URL do post/página (yt-dlp), que o content script informa.
+const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
 
 /* ---------------------------------------------------------------- util ---- */
 const now = () => Date.now();
@@ -180,6 +183,16 @@ try {
   if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#FFFFFF" });
 } catch (_) {}
 
+
+/* A miniatura da página (og:image) só serve quando há UM vídeo na aba. Com vários, repeti-la em todos os itens
+   faz parecer que são o mesmo vídeo (e o usuário baixa o errado). */
+function withThumbs(tabId) {
+  const list = listOf(tabId);
+  const single = new Set(list.map((x) => x.group || groupKey(x.url))).size <= 1;
+  const pageThumb = single ? THUMB.get(tabId) || "" : "";
+  return list.map((x) => (x.thumb ? x : pageThumb ? { ...x, thumb: pageThumb } : x));
+}
+
 function scheduleBadge(tabId) {
   dirtyBadge.add(tabId);
   if (badgeTimer) return;
@@ -193,7 +206,15 @@ function scheduleBadge(tabId) {
 
 function paintBadge(tabId) {
   const list = MEM.get(tabId) || [];
-  const n = new Set(list.map((x) => x.group || groupKey(x.url))).size;
+  // o mesmo vídeo do G1 chega pelo player (/v/ID/) e pelo HLS de rede (…/ID.m3u8): conta uma vez só (igual ao popup)
+  const gids = list.map((x) => (x.kind === "Globo/G1" && (String(x.url).match(/\/v\/(\d{7,})/) || [])[1]) || "").filter(Boolean);
+  const keyOf = (x) => {
+    const own = x.kind === "Globo/G1" && (String(x.url).match(/\/v\/(\d{7,})/) || [])[1];
+    if (own) return "globo:" + own;
+    for (const id of gids) if (new RegExp("(^|[^\d])" + id + "([^\d]|$)").test(String(x.url).split("?")[0])) return "globo:" + id;
+    return x.group || groupKey(x.url);
+  };
+  const n = new Set(list.map(keyOf)).size;
   try { chrome.action.setBadgeText({ tabId, text: n ? String(n) : "" }).catch(() => {}); } catch (_) {}
 }
 
@@ -201,6 +222,7 @@ function addStream(tabId, url, kind, extra) {
   if (tabId == null || tabId < 0 || !url) return;
   if (!/^https?:/i.test(url)) return;
   if (IGNORE_RE.test(url)) return;
+  if (!(extra && extra.pg)) { try { if (FRAG_HOST_RE.test(new URL(url).hostname)) return; } catch (_) { return; } }
   // veio do padrão de URL: exige extensão de mídia de verdade (evita site.webmanifest etc.)
   if (!kind && !MEDIA_EXT_RE.test(url)) return;
 
@@ -211,6 +233,7 @@ function addStream(tabId, url, kind, extra) {
     if (extra && isHttp(extra.ref) && !hit.ref) { hit.ref = extra.ref; changed = true; }
     if (extra && extra.thumb && !hit.thumb && extra.thumb !== THUMB.get(tabId)) { hit.thumb = extra.thumb; changed = true; }
     if (extra && extra.title && !hit.title) { hit.title = extra.title; changed = true; }
+    if (extra && extra.pri != null && (hit.pri || 0) !== extra.pri) { hit.pri = extra.pri; changed = true; }
     if (changed) scheduleFlush(tabId);
     return;
   }
@@ -232,6 +255,8 @@ function addStream(tabId, url, kind, extra) {
   };
   if (byType) item.ct = 1;
   if (extra && isHttp(extra.ref)) item.ref = extra.ref;
+  if (extra && extra.pri) item.pri = extra.pri;
+  if (extra && extra.pg) item.pg = 1;
   // miniatura da página fica UMA vez por aba (THUMB); o item só guarda a sua se for diferente
   if (extra && extra.thumb && extra.thumb !== THUMB.get(tabId)) item.thumb = extra.thumb;
   list.unshift(item);
@@ -484,7 +509,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const pageThumb = THUMB.get(tabId) || "";
         return {
           ok: true,
-          streams: listOf(tabId).map((x) => (x.thumb ? x : { ...x, thumb: pageThumb })),
+          streams: withThumbs(tabId),
           thumb: pageThumb,
           title: PAGE_TITLE.get(tabId) || ""
         };
@@ -514,10 +539,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           if (res.thumb) setThumb(tabId, res.thumb, res.title);
           res.items.forEach((it) => addStream(tabId, it.url, it.kind, it));
         }
-        const pageThumb = THUMB.get(tabId) || "";
         return {
           ok: true,
-          streams: listOf(tabId).map((x) => (x.thumb ? x : { ...x, thumb: pageThumb })),
+          streams: withThumbs(tabId),
           added: res && res.items ? res.items.length : 0
         };
       }

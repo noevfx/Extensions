@@ -304,5 +304,65 @@ class ServerCase(unittest.TestCase):
             self.assertEqual(m.clean_url(bad), "", bad)
 
 
+class SiteRulesCase(unittest.TestCase):
+    """Regras por site do servidor (sem rede, sem subir o servidor): Vimeo, Instagram e pedaços de DASH."""
+
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location("nvf_server_rules", SERVER_SRC)
+        cls.m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.m)
+
+    def cmd(self, url):
+        return self.m.build_cmd(url, "best", "out.%(ext)s", "", "", "", [], False, True, False)[0]
+
+    def test_vimeo_page_vira_player_com_referer(self):
+        self.assertEqual(self.m.normalize_target("https://vimeo.com/22439234", ""),
+                         ("https://player.vimeo.com/video/22439234", "https://vimeo.com/"))
+        self.assertEqual(self.m.normalize_target("https://vimeo.com/76979871/abcdef1234", "")[0],
+                         "https://player.vimeo.com/video/76979871?h=abcdef1234")
+        # o Referer de quem embute o player (Hotmart etc.) é preservado
+        self.assertEqual(self.m.normalize_target("https://player.vimeo.com/video/1234567", "https://curso.example/aula")[1],
+                         "https://curso.example/aula")
+        self.assertEqual(self.m.normalize_target("https://example.com/v", "x"), ("https://example.com/v", "x"))
+
+    def test_pedaco_de_dash_nao_serve_de_video(self):
+        self.assertTrue(self.m.FRAGMENT_RE.search("/v2/drm/remux/avf/abc/segment.mp4?x=1"))
+        self.assertFalse(self.m.FRAGMENT_RE.search("/videos/aula-1.mp4"))
+
+    def test_post_do_instagram_baixa_todos_os_itens_do_carrossel(self):
+        c = self.cmd("https://www.instagram.com/p/DfetRqgDAfA/")
+        self.assertNotIn("--no-playlist", c)                 # carrossel = lista de itens
+        self.assertNotIn("--playlist-items", c)              # não limita ao 1º
+        self.assertIn("--ignore-errors", c)                  # foto não tem vídeo: pula e segue
+        # fora do Instagram continua "um vídeo por pedido"
+        c2 = self.cmd("https://example.com/watch")
+        self.assertIn("--no-playlist", c2)
+        self.assertIn("--playlist-items", c2)
+
+    def test_tweet_baixa_todos_os_videos(self):
+        for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
+            c = self.cmd(u)
+            self.assertNotIn("--no-playlist", c)
+            self.assertNotIn("--playlist-items", c)
+            self.assertIn("--ignore-errors", c)
+        self.assertIn("--no-playlist", self.cmd("https://x.com/home"))
+
+    def test_faixa_de_bytes_nao_serve_de_plano_b(self):
+        self.assertTrue(self.m.RANGE_URL_RE.search("https://vod.vimeocdn.com/x/v2/range/prot/cmFuZ2U9OTE0/avf/a.mp4?pathsig=1"))
+        self.assertTrue(self.m.RANGE_URL_RE.search("https://scontent.cdninstagram.com/o1/v/x.mp4?bytestart=0&byteend=99"))
+        self.assertFalse(self.m.RANGE_URL_RE.search("https://cdn.example/videos/aula.mp4"))
+
+    def test_manifesto_com_drm_nao_serve_de_plano_b(self):
+        self.assertTrue(self.m.DRM_URL_RE.search("https://vod.vimeocdn.com/x/v2/playlist/drm/cenc,derivedv2,abc/av/primary/playlist.mpd"))
+        self.assertFalse(self.m.DRM_URL_RE.search("https://vod.vimeocdn.com/x/v2/playlist/av/primary/playlist.m3u8"))
+
+    def test_url_de_midia_direta_usa_extrator_generico(self):
+        c = self.cmd("https://live-01.edge.video.globo.com/j/abc/live/f(i=2)/gehd/playlist.m3u8")
+        self.assertIn("--use-extractors", c)
+        self.assertIn("generic", c)
+        self.assertNotIn("--use-extractors", self.cmd("https://www.youtube.com/watch?v=abc"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.5"
+VERSION = "3.0.12"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -550,6 +550,47 @@ def kill_proc(proc):
             pass
 
 
+VIMEO_PAGE_RE = re.compile(
+    r"^https?://(?:www\.)?vimeo\.com/(?:(?:channels|groups)/[^/]+/(?:videos/)?|album/\d+/video/|video/|showcase/\d+/video/)?(\d{6,})(?:/([0-9a-f]{8,}))?/?(?:[?#].*)?$", re.I)
+RANGE_URL_RE = re.compile(r"/range/prot/|[?&](?:bytestart|byteend)=", re.I)
+DRM_URL_RE = re.compile(r"/drm/(?:cenc|widevine|playready|fairplay)", re.I)
+FRAGMENT_RE = re.compile(r"(?:/|[-_.])(?:segment|seg|frag|fragment|chunk|init)[-_\d]*\.(?:mp4|m4v|m4a|webm)(?:[?#]|$)", re.I)
+
+
+def normalize_target(url: str, referer: str):
+    """vimeo.com/ID exige login no yt-dlp; o player (player.vimeo.com/video/ID) com o Referer do site não."""
+    m = VIMEO_PAGE_RE.match(url or "")
+    if m:
+        url = "https://player.vimeo.com/video/" + m.group(1) + ("?h=" + m.group(2) if m.group(2) else "")
+        if not referer or "player.vimeo.com" in referer:
+            referer = "https://vimeo.com/"
+    elif re.match(r"^https?://player\.vimeo\.com/video/", url or "", re.I):
+        if not referer or "player.vimeo.com" in referer:
+            referer = "https://vimeo.com/"
+    return url, referer
+
+
+# post do Instagram OU tweet do X: podem ter VÁRIOS vídeos (e fotos no meio); baixa todos os vídeos e pula as fotos
+IG_POST_URL_RE = re.compile(
+    r"^https?://(?:(?:www\.)?instagram\.com/(?:[\w.]+/)?(?:p|reel|reels|tv)/[\w-]+|(?:www\.|mobile\.)?(?:x|twitter)\.com/\w+/status/\d+)", re.I)
+VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v", ".m4a", ".mp3")
+
+
+def _videos_since(folder: Path, since: float) -> list:
+    """Arquivos de vídeo/áudio criados por ESTE download (carrossel do Instagram = vários vídeos)."""
+    out = []
+    try:
+        for p in folder.iterdir():
+            if p.is_file() and p.suffix.lower() in VIDEO_EXTS and p.stat().st_mtime >= since:
+                out.append(p)
+    except Exception:
+        pass
+    return sorted(out, key=lambda x: x.stat().st_mtime)
+
+
+MEDIA_FILE_RE = re.compile(r"\.(m3u8|mpd|mp4|m4v|webm|mov|mkv|flv|m4a|mp3)$", re.I)
+
+
 def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
               cookies_file: str, extra: list, impersonate: bool, single: bool = True,
               use_ffmpeg: bool = True):
@@ -571,8 +612,15 @@ def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
         "-o", out_tmpl,
     ]
 
-    # um vídeo por pedido: evita baixar todos os <video> da página de uma vez
-    if single:
+    ig_post = bool(IG_POST_URL_RE.match(url or ""))
+    if ig_post:
+        # carrossel do Instagram: baixa TODOS os vídeos do post. As fotos do carrossel não têm vídeo ("No video formats
+        # found"): o yt-dlp pula e segue para o próximo (--ignore-errors), então só os vídeos são salvos.
+        if "--no-playlist" in cmd:
+            cmd.remove("--no-playlist")
+        cmd += ["--ignore-errors", "--no-write-thumbnail"]
+    elif single:
+        # um vídeo por pedido: evita baixar todos os <video> da página de uma vez
         cmd += ["--playlist-items", "1"]
 
     if has_ffmpeg:
@@ -599,6 +647,15 @@ def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
 
     if extra:
         cmd += list(extra)          # já validado por parse_extra_args()
+
+    # URL que já é o ARQUIVO/PLAYLIST de mídia (.m3u8, .mpd, .mp4...): usa só o extrator genérico. Sem isto, extratores
+    # de site "sequestram" o endereço (ex.: o de matérias da Globo assume qualquer *.globo.com, inclusive video.globo.com,
+    # e quebra com 'NoneType' has no attribute 'strip' mesmo com o HLS respondendo 200).
+    try:
+        if MEDIA_FILE_RE.search(urlparse(url).path or ""):
+            cmd += ["--use-extractors", "generic"]
+    except Exception:
+        pass
 
     cmd.append(url)
     return cmd, has_ffmpeg
@@ -742,6 +799,10 @@ FRIENDLY = (
     (r"HTTP Error 403|403: Forbidden", "O site negou o acesso (403). Entre na sua conta, atualize a página do vídeo e tente de novo."),
     (r"HTTP Error 404|404: Not Found", "O endereço do vídeo expirou (404). Atualize a página e tente de novo."),
     (r"Requested format is not available", "Esse formato não existe nesse vídeo. Tente 'Qualidade nativa'."),
+    (r"DRM protected|DRM-protected|has DRM", "Esse vídeo tem proteção DRM (criptografia do próprio site). Não dá para baixar: nenhum programa consegue."),
+    (r"No video could be found|no video in this tweet", "Esse tweet não tem vídeo (só foto ou texto)."),
+    (r"NSFW tweet|requires authentication|Could not authenticate|[Ll]ogin required|log in to|Sign in to view|protected tweet", "Esse conteúdo exige login: entre na sua conta no navegador (com os cookies ligados nas Configurações) e tente de novo."),
+    (r"\[facebook\].*(Cannot parse data|login|log in|private|not available)", "Não consegui ler esse vídeo do Facebook (privado, apagado ou exige login). Entre na sua conta no navegador (com os cookies ligados nas Configurações) e tente de novo."),
     (r"Unsupported URL", "Este endereço não é suportado direto. Dê play no vídeo e baixe pelo ícone sobre o player."),
     (r"ffprobe and ffmpeg not found|ffmpeg is not installed", "FFmpeg não encontrado. Rode o instalador do Noe VFX de novo."),
 )
@@ -769,6 +830,9 @@ def run_job(job_id: str, req: dict):
     url = req.get("url", "")
     fallback = req.get("fallback_stream") or ""
     referer = req.get("referer") or ""
+    url, referer = normalize_target(url, referer)
+    if fallback and (FRAGMENT_RE.search(urlparse(fallback).path or "") or DRM_URL_RE.search(fallback) or RANGE_URL_RE.search(fallback)):
+        fallback = ""                  # pedaço de DASH/HLS ou manifesto com DRM não é o vídeo: nunca serve de plano B
     ua = req.get("userAgent") or ""
     try:
         extra = parse_extra_args(cfg.get("extra_args") or "")
@@ -835,28 +899,42 @@ def run_job(job_id: str, req: dict):
 
         code, tail, _pct = attempt(url, referer, imp)
 
-        if code != 0 and imp and not _is_canceled(job_id):
+        def ig_saved():
+            """Carrossel do Instagram: as FOTOS falham de propósito; se já saiu vídeo, não há o que refazer."""
+            return bool(IG_POST_URL_RE.match(url or "")) and bool(_videos_since(out_dir, started - 2))
+
+        if code != 0 and imp and not _is_canceled(job_id) and not ig_saved():
             job_update(job_id, progress="tentando modo compatível...")
             code, tail, _pct = attempt(url, referer, False)
 
-        if code != 0 and fallback and fallback != url and not _is_canceled(job_id):
+        if code != 0 and fallback and fallback != url and not _is_canceled(job_id) and not ig_saved():
             job_update(job_id, progress="usando stream capturado...")
             fb_ref = req.get("fallback_referer") or referer          # Referer do iframe que pediu esse stream
             code, tail, _pct = attempt(fallback, fb_ref, imp)
             if code != 0 and imp and not _is_canceled(job_id):
                 code, tail, _pct = attempt(fallback, fb_ref, False)
 
+        ig_videos = _videos_since(out_dir, started - 2) if (IG_POST_URL_RE.match(url or "") and code != 0) else []
         if _is_canceled(job_id):
             job_update(job_id, status="canceled", progress="cancelado", error="", finished=time.time())
+        elif ig_videos:
+            # carrossel: os itens que são FOTO falham de propósito; o que importa é que os vídeos foram salvos
+            job_update(job_id, status="done", progress="100%", file=str(ig_videos[-1]), files=len(ig_videos),
+                       error="", finished=time.time())
         elif code == 0:
             with JOBS_LOCK:
                 recorded = (JOBS.get(job_id) or {}).get("file") or ""
             found = Path(recorded) if recorded and Path(recorded).exists() else _newest_since(out_dir, started - 2)
             if found:
-                job_update(job_id, status="done", progress="100%", file=str(found), finished=time.time())
+                n_videos = len(_videos_since(out_dir, started - 2)) if IG_POST_URL_RE.match(url or "") else 1
+                job_update(job_id, status="done", progress="100%", file=str(found), files=n_videos, finished=time.time())
             else:
-                job_update(job_id, status="error", finished=time.time(),
-                           error="O yt-dlp terminou, mas nenhum arquivo apareceu em %s" % out_dir)
+                if any(re.search(r"Downloading 0 items|0 videos|no video formats found", l or "", re.I) for l in (tail or [])):
+                    msg = ("O yt-dlp não achou nenhum vídeo baixável nesse endereço. Se for uma transmissão ao vivo ou um player da matéria, "
+                           "dê play no vídeo, espere carregar e baixe pelo ícone sobre o player.")
+                else:
+                    msg = "O yt-dlp terminou, mas nenhum arquivo apareceu em %s" % out_dir
+                job_update(job_id, status="error", finished=time.time(), error=msg)
         else:
             err = next((l[6:].strip() for l in reversed(tail) if l.startswith("ERROR:")), "")
             if not err:
