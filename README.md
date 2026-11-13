@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.19-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.20-0066FF">
   <img alt="sistemas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
   <img alt="telemetria" src="https://img.shields.io/badge/telemetria-zero-171a24">
@@ -43,7 +43,7 @@ Feita para uso próprio e de amigos: **não está em nenhuma loja**; instala-se 
 ## Baixar
 
 **Pacote completo (extensão + aplicativo local + instaladores):**
-[`noevfx-downloader-3.0.19.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.19/noevfx-downloader-3.0.19.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
+[`noevfx-downloader-3.0.20.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.20/noevfx-downloader-3.0.20.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -253,6 +253,8 @@ A extensão roda em modo desenvolvedor, então o navegador **não a atualiza soz
   Não atualiza com download em andamento.
 - **Pelo instalador (sempre funciona):** rode o instalador do zip novo e, em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar**.
 
+**Abas já abertas:** o navegador não troca o código do ícone e do painel nas abas que estavam abertas na hora da atualização. A partir da 3.0.20 a aba antiga avisa "atualize esta página (F5)" e esconde o ícone; antes disso, dê F5 nas abas com vídeo.
+
 **Mais de um perfil do navegador?** O app local é um só: depois de atualizar por um perfil, o popup dos outros mostra "O app já está na X, mas esta extensão ainda é a Y" com o botão **Recarregar extensão**. Um clique e pronto.
 
 Versões anteriores à 3.0.14 não têm o botão: a primeira atualização delas é pelo instalador do zip novo. Configurações, pasta escolhida e
@@ -289,7 +291,7 @@ macOS `~/Library/Logs/NoeVFXDownloader.log`
 | Teste | O que cobre | Como rodar |
 |---|---|---|
 | `tests/test_server.py` | regras do servidor (36 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
-| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar e de recarregar, checkbox H.264): 59 checagens | `node tests/e2e_sites.js` |
+| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar e de recarregar, checkbox H.264, aviso de aba antiga): 61 checagens | `node tests/e2e_sites.js` |
 | `tests/popup_group.js` | agrupamento da lista do popup | `node tests/popup_group.js` |
 | `tests/real_site.js <url>` | uma página real com a extensão, o servidor, o yt-dlp e o ffprobe | `node tests/real_site.js <url> [segundos]` |
 | `tests/dl_url.js <url>` | baixar um link pelo servidor e conferir o arquivo | `node tests/dl_url.js <url>` |

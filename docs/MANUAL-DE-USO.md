@@ -45,7 +45,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.19.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.20.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -283,6 +283,8 @@ nas Configurações. Ao confirmar, o app baixa o pacote, **confere o SHA-256**, 
 `_backups` (na pasta instalada), troca os arquivos, reinicia o servidor e a extensão se recarrega. Se houver download em andamento,
 ele pede para esperar terminar.
 
+**Abas já abertas:** o navegador não troca o código do ícone e do painel do vídeo nas abas que estavam abertas na hora da atualização: dê **F5** nelas. A partir da 3.0.20 a aba antiga esconde o ícone e mostra "Atualize esta página (F5)".
+
 **Mais de um perfil do navegador:** o app local é um só. Depois de atualizar por um perfil, o popup dos outros mostra "O app já está na X, mas esta extensão ainda é a Y" com o botão **Recarregar extensão**; um clique e o perfil fica igual ao app.
 
 **Atualizar pelo instalador (sempre funciona, e é o caminho das versões antes da 3.0.14):** rode o instalador do ZIP novo (ele
@@ -309,4 +311,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.19 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.0.20 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

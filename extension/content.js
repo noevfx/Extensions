@@ -137,7 +137,18 @@
   const fabOn = () => !state.cfg || state.cfg.fab_enabled !== false;
 
   /* -------------------------------------------------------------- mensagens */
+  // A extensão foi atualizada/recarregada com esta aba aberta: o navegador deixa ESTA cópia antiga rodando, sem acesso à extensão
+  // (e o painel/ícone continuam sendo os da versão velha). Avisa uma vez para atualizar a página.
+  let staleShown = false;
+  function staleNotice() {
+    if (staleShown) return;
+    staleShown = true;
+    try { hideFab(); closePanel(); } catch (_) {}
+    try { toast(t("staleTab"), "err", 15000); } catch (_) {}
+  }
+
   function sendMsg(payload, timeout = 25000) {
+    if (!chrome.runtime || !chrome.runtime.id) { staleNotice(); return Promise.resolve({ ok: false, stale: true }); }
     return new Promise((resolve) => {
       let done = false;
       const finish = (v) => {
@@ -153,6 +164,7 @@
         });
       } catch (_) {
         clearTimeout(t);
+        if (!chrome.runtime || !chrome.runtime.id) staleNotice();
         finish({ ok: false });
       }
     });
@@ -1472,7 +1484,7 @@
   const onReady = () => {
     startObserver();
     const navTimer = setInterval(() => {
-      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(navTimer); return; }
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(navTimer); staleNotice(); return; }
       if (baseUrl() !== lastHref) onPageChange();
     }, 300);
     loadPos();
@@ -1482,7 +1494,7 @@
     });
     const pubTimer = setInterval(() => {
       // extensão recarregada/atualizada: este script ficou órfão, então para de trabalhar
-      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(pubTimer); obs.disconnect(); return; }
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(pubTimer); obs.disconnect(); staleNotice(); return; }
       if (document.visibilityState === "visible") publish(false);
     }, 4000);
   };

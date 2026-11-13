@@ -6,6 +6,20 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.20] — 2026-11-13
+
+### Corrigido
+- **Aba aberta durante a atualização:** ao atualizar (ou recarregar) a extensão, o navegador deixa nas abas que já estavam abertas a cópia
+  **antiga** do ícone e do painel do vídeo, sem acesso à extensão. O popup já era o novo (por isso a caixa de H.264 aparecia nele e não no
+  painel do vídeo), mas o ícone da página seguia velho até o F5, sem nenhum aviso. Agora essa cópia antiga se percebe órfã, **esconde o ícone** e mostra
+  uma vez **"O Noe VFX Downloader foi atualizado. Atualize esta página (F5)…"**. O aviso vale a partir desta versão: abas abertas antes da
+  3.0.20 ainda precisam do F5 uma vez, sem aviso.
+
+### Como foi testado
+- Navegador de teste: recarrega a extensão com a página aberta; a aba mostra o aviso e esconde o ícone. 61 checagens; 36 testes do servidor.
+
+---
+
 ## [3.0.19] — 2026-11-13
 
 > A 3.0.18 (só local, entregue ao Eduardo para teste) trazia esta mesma opção **ligada por padrão**; na 3.0.19 ela vem **desligada** e com texto mais claro.

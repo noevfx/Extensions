@@ -501,6 +501,16 @@ function rawReq(port, method, p, body, headers = {}) {
     const c2 = await page.eval(`(()=>{const v=document.querySelector("x-player").shadowRoot.querySelector("video");const r=v.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
     await hover(c2[0], c2[1]);
     check("ícone aparece sobre um vídeo dentro de shadow DOM", await fabVisible());
+
+    // por último: recarrega a extensão com a aba aberta (como no botão "Atualizar agora"): a cópia antiga fica órfã e a aba tem de avisar
+    console.log("\n== Extensão recarregada com a aba aberta (cópia antiga órfã): a aba avisa para atualizar a página");
+    try { await Promise.race([sw.eval("chrome.runtime.reload()"), sleep(2500)]); } catch (_) {}
+    await sleep(7000);
+    const tn = await findNode(".toast");
+    const toastInfo = tn ? await (async () => { const o = await page.send("DOM.resolveNode", { nodeId: tn }); const r = await page.send("Runtime.callFunctionOn", { objectId: o.result.object.objectId, functionDeclaration: "function(){return this.style.display + '|' + this.textContent}", returnByValue: true }); return r.result.result.value; })() : "";
+    info("aviso", toastInfo);
+    check("a aba antiga mostra 'atualize esta página (F5)' depois de a extensão ser recarregada", /^block\|/.test(toastInfo) && /F5/.test(toastInfo), toastInfo);
+    check("o ícone some na aba antiga (não clica em algo que já não funciona)", !(await fabVisible()));
   } catch (e) {
     console.log("  ERRO  " + (e && e.stack || e)); results.push(false);
   } finally { await cleanup(); }
