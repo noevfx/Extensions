@@ -6,6 +6,27 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.19] — 2026-11-13
+
+> A 3.0.18 (só local, entregue ao Eduardo para teste) trazia esta mesma opção **ligada por padrão**; na 3.0.19 ela vem **desligada** e com texto mais claro.
+
+### Novo
+- **"Converter para H.264 (Premiere)":** o Premiere não abre AV1 (nem VP9, nem áudio Opus em MP4), e muitos sites
+  hoje entregam nesses formatos (o YouTube só tem 4K em VP9/AV1). Caixa **opcional, DESLIGADA por padrão** (o usuário liga quando precisa), nos **três lugares**: popup da extensão,
+  painel do ícone dentro do vídeo e Configurações (é a mesma opção; mudar em um muda nos outros).
+  - A **resolução é sempre a melhor** (ou a escolhida: 1080p/720p): o app ordena por resolução e só então prefere H.264 e AAC
+    (`-S res,vcodec:h264,acodec:aac`). Vídeo que já tem H.264 na maior resolução sai sem conversão.
+  - Se a maior resolução só existe em AV1/VP9, baixa essa mesma resolução e **converte depois** para H.264 + AAC (FFmpeg, `crf 18`,
+    com progresso "convertendo para H.264 … %" e cancelável). Só áudio e arquivos já compatíveis não são mexidos.
+  - Desligada (o padrão): o arquivo vem exatamente como o site entrega, como antes.
+
+### Como foi testado
+- 36 testes do servidor (inclui converter um AV1 + Opus real em H.264 + AAC) e 59 checagens no navegador (o checkbox do popup e o do
+  painel do vídeo vêm desligados e gravam a mesma opção no servidor).
+- Download real: YouTube (H.264 + AAC, mesma resolução do melhor formato) e um MP4 em AV1 + Opus servido por HTTP, que saiu em H.264 + AAC.
+
+---
+
 ## [3.0.17] — 2026-11-13
 
 ### Corrigido

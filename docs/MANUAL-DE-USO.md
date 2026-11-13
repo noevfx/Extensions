@@ -45,7 +45,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.17.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.19.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -218,6 +218,19 @@ com as opções de qualidade. (O YouTube precisa do **Deno**, que o instalador j
 
 Os arquivos têm o nome `Título do vídeo [id].mp4` e ficam na sua pasta padrão.
 
+### Converter para H.264 (Premiere e outros editores)
+
+Muitos sites hoje entregam o vídeo em **AV1** ou **VP9** (o YouTube, por exemplo, só tem 4K nesses formatos), e o **Premiere não abre
+AV1**. A caixa **"Converter para H.264 (Premiere)"** resolve isso. Ela é **opcional e vem desligada por padrão**: ligue só quando o seu editor
+não abrir o arquivo. Ela está em três lugares, e é a mesma opção: no **popup** da extensão (abaixo dos botões de qualidade), no **painel do ícone dentro do vídeo** e nas **Configurações**.
+
+- A resolução é **sempre a melhor** que o vídeo tiver (ou a que você escolheu: 1080p, 720p). O codec nunca derruba a resolução.
+- Entre formatos de **mesma resolução**, o app prefere H.264 e áudio AAC, e então o arquivo já sai pronto, sem conversão.
+- Quando a melhor resolução só existe em AV1/VP9 (ex.: 4K do YouTube), o app baixa essa mesma resolução e, **depois do download**, converte
+  para H.264 + AAC com o FFmpeg (qualidade alta, `crf 18`). O popup mostra "convertendo para H.264 … %". Isso demora, mais em vídeo longo e em 4K.
+- Desligada (o padrão), o app entrega o arquivo exatamente como o site serve (mais rápido; pode não abrir no Premiere).
+- Não mexe em "Só áudio".
+
 ---
 
 ## 6. Baixar vários, cancelar e repetidos
@@ -296,4 +309,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.17 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.0.19 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

@@ -294,6 +294,7 @@ function rawReq(port, method, p, body, headers = {}) {
 
     /* ============================ Instagram (feed) ============================ */
     console.log("\n== Feed estilo Instagram (vídeo coberto por camadas, blob:, pedaços no CDN)");
+    await goto(`https://www.instagram.com:${fp}/`, 2000);      // aquecimento: a 1ª página depois de abrir o navegador às vezes perde o content script
     await goto(`https://www.instagram.com:${fp}/`);
     info("readyState dos vídeos", await page.eval(`[...document.querySelectorAll("video")].map(v=>v.readyState)`));
     info("diag", await page.eval(`(async()=>{try{const r=await fetch(${JSON.stringify(CDN)}+"/v/t16/f2/m86/AQ0x.mp4?bytestart=0");return r.status+" "+(await r.blob()).size+" "+[...document.querySelectorAll("video")].map(v=>v.src.slice(0,12)+":"+(v.error?v.error.message:"-"))}catch(e){return "ERR "+e}})()`));
@@ -303,7 +304,15 @@ function rawReq(port, method, p, body, headers = {}) {
     check("ícone aparece com o mouse sobre um vídeo coberto por camadas", await fabVisible());
 
     const posts = "https://www.instagram.com/p/AAAAA1/,https://www.instagram.com/p/CCCCC3/,https://www.instagram.com/reel/BBBBB2/";
-    const it = await waitItems((m) => [...m.keys()].filter((u) => /www\.instagram\.com\/(p|reel)\//.test(u)).length >= 3);
+    const igPred = (m) => [...m.keys()].filter((u) => /www\.instagram\.com\/(p|reel)\//.test(u)).length >= 3;
+    let it = await waitItems(igPred, 6000);
+    for (let a = 1; a <= 2 && it.size === 0; a++) {          // 1º carregamento depois de abrir o navegador: às vezes não registra; recarrega
+      info("recarregando o cenário (nada registrado)", a);
+      await goto(`https://www.instagram.com:${fp}/`);
+      const cr = await page.eval(`(()=>{const r=document.querySelectorAll("video")[1].getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
+      await hover(cr[0], cr[1]);
+      it = await waitItems(igPred, 6000);
+    }
     const ig = [...it.values()].filter((x) => /www\.instagram\.com\/(p|reel)\//.test(x.url));
     info("itens enviados", ig.map((x) => x.kind + " " + x.url.replace("https://", "") + " th=" + x.th + " pri=" + x.pri + " | " + x.title));
     check("a extensão publica UM item por vídeo, com a URL do POST", ig.map((x) => x.url).sort().join(",") === posts);
@@ -394,6 +403,11 @@ function rawReq(port, method, p, body, headers = {}) {
     const updVis = await page.eval(`!document.getElementById("updRow").hidden`);
     info("mensagem", updTxt);
     check("a faixa de atualização aparece com o resultado (versão mais recente / nova versão / erro claro)", updVis && /mais recente|latest|Nova versão|New version|Não consegui|Could not|ainda é a|still/.test(updTxt), updTxt);
+    const cfgNow = async () => (await (await fetch(`http://127.0.0.1:${sp}/config`, { headers: H })).json());
+    check("popup: o checkbox H.264 (Premiere) existe e vem DESLIGADO por padrão, com texto de ajuda visível", (await page.eval(`document.getElementById("compatBox").checked`)) === false && (await cfgNow()).compat_h264 === false && (await page.eval(`document.querySelector("#compatRow small").offsetParent !== null && /padrão|default/i.test(document.querySelector("#compatRow small").textContent)`)));
+    await page.eval(`document.getElementById("compatBox").click()`);
+    await sleep(900);
+    check("popup: marcar grava compat_h264=true no servidor", (await cfgNow()).compat_h264 === true, JSON.stringify((await cfgNow()).compat_h264));
     check("nunca oferece 'Atualizar agora' quando o app já está na frente: só 'Recarregar extensão'", await page.eval(`(()=>{const b=document.getElementById("updBtn"); return !b.hidden && b.dataset.mode==="reload" && /Recarregar|Reload/.test(b.textContent)})()`));
 
     console.log("\n== Pin aberto no Pinterest LOGADO (vídeo grande dentro de relatedPins, sem CloseupMainPin, pôster sem código)");
@@ -405,6 +419,18 @@ function rawReq(port, method, p, body, headers = {}) {
     await sleep(2800);
     const dll = (await rec()).filter((m) => m.type === "DOWNLOAD").pop();
     check("o ícone pede o PIN da página (não avisa 'não achei o link')", !!dll && dll.url.replace(/:\d+/, "") === "https://www.pinterest.com/pin/3333333333333333333/", dll ? dll.url : "sem DOWNLOAD");
+    // painel do ícone dentro do vídeo: checkbox H.264 (a mesma opção do popup e das Configurações)
+    await goto(`https://www.pinterest.com:${fp}/pin/3333333333333333333/`);
+    const cpl2 = await page.eval(`(()=>{const r=document.querySelectorAll("video")[0].getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
+    await hover(cpl2[0], cpl2[1]);
+    const fab2 = await findNode(".fab"); const fc2 = await center(fab2);
+    await click(fc2[0], fc2[1]); await sleep(700);
+    const cmp = await findNode("input[data-compat]");
+    const cmpChecked = async () => { const o = await page.send("DOM.resolveNode", { nodeId: cmp }); const r = await page.send("Runtime.callFunctionOn", { objectId: o.result.object.objectId, functionDeclaration: "function(){return this.checked}", returnByValue: true }); return r.result.result.value; };
+    check("painel do vídeo: o checkbox H.264 existe e reflete o que o popup marcou", !!cmp && (await cmpChecked()) === true);
+    const cc = await center(cmp);
+    await click(cc[0], cc[1]); await sleep(900);
+    check("painel do vídeo: desmarcar grava compat_h264=false no servidor (mesma opção do popup)", (await cfgNow()).compat_h264 === false && (await cmpChecked()) === false, JSON.stringify((await cfgNow()).compat_h264));
 
     /* ============================ TikTok (SPA) ============================ */
     console.log("\n== Site de página única estilo TikTok (troca de vídeo sem recarregar)");

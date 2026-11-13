@@ -74,6 +74,8 @@ function applyConfig(c) {
   fabBtn.classList.toggle("on", on);
   fabBtn.classList.toggle("off", !on);
   fabBtn.title = on ? t("iconEnabled") : t("iconDisabled");
+  const cb = $("compatBox");
+  if (cb) cb.checked = c.compat_h264 === true;
 }
 
 async function loadConfig(force) {
@@ -507,6 +509,18 @@ refreshBtn.addEventListener("click", async (e) => {
 settingsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 changeFolderBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 setupBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
+
+$("compatBox").addEventListener("change", async (e) => {
+  const on = e.target.checked;
+  const r = await send({ type: "SAVE_CONFIG", patch: { compat_h264: on } });
+  if (r && r.ok && r.config) {
+    applyConfig(r.config);
+    statusEl.textContent = on ? t("compatOnMsg") : t("compatOffMsg");
+  } else {
+    e.target.checked = !on;
+    statusEl.textContent = t("saveFailMsg");
+  }
+});
 
 fabBtn.addEventListener("click", async () => {
   const turningOn = !(cfg && cfg.fab_enabled !== false);

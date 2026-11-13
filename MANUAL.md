@@ -1,4 +1,4 @@
-# Noe VFX Downloader 3.0.17 — Manual rápido
+# Noe VFX Downloader 3.0.19 — Manual rápido
 
 **Site:** https://noevfx.com · **Navegadores:** Chrome, Edge, Brave, Opera, Vivaldi · **Sistemas:** Windows, macOS, Linux
 
@@ -28,6 +28,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 - Passe o mouse sobre o vídeo → **ícone azul** → escolha a qualidade.
 - Ou clique na extensão (popup): lista tudo que a página carrega; **Baixar** em cada vídeo ou **Baixar todos**.
 - Ou botão direito → *Baixar vídeo na qualidade nativa*.
+- **Premiere não abre o arquivo (AV1)?** Ligue a caixa **Converter para H.264 (Premiere)** (popup, painel do ícone ou Configurações; vem desligada) baixa a melhor resolução e converte para H.264 quando o site só tem AV1/VP9.
 - No primeiro uso a extensão pergunta a **pasta** onde salvar (muda depois na engrenagem ⚙). Se não escolher, vai para `Vídeos\NoeVFX` do seu usuário (macOS: `Filmes/NoeVFX`).
 
 ## Plataformas testadas

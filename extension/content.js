@@ -70,6 +70,11 @@
       color:#9fc0ff; border:1px dashed rgba(0,102,255,.45);
     }
     .panel .all button:hover { background: rgba(0,102,255,.16); }
+    .panel .compat {
+      display:flex; align-items:center; gap:7px; margin-top:9px; font-size:10.5px; color:#b3bdd1; cursor:pointer; user-select:none;
+    }
+    .panel .compat input { width:14px; height:14px; margin:0; accent-color:#0066ff; cursor:pointer; }
+    .panel .compat:hover { color:#fff; }
     .panel .foot {
       display:flex; align-items:center; justify-content:space-between; gap:8px;
       margin-top:9px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08);
@@ -1056,6 +1061,7 @@
         <button type="button" class="opt" data-q="audio">${t("audioOnly")}</button>
       </div>
       <div class="all"><button type="button" class="all-btn">${t("allPage")}</button></div>
+      <label class="compat" title="${esc(t("compatTip"))}"><input type="checkbox" data-compat ${cfg.compat_h264 === true ? "checked" : ""}><span>${t("compatShort")}</span></label>
       <div class="foot">
         <span class="hint">${t("dragHint")}</span>
         <button type="button" class="tgl ${on ? "" : "off"}" data-toggle>${on ? t("iconOn") : t("iconOff")}</button>
@@ -1086,6 +1092,15 @@
       hideFab();
       await startAll();
     }));
+
+    state.panel.querySelector("[data-compat]").addEventListener("change", async (e) => {
+      e.stopPropagation();
+      if (!e.isTrusted) return;
+      const r = await sendMsg({ type: "SAVE_CONFIG", patch: { compat_h264: e.target.checked } });
+      if (r && r.ok && r.config) state.cfg = r.config;
+      else e.target.checked = !e.target.checked;
+    });
+    state.panel.querySelector("[data-compat]").addEventListener("click", (e) => e.stopPropagation());
 
     state.panel.querySelector("[data-toggle]").addEventListener("click", async (e) => {
       e.stopPropagation();

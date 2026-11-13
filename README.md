@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.17-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.19-0066FF">
   <img alt="sistemas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
   <img alt="telemetria" src="https://img.shields.io/badge/telemetria-zero-171a24">
@@ -43,7 +43,7 @@ Feita para uso próprio e de amigos: **não está em nenhuma loja**; instala-se 
 ## Baixar
 
 **Pacote completo (extensão + aplicativo local + instaladores):**
-[`noevfx-downloader-3.0.17.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.17/noevfx-downloader-3.0.17.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
+[`noevfx-downloader-3.0.19.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.19/noevfx-downloader-3.0.19.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -90,6 +90,7 @@ navegador foi validado só no Windows. Se algum item vier sem miniatura ou com o
 - **Ícone no canto do vídeo**: um clique salva; arraste para mover (a posição fica salva por site); liga/desliga em 3 lugares.
 - **Botão direito** no vídeo ou na página: baixar na qualidade nativa ou baixar todos.
 - **Qualidade**: a melhor que o player oferece, 1080p, 720p ou só áudio (M4A).
+- **Converter para H.264 (Premiere)**: caixa **opcional, desligada por padrão**, no popup, no painel do ícone e nas Configurações. Ligue quando o seu editor não abrir o arquivo (o Premiere não abre AV1): baixa a melhor resolução e, se o site só tiver AV1/VP9 (ex.: 4K do YouTube), converte para H.264 + AAC depois do download.
 - **Salvar um ou todos**, com **fila**, progresso, **cancelar** e aviso de vídeo já em download.
 - **Pasta padrão** escolhida por você (perguntada no primeiro uso). Sem escolher, vai para a pasta **Vídeos** do seu usuário, em `NoeVFX` (no Mac, `Filmes`). Opção de **subpasta por site**.
 - **Contador no ícone** da extensão: quantos vídeos existem na aba.
@@ -273,6 +274,7 @@ posições salvas são preservadas.
 | Extensão sumiu ou ficou cinza | Você apagou a pasta de onde carregou: carregue a pasta **instalada** |
 | O botão de atualizar não acha nada, ou o popup mostra uma versão diferente da instalada | A extensão está carregada da pasta **extraída do zip** (ex.: `Desktop\windows\extension`). Em `edge://extensions` remova-a e carregue `%LOCALAPPDATA%\NoeVFXDownloader\extension` (no macOS/Linux, `~/.local/share/NoeVFXDownloader/extension`) |
 | Erro 403 | O yt-dlp já se atualiza sozinho (1x por dia, com o app ligado). Se persistir, reinicie o computador para o app subir e atualizar, ou rode `yt-dlp -U` (ou o instalador) |
+| O Premiere não abre o arquivo | Ligue **Converter para H.264 (Premiere)** (popup, painel do ícone ou Configurações) e baixe de novo. Vídeo já baixado em AV1 não muda sozinho |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
 **Logs:** Windows `%LOCALAPPDATA%\NoeVFXDownloader\server.log` · Linux `~/.local/share/NoeVFXDownloader/server.log` ·
@@ -286,8 +288,8 @@ macOS `~/Library/Logs/NoeVFXDownloader.log`
 
 | Teste | O que cobre | Como rodar |
 |---|---|---|
-| `tests/test_server.py` | regras do servidor (34 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
-| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar e de recarregar): 55 checagens | `node tests/e2e_sites.js` |
+| `tests/test_server.py` | regras do servidor (36 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
+| `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar e de recarregar, checkbox H.264): 59 checagens | `node tests/e2e_sites.js` |
 | `tests/popup_group.js` | agrupamento da lista do popup | `node tests/popup_group.js` |
 | `tests/real_site.js <url>` | uma página real com a extensão, o servidor, o yt-dlp e o ffprobe | `node tests/real_site.js <url> [segundos]` |
 | `tests/dl_url.js <url>` | baixar um link pelo servidor e conferir o arquivo | `node tests/dl_url.js <url>` |

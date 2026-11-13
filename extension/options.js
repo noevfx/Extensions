@@ -11,6 +11,7 @@ const checks = $("checks");
 const outDir = $("outDir");
 const quality = $("quality");
 const useCookies = $("useCookies");
+const compatH264 = $("compatH264");
 const organize = $("organize");
 const fabEnabled = $("fabEnabled");
 const extraArgs = $("extraArgs");
@@ -133,6 +134,7 @@ function fillForm(c) {
   outDir.value = c.output_dir || "";
   quality.value = c.default_quality || "best";
   useCookies.checked = c.use_cookies !== false;
+  compatH264.checked = c.compat_h264 === true;
   organize.checked = !!c.organize_by_site;
   fabEnabled.checked = c.fab_enabled !== false;
   extraArgs.value = c.extra_args || "";
@@ -170,6 +172,7 @@ function markDirty() {
 outDir.addEventListener("input", markDirty);
 quality.addEventListener("change", markDirty);
 useCookies.addEventListener("change", markDirty);
+compatH264.addEventListener("change", markDirty);
 organize.addEventListener("change", markDirty);
 fabEnabled.addEventListener("change", markDirty);
 extraArgs.addEventListener("input", markDirty);
@@ -229,6 +232,7 @@ $("saveBtn").addEventListener("click", async () => {
     hover_action: (document.querySelector('input[name="hover"]:checked') || {}).value || "menu",
     default_quality: quality.value,
     use_cookies: useCookies.checked,
+    compat_h264: compatH264.checked,
     organize_by_site: organize.checked,
     fab_enabled: fabEnabled.checked,
     extra_args: extraArgs.value.trim(),

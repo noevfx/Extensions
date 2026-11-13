@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.17"
+VERSION = "3.0.19"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -185,12 +185,13 @@ DEFAULT_CFG = {
     "hover_action": "menu",       # "menu" | "direct"
     "default_quality": "best",
     "use_cookies": True,
+    "compat_h264": False,         # opcional (o usuário liga): arquivo que abre no Premiere e em outros editores, H.264 + AAC (nada de AV1/VP9/Opus)
     "organize_by_site": False,
     "fab_enabled": True,
     "extra_args": "",
     "onboarded": False,
 }
-BOOL_KEYS = ("use_cookies", "organize_by_site", "fab_enabled", "onboarded")
+BOOL_KEYS = ("use_cookies", "organize_by_site", "fab_enabled", "onboarded", "compat_h264")
 
 
 def _parent_writable(path: Path) -> bool:
@@ -546,6 +547,95 @@ FORMAT_NO_FFMPEG = {
     "720": "best[height<=720]/best",
     "audio": "bestaudio[ext=m4a]/bestaudio/best",
 }
+
+# Modo "compatível com editores": a MESMA resolução de sempre, mas entre formatos de mesma resolução prefere H.264 e áudio AAC
+# (-S "res,vcodec:h264,acodec:aac"). Quando a maior resolução só existe em AV1/VP9 (ex.: 4K do YouTube), o arquivo é convertido
+# para H.264 depois do download (compat_fix): nunca se perde resolução por causa do codec.
+COMPAT_SORT = "res,vcodec:h264,acodec:aac"
+
+
+VIDEO_BAD_CODECS = {"av1", "vp9", "vp8"}               # não abrem no Premiere (nem em muitos editores)
+AUDIO_OK_CODECS = {"aac", "mp3", "alac", "pcm_s16le", "pcm_s24le", "ac3", "eac3"}
+
+
+def compat_plan(vcodec: str, acodec: str):
+    """(converte_video, converte_audio) para o arquivo abrir em editores. Puro: testável sem ffmpeg."""
+    v = (vcodec or "").lower()
+    a = (acodec or "").lower()
+    return (v in VIDEO_BAD_CODECS, bool(a) and a not in AUDIO_OK_CODECS)
+
+
+def _probe_codecs(path: Path):
+    """(vcodec, acodec, duração_s) pelo ffprobe, ou None se não der."""
+    pr = ffmpeg_state().get("probe_path")
+    if not pr:
+        return None
+    try:
+        out = subprocess.run([pr, "-v", "error", "-show_entries", "stream=codec_type,codec_name:format=duration", "-of", "json", str(path)],
+                             capture_output=True, text=True, timeout=60, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL).stdout
+        d = json.loads(out or "{}")
+        v = next((s["codec_name"] for s in d.get("streams", []) if s.get("codec_type") == "video"), "")
+        a = next((s["codec_name"] for s in d.get("streams", []) if s.get("codec_type") == "audio"), "")
+        return v, a, float((d.get("format") or {}).get("duration") or 0)
+    except Exception:
+        return None
+
+
+def compat_fix(job_id: str, out_dir: Path, since: float) -> list:
+    """Converte para H.264 + AAC (MP4) os vídeos deste download que vieram em AV1/VP9/Opus. Devolve os arquivos finais."""
+    st = ffmpeg_state()
+    done = []
+    if not (st.get("ok") and st.get("probe_path")):
+        return done
+    files = [p for p in _videos_since(out_dir, since) if p.suffix.lower() in (".mp4", ".mkv", ".webm", ".mov", ".m4v")]
+    for n, p in enumerate(files, 1):
+        if _is_canceled(job_id):
+            break
+        info = _probe_codecs(p)
+        if not info:
+            continue
+        cv, ca = compat_plan(info[0], info[1])
+        if not (cv or ca):
+            continue
+        tmp = p.with_name(p.stem + ".compat.mp4")
+        cmd = [st["path"], "-y", "-v", "error", "-nostats", "-progress", "pipe:1", "-i", str(p), "-map", "0:v:0", "-map", "0:a:0?"]
+        cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"] if cv else ["-c:v", "copy"]
+        cmd += ["-c:a", "aac", "-b:a", "192k"] if ca else ["-c:a", "copy"]
+        cmd += ["-movflags", "+faststart", str(tmp)]
+        label = "convertendo para H.264" if cv else "convertendo o áudio para AAC"
+        if len(files) > 1:
+            label += " (%d de %d)" % (n, len(files))
+        job_update(job_id, progress=label + "...")
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
+                                    creationflags=NO_WINDOW, start_new_session=not IS_WIN)
+            with JOBS_LOCK:
+                PROCS[job_id] = proc
+            for line in proc.stdout:
+                if _is_canceled(job_id):
+                    kill_proc(proc)
+                    break
+                m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
+                if m and info[2] > 0:
+                    pct = min(99, int(int(m.group(1)) / 1e6 / info[2] * 100))
+                    job_update(job_id, progress="%s %d%%" % (label, pct))
+            proc.wait(timeout=60)
+            if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0 and not _is_canceled(job_id):
+                final = p.with_suffix(".mp4")
+                if final != p:
+                    p.unlink()                                  # o AV1/WebM que o próprio download criou: vira o MP4 compatível
+                os.replace(str(tmp), str(final))
+                done.append(final)
+                continue
+        except Exception:
+            pass
+        try:
+            tmp.unlink()
+        except Exception:
+            pass
+        done.append(p)                                          # não deu para converter: fica o original (melhor que perder o vídeo)
+    return done
+
 
 PCT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
 SPEED_RE = re.compile(r"\bat\s+([\d.,]+\s*[KMG]?i?B/s)", re.I)
@@ -966,6 +1056,8 @@ def run_job(job_id: str, req: dict):
             def once(ff_on):
                 fm = (FORMAT_MAP if ff_on else FORMAT_NO_FFMPEG).get(quality, FORMAT_MAP["best"])
                 ex = list(extra)
+                if quality != "audio" and cfg.get("compat_h264", False):
+                    ex += ["-S", COMPAT_SORT]
                 if quality == "audio" and ff_on:
                     ex += ["-x", "--audio-format", "m4a"]       # (se der erro de FFmpeg, o attempt refaz sem isto)
                 job_update(job_id, ffmpeg_problem=False)
@@ -998,6 +1090,8 @@ def run_job(job_id: str, req: dict):
                     c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", imp, str(out_dir / (stem + ".%(ext)s")))
                     if c_ != 0 and imp and not _is_canceled(job_id):
                         c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", False, str(out_dir / (stem + ".%(ext)s")))
+                if cfg.get("compat_h264", False) and quality != "audio":
+                    compat_fix(job_id, out_dir, started - 2)
                 got = _videos_since(out_dir, started - 2)
                 if _is_canceled(job_id):
                     job_update(job_id, status="canceled", progress="cancelado", error="", finished=time.time())
@@ -1025,6 +1119,8 @@ def run_job(job_id: str, req: dict):
             if code != 0 and imp and not _is_canceled(job_id):
                 code, tail, _pct = attempt(fallback, fb_ref, False)
 
+        if cfg.get("compat_h264", False) and quality != "audio" and not _is_canceled(job_id):
+            compat_fix(job_id, out_dir, started - 2)
         ig_videos = _videos_since(out_dir, started - 2) if (IG_POST_URL_RE.match(url or "") and code != 0) else []
         if _is_canceled(job_id):
             job_update(job_id, status="canceled", progress="cancelado", error="", finished=time.time())

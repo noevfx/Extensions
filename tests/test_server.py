@@ -416,6 +416,40 @@ class SiteRulesCase(unittest.TestCase):
         m = self.m.PIN_MEDIA_RE.search("/videos/iht/hls/70/dd/03/70dd03035339892e98ea13d46116d6a7.m3u8")
         self.assertEqual(m.group(1)[:8], "70dd0303")
 
+    def test_modo_compativel_com_editores(self):
+        m = self.m
+        self.assertEqual(m.compat_plan("av1", "opus"), (True, True))      # AV1 + Opus: converte vídeo e áudio
+        self.assertEqual(m.compat_plan("vp9", "aac"), (True, False))
+        self.assertEqual(m.compat_plan("h264", "opus"), (False, True))    # só o áudio
+        self.assertEqual(m.compat_plan("h264", "aac"), (False, False))    # já abre no Premiere: não mexe
+        self.assertEqual(m.compat_plan("hevc", "aac"), (False, False))
+        self.assertFalse(m.DEFAULT_CFG["compat_h264"])                    # opcional: desligado por padrão
+        self.assertIn("compat_h264", m.BOOL_KEYS)
+        self.assertEqual(m.COMPAT_SORT.split(",")[0], "res")              # nunca troca resolução por codec
+        self.assertIn("vcodec:h264", m.COMPAT_SORT)
+
+    def test_converte_av1_opus_para_h264_aac(self):
+        import tempfile, subprocess, time
+        m = self.m
+        st = m.ffmpeg_state()
+        if not (st.get("ok") and st.get("probe_path")):
+            self.skipTest("sem ffmpeg/ffprobe")
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "av1.webm"
+            for enc in (["-c:v", "libsvtav1", "-preset", "10"], ["-c:v", "libaom-av1", "-cpu-used", "8"]):
+                r = subprocess.run([st["path"], "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=12:duration=2",
+                                    "-f", "lavfi", "-i", "sine=duration=2"] + enc + ["-c:a", "libopus", str(src)], capture_output=True)
+                if r.returncode == 0:
+                    break
+            else:
+                self.skipTest("este ffmpeg não codifica AV1")
+            self.assertEqual(m._probe_codecs(src)[:2], ("av1", "opus"))
+            m.JOBS["jc"] = {"id": "jc", "status": "downloading"}
+            out = m.compat_fix("jc", Path(d), time.time() - 60)
+            self.assertEqual([p.name for p in out], ["av1.mp4"])
+            self.assertEqual(m._probe_codecs(out[0])[:2], ("h264", "aac"))
+            self.assertFalse(src.exists())                                # o AV1 que o download criou foi trocado pelo MP4
+
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
             c = self.cmd(u)
