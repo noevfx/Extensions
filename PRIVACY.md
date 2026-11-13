@@ -41,6 +41,9 @@ conteúdo de e-mails, abas em segundo plano, localização.
 - **Instalação e atualização**: o instalador e o servidor baixam o yt-dlp, o FFmpeg, o Deno e o
   Python do GitHub/gyan.dev/PyPI (com checagem de integridade). O yt-dlp consulta o GitHub
   1x por dia para se atualizar.
+- **Atualização do aplicativo (3.0.14)**: ao abrir o popup, o servidor local consulta a API de releases do GitHub para saber a última
+  versão (sem enviar dado pessoal). Só quando você clica em **Atualizar agora** ele baixa o pacote de `github.com/noevfx/Extensions`,
+  confere o SHA-256 e troca os arquivos.
 - **Ferramentas de download**: o servidor local chama o `yt-dlp` e o `ffmpeg`
   instalados na sua máquina para baixar o vídeo diretamente do site de origem.
 - **Nenhum servidor da NOÉ VFX** é contatado durante o uso. Não há analytics,
