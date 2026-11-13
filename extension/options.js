@@ -310,6 +310,34 @@ function copyText(txt, btn) {
   }
 }
 
+(function initUpdate() {
+  const msg = $("updMsg"), chk = $("updCheck"), app = $("updApply");
+  if (!chk || !app) return;
+  let info = null;
+  const show = (m, canApply) => { msg.textContent = m; app.hidden = !canApply; if (canApply) app.textContent = t("updApply"); };
+  chk.addEventListener("click", async () => {
+    show(t("updChecking"), false);
+    const r = await send({ type: "UPDATE_CHECK", force: true });
+    if (!r || !r.ok) { show(r && r.error ? r.error : t("updFail"), false); return; }
+    info = r;
+    if (r.newer) show(t("updNew", r.latest) + (!r.can_apply && r.reason ? " — " + r.reason : ""), r.can_apply);
+    else show(t("updLatest", r.current), false);
+  });
+  app.addEventListener("click", async () => {
+    if (!info || !info.newer || !confirm(t("updConfirm", info.latest))) return;
+    show(t("updApplying"), false);
+    const r = await send({ type: "UPDATE_APPLY" });
+    if (!r || !r.ok) { show(r && r.error ? r.error : t("updFail"), true); return; }
+    show(t("updRestarting"), false);
+    for (let i = 0; i < 40; i++) {
+      await new Promise((x) => setTimeout(x, 1000));
+      const h = await send({ type: "HEALTH" });
+      if (h && h.ok && h.data && h.data.version === r.version) break;
+    }
+    chrome.runtime.reload();
+  });
+})();
+
 (function initAbout() {
   const ver = chrome.runtime.getManifest().version;
   const av = $("aboutVer");

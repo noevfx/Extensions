@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0.12  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.14  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -38,10 +38,10 @@ const MEDIA_EXT_RE = /\.(m3u8|mpd|mp4|webm|m4v|mov|m4a|mkv|flv|ogv)(\?|#|$)/i;
 // vídeo/áudio/manifesto reconhecido pelo cabeçalho Content-Type (URLs sem extensão)
 const CT_RE = /^(video\/|audio\/(mp4|mpeg|aac|ogg|webm|x-m4a)|application\/(vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i;
 // o YouTube é baixado pela URL da página (yt-dlp); pedaços de "videoplayback" não servem
-const SKIP_CT_HOST_RE = /(^|\.)(googlevideo\.com|youtube\.com|ytimg\.com|cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
+const SKIP_CT_HOST_RE = /(^|\.)(googlevideo\.com|youtube\.com|ytimg\.com|cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com|pinimg\.com)$/i;
 // Instagram/Facebook: o vídeo vem em pedaços (video-only/audio-only, bytestart/byteend) que não tocam sozinhos.
 // O download certo é pela URL do post/página (yt-dlp), que o content script informa.
-const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
+const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com|pinimg\.com)$/i;
 
 /* ---------------------------------------------------------------- util ---- */
 const now = () => Date.now();
@@ -604,6 +604,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           return await health();
         } catch (e) {
           return { ok: false, error: String(e) };
+        }
+      }
+
+      case "UPDATE_CHECK": {
+        try {
+          const r = await fetchJson(SERVER + "/update/check" + (msg.force ? "?force=1" : ""), { headers: HDRS }, 20000);
+          return r.ok ? { ok: true, ...r.data } : { ok: false, error: (r.data && r.data.error) || "" };
+        } catch (e) {
+          return { ok: false, error: "" };
+        }
+      }
+
+      case "UPDATE_APPLY": {
+        try {
+          const r = await fetchJson(SERVER + "/update/apply", { method: "POST", headers: HDRS, body: "{}" }, 180000);
+          return r.ok ? { ok: true, ...r.data } : { ok: false, error: (r.data && r.data.error) || "" };
+        } catch (e) {
+          return { ok: false, error: "" };
         }
       }
 

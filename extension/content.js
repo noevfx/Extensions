@@ -121,12 +121,12 @@
     posReady: false      // só grava a posição padrão depois de ler a salva (senão sobrescreveria)
   };
 
-  const sigOf = (it) => (it.thumb ? 1 : 0) + "|" + (it.pri || 0);
+  const sigOf = (it) => (it.thumb ? 1 : 0) + "|" + (it.pri || 0) + (it.kind === "Pinterest" ? "|" + it.title : "");     // Pinterest: o nome chega depois (API do pin)
   const isYT = () => /(^|\.)youtube\.com$/.test(location.hostname);
   const isIG = () => /(^|\.)instagram\.com$/.test(location.hostname);
   const isFB = () => /(^|\.)facebook\.com$/.test(location.hostname);
   // CDNs do Instagram/Facebook entregam o vídeo em pedaços (video-only / audio-only): nunca servem como arquivo
-  const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com)$/i;
+  const FRAG_HOST_RE = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn(-us|-eu)?\.com|tiktokv\.com|tiktok\.com|byteoversea\.com|ibytedtos\.com|ttwstatic\.com|tiktokw\.us|ibyteimg\.com|twimg\.com|pinimg\.com)$/i;
   const isTT = () => /(^|\.)tiktok\.com$/.test(location.hostname);
   const isX = () => /(^|\.)(x|twitter)\.com$/.test(location.hostname);
   const fabOn = () => !state.cfg || state.cfg.fab_enabled !== false;
@@ -329,6 +329,71 @@
     return document.title;
   }
 
+  /* Pinterest: o vídeo do pin chega por blob:/HLS e a página carrega dezenas de vídeos de pins RELACIONADOS (antes todos viravam
+     itens iguais, "Pin em ...", sem miniatura). Agora cada pin é UM item, com o link do PIN (/pin/ID/): o servidor resolve todos os
+     vídeos dele (carrossel com vários vídeos incluso). Nome e miniatura vêm da API do próprio Pinterest (mesma origem). */
+  const isPin = () => /(^|\.)pinterest\.[a-z.]+$/.test(location.hostname);
+  const PIN_PATH_RE = /^\/pin\/(\d{6,})/;
+  const PIN_LINK_RE = /^\/pin\/(\d{6,})\/?$/;
+  const pinCache = new Map();          // id -> null (buscando) | {n, title, thumb} | "-" (sem vídeo / falhou)
+  function pinInfo(id) {
+    if (pinCache.has(id)) return pinCache.get(id);
+    pinCache.set(id, null);
+    const q = encodeURIComponent(JSON.stringify({ options: { id, field_set_key: "unauth_react_main_pin" } }));
+    fetch("/resource/PinResource/get/?data=" + q, {
+      credentials: "include",
+      headers: { Accept: "application/json", "X-Pinterest-PWS-Handler": "www/[username]/[slug].js", "X-Requested-With": "XMLHttpRequest" },
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        const d = (j && j.resource_response && j.resource_response.data) || {};
+        const lists = [];
+        const add = (vid, img) => { const vl = vid && vid.video_list; if (vl && Object.keys(vl).length) lists.push({ vl, img }); };
+        add(d.videos, d.images);
+        ((d.carousel_data && d.carousel_data.carousel_slots) || []).forEach((s) => add(s.videos, s.images));
+        ((d.story_pin_data && d.story_pin_data.pages) || []).forEach((p) => (p.blocks || []).forEach((b) => add(b.video, null)));
+        const pick = (o) => { const k = o && (o["736x"] || o["474x"] || o["564x"] || o.orig); return k && /^https?:/i.test(k.url || "") ? k.url : ""; };
+        let thumb = "";
+        if (lists.length) {
+          const first = lists[0];
+          for (const k of Object.keys(first.vl)) { const th = first.vl[k] && first.vl[k].thumbnail; if (/^https?:/i.test(th || "")) { thumb = th; break; } }
+          thumb = thumb || pick(first.img) || pick(d.images);
+        }
+        const title = String(d.seo_title || d.title || d.grid_title || "").split(" | ")[0].replace(/\s+/g, " ").trim().slice(0, 80);
+        pinCache.set(id, lists.length ? { n: lists.length, title, thumb } : "-");
+        publish(true);
+      })
+      .catch(() => { pinCache.set(id, "-"); publish(true); });
+    return null;
+  }
+
+  // link do PIN de um <video>: o do próprio cartão (feed) ou o da página (pin aberto). Nunca procura fora do cartão: o pin aberto
+  // também tem links /pin/ID/... que não são deste vídeo.
+  function pinCardUrl(v) {
+    try {
+      if (v.closest('[data-test-id="CloseupMainPin"]')) {
+        const m = location.pathname.match(PIN_PATH_RE);
+        return m ? `https://www.pinterest.com/pin/${m[1]}/` : "";
+      }
+      const card = v.closest('[role="listitem"], [data-grid-item], [data-test-id="pin"], [data-test-id="pinWrapper"]');
+      if (card) {
+        for (const a of card.querySelectorAll('a[href*="/pin/"]')) {
+          const m = new URL(a.getAttribute("href"), location.href).pathname.match(PIN_LINK_RE);
+          if (m) return `https://www.pinterest.com/pin/${m[1]}/`;
+        }
+      }
+      const here = location.pathname.match(PIN_PATH_RE);
+      if (here && !v.closest('[data-test-id="relatedPins"]') && !card) return `https://www.pinterest.com/pin/${here[1]}/`;
+    } catch (_) {}
+    return "";
+  }
+
+  function pinTitle(url, fallback) {
+    const m = String(url).match(/\/pin\/(\d+)/);
+    const i = m && pinCache.get(m[1]);
+    return (i && i !== "-" && i.title) || fallback;
+  }
+
   /* TikTok: idem, o vídeo é baixado pela URL da página do vídeo (/@usuario/video/ID). */
   const TT_RE = /^\/(@[\w.]+)\/video\/(\d+)/;
   function ttPostUrl(v) {
@@ -461,7 +526,7 @@
     const push = (url, kind, own, title, pri) => {
       if (!url || !/^https?:/i.test(url)) return;
       if (seen.has(url)) return;
-      const pg = kind === "TikTok" || kind === "Instagram" || kind === "Facebook" || kind === "Vimeo" || kind === "Página" || kind === "X";      // URL da PÁGINA do vídeo (yt-dlp)
+      const pg = kind === "TikTok" || kind === "Instagram" || kind === "Facebook" || kind === "Vimeo" || kind === "Página" || kind === "X" || kind === "Pinterest";      // URL da PÁGINA do vídeo (yt-dlp)
       if (!pg) { try { if (FRAG_HOST_RE.test(new URL(url).hostname)) return; } catch (_) { return; } }
       seen.add(url);
       const it = { url, kind: kind || "Player", title: title || document.title };
@@ -500,7 +565,7 @@
     }
     // Player com blob:/MSE (Vimeo e muitos outros) em site SEM tratamento próprio: não existe URL de arquivo para listar,
     // então o item é o endereço da PÁGINA (o yt-dlp resolve), com o quadro do próprio vídeo de miniatura.
-    if (!isIG() && !isTT() && !isX() && !isYT() && !isFB() && !items.some((i) => i.kind === "Rede" || i.kind === "HTML5" || i.kind === "Globo/G1" || i.kind === "Embed")) {
+    if (!isIG() && !isTT() && !isX() && !isYT() && !isFB() && !isPin() && !items.some((i) => i.kind === "Rede" || i.kind === "HTML5" || i.kind === "Globo/G1" || i.kind === "Embed")) {
       const bv = vids.find((v) => {
         const r = v.getBoundingClientRect();
         const src = v.currentSrc || v.src || "";
@@ -537,6 +602,25 @@
         if (r.width < 120 || r.height < 120) return;
         const u = fbVideoUrl(v);
         if (u) push(u, "Facebook", frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : ""), fbTitle(v), v.paused ? 1 : 2);
+      });
+    }
+    if (isPin()) {
+      const pm = location.pathname.match(PIN_PATH_RE);
+      const mainUrl = pm ? `https://www.pinterest.com/pin/${pm[1]}/` : "";
+      if (mainUrl) {
+        const info = pinInfo(pm[1]);
+        const mv = vids.find((v) => v.closest('[data-test-id="CloseupMainPin"]'));
+        if (info && info !== "-") push(mainUrl, "Pinterest", info.thumb, (info.title || "Pinterest") + (info.n > 1 ? ` (${info.n} vídeos)` : ""), 2);
+        else if (info === "-" && mv) push(mainUrl, "Pinterest", frameOf(mv) || (/^https?:/i.test(mv.poster || "") ? mv.poster : ""), document.title, 2);
+      }
+      vids.forEach((v) => {
+        const r = v.getBoundingClientRect();
+        if (r.width < 120 || r.height < 120) return;
+        const u = pinCardUrl(v);
+        if (!u || u === mainUrl) return;
+        const info = pinInfo(u.match(/\/pin\/(\d+)/)[1]);
+        const own = frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : "") || (info && info !== "-" ? info.thumb : "");
+        push(u, "Pinterest", own, pinTitle(u, "Pinterest"), v.paused ? 1 : 2);
       });
     }
 
@@ -1035,7 +1119,7 @@
     let primary = page;
     let fallback = "";
     const manyVideos = vids > 1;
-    const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : "") : "";
+    const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : isPin() ? pinCardUrl(state.video) : "") : "";
     if (igUrl) primary = igUrl;
     else if (direct && /^https?:/i.test(direct) && !isYT()) {
       if (manyVideos) { primary = direct; fallback = page; }
@@ -1060,6 +1144,11 @@
       toast(/^pt/i.test(navigator.language) ? "Instagram: não achei o link deste post. Clique na data do post (abre o post) e baixe de lá." : "Instagram: could not find this post's link. Click the post date to open it, then download from there.", "err", 7000);
       return;
     }
+    if (isPin() && !igUrl) {
+      state.busy = false;
+      toast(/^pt/i.test(navigator.language) ? "Pinterest: não achei o link deste pin. Abra o pin (clique nele) e baixe de lá." : "Pinterest: could not find this pin's link. Open the pin (click it) and download from there.", "err", 7000);
+      return;
+    }
     if (isFB() && !igUrl && !fbCandidate(primary)) {
       state.busy = false;
       toast(/^pt/i.test(navigator.language) ? "Facebook: não achei o link deste vídeo. Abra o vídeo (clique nele ou na data do post) e baixe de lá." : "Facebook: could not find this video's link. Open the video (click it or the post date) and download from there.", "err", 7000);
@@ -1078,7 +1167,7 @@
       url: primary,
       fallbackStream: fallback,
       referer: (window !== window.top && /^https?:/i.test(document.referrer || "")) ? document.referrer : page,
-      title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : document.title,
+      title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : igUrl && isPin() ? pinTitle(igUrl, document.title) : document.title,
       pageUrl: page,
       quality: quality || "best"
     });

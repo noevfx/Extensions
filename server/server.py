@@ -39,11 +39,11 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.12"
+VERSION = "3.0.14"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -588,6 +588,55 @@ def _videos_since(folder: Path, since: float) -> list:
     return sorted(out, key=lambda x: x.stat().st_mtime)
 
 
+# ---- Pinterest: o yt-dlp falha em pin com CARROSSEL de vídeos ("No video formats found") e dá o nome genérico "Pinterest video #ID".
+# A API pública do próprio Pinterest (a que o site usa) devolve todos os vídeos do pin e o título: baixamos cada vídeo direto.
+PIN_RE = re.compile(r"^https?://(?:[\w-]+\.)?pinterest\.[a-z.]+/pin/(\d{6,})", re.I)
+
+
+def pin_pick(data: dict):
+    """(título, [urls]) a partir da resposta da API: vídeo único, carrossel e story pin. MP4 se houver, senão o HLS."""
+    lists = []
+
+    def add(vid):
+        vl = (vid or {}).get("video_list") if isinstance(vid, dict) else None
+        if isinstance(vl, dict) and vl:
+            lists.append(vl)
+
+    add(data.get("videos"))
+    for s in ((data.get("carousel_data") or {}).get("carousel_slots") or []):
+        add((s or {}).get("videos"))
+    for p in ((data.get("story_pin_data") or {}).get("pages") or []):
+        for b in (p or {}).get("blocks") or []:
+            add((b or {}).get("video"))
+
+    urls = []
+    for vl in lists:
+        mp4 = [v for v in vl.values() if isinstance(v, dict) and str(v.get("url") or "").lower().split("?")[0].endswith(".mp4")]
+        hls = [v for v in vl.values() if isinstance(v, dict) and str(v.get("url") or "").lower().split("?")[0].endswith(".m3u8")]
+        best = max(mp4, key=lambda v: int(v.get("width") or 0)) if mp4 else (hls[0] if hls else None)
+        if best and best["url"] not in urls:
+            urls.append(best["url"])
+    title = str(data.get("seo_title") or data.get("title") or data.get("grid_title") or "").split(" | ")[0]
+    title = re.sub(r'[<>:"/\\|?*%\x00-\x1f]', " ", title)
+    title = re.sub(r"\s+", " ", title).strip(" .")[:100]
+    return title, urls
+
+
+def pin_media(pin_id: str):
+    """Pergunta à API do Pinterest. Qualquer falha devolve ("", []): o fluxo normal (yt-dlp pelo link do pin) continua valendo."""
+    try:
+        q = urlencode({"data": json.dumps({"options": {"field_set_key": "unauth_react_main_pin", "id": pin_id}})})
+        req = UrlRequest(
+            "https://www.pinterest.com/resource/PinResource/get/?" + q,
+            headers={"Accept": "application/json", "X-Pinterest-PWS-Handler": "www/[username]/[slug].js",
+                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"})
+        with url_open(req, timeout=20) as r:
+            data = (json.load(r).get("resource_response") or {}).get("data") or {}
+        return pin_pick(data)
+    except Exception:
+        return "", []
+
+
 MEDIA_FILE_RE = re.compile(r"\.(m3u8|mpd|mp4|m4v|webm|mov|mkv|flv|m4a|mp3)$", re.I)
 
 
@@ -873,7 +922,7 @@ def run_job(job_id: str, req: dict):
         single = req.get("single", True) is not False
         use_ff = ffmpeg_state()["ok"]          # FFmpeg que realmente EXECUTA (não basta o arquivo existir)
 
-        def attempt(u, rf, imp_flag):
+        def attempt(u, rf, imp_flag, tmpl=None):
             """Uma tentativa. Se o yt-dlp reclamar do FFmpeg (vídeo/áudio separados, m4a com erro),
             limpa os pedaços e refaz sozinho em formato único: nunca entrega vídeo sem áudio."""
             nonlocal use_ff
@@ -884,7 +933,7 @@ def run_job(job_id: str, req: dict):
                 if quality == "audio" and ff_on:
                     ex += ["-x", "--audio-format", "m4a"]       # (se der erro de FFmpeg, o attempt refaz sem isto)
                 job_update(job_id, ffmpeg_problem=False)
-                return run_ytdlp(job_id, u, fm, out_tmpl, rf, ua, cookies_file, ex, imp_flag, single, ff_on)
+                return run_ytdlp(job_id, u, fm, tmpl or out_tmpl, rf, ua, cookies_file, ex, imp_flag, single, ff_on)
 
             code_, tail_, pct_ = once(use_ff)
             with JOBS_LOCK:
@@ -896,6 +945,32 @@ def run_job(job_id: str, req: dict):
                            warning="ffmpeg")
                 code_, tail_, pct_ = once(False)
             return code_, tail_, pct_
+
+        pin_m = PIN_RE.match(url or "")
+        if pin_m:
+            pin_id = pin_m.group(1)
+            pin_title, pin_urls = pin_media(pin_id)
+            if pin_urls:
+                # pin do Pinterest: baixa CADA vídeo do pin (carrossel) com o nome do pin; foto no carrossel não conta
+                total = len(pin_urls)
+                last_tail = []
+                for i, mu in enumerate(pin_urls):
+                    if _is_canceled(job_id):
+                        break
+                    stem = (pin_title or "Pinterest") + (" (%d de %d)" % (i + 1, total) if total > 1 else "") + " [%s]" % pin_id
+                    job_update(job_id, progress=("vídeo %d de %d..." % (i + 1, total)) if total > 1 else "0%")
+                    c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", imp, str(out_dir / (stem + ".%(ext)s")))
+                    if c_ != 0 and imp and not _is_canceled(job_id):
+                        c_, last_tail, _p = attempt(mu, "https://www.pinterest.com/", False, str(out_dir / (stem + ".%(ext)s")))
+                got = _videos_since(out_dir, started - 2)
+                if _is_canceled(job_id):
+                    job_update(job_id, status="canceled", progress="cancelado", error="", finished=time.time())
+                elif got:
+                    job_update(job_id, status="done", progress="100%", file=str(got[-1]), files=len(got), error="", finished=time.time())
+                else:
+                    err = next((l[6:].strip() for l in reversed(last_tail) if l.startswith("ERROR:")), "") or "Falha ao baixar o vídeo do Pinterest."
+                    job_update(job_id, status="error", error=friendly_error(err)[:400], finished=time.time())
+                return
 
         code, tail, _pct = attempt(url, referer, imp)
 
@@ -1360,6 +1435,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, load_cfg())
             return
 
+        if parsed.path == "/update/check":
+            try:
+                self._json(200, update_check(force=(qs.get("force") or [""])[0] == "1"))
+            except Exception as exc:
+                self._json(502, {"error": "não consegui consultar o GitHub (%s)" % str(exc)[:120]})
+            return
+
         if parsed.path == "/status":
             job_id = (qs.get("id") or [""])[0]
             with JOBS_LOCK:
@@ -1410,6 +1492,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"error": str(exc)})
                 return
             self._json(200, cfg)
+            return
+
+        if path == "/update/apply":
+            try:
+                self._json(200, update_apply())
+            except RuntimeError as exc:
+                self._json(409, {"error": str(exc)})
+            except Exception as exc:
+                self._json(500, {"error": "falha ao atualizar: %s" % str(exc)[:160]})
             return
 
         if path == "/pick-folder":
@@ -1516,7 +1607,183 @@ def _updater_loop():
         time.sleep(6 * 3600)
 
 
+# --------------------------------------------------------------------------- #
+# atualização pelo GitHub (botão "Verificar atualizações")
+# A extensão carregada em modo desenvolvedor não se atualiza sozinha. O servidor local, que já está instalado ao lado da pasta
+# "extension", consulta a última release, baixa o zip, confere o SHA-256 e troca os arquivos; a extensão então se recarrega.
+# --------------------------------------------------------------------------- #
+UPDATE_REPO = "noevfx/Extensions"
+UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/Extensions/releases/download/v\d+\.\d+\.\d+/noevfx-downloader-\d+\.\d+\.\d+\.zip$")
+UPDATE_LOCK = threading.Lock()
+_UPD_CACHE = {"at": 0.0, "data": None}
+UPDATE_MAX_BYTES = 80 * 1024 * 1024
+HTTPD = None
+
+
+def _vtuple(v: str):
+    return tuple(int(x) for x in (re.findall(r"\d+", str(v or ""))[:3] + ["0", "0", "0"])[:3])
+
+
+def installed_layout() -> bool:
+    """Só atualiza a instalação de verdade (pasta instalada: server/ + extension/). Nunca a pasta de desenvolvimento (tem .git/tools)."""
+    root = BASE.parent
+    return (BASE.name == "server" and (root / "extension" / "manifest.json").exists()
+            and not (root / ".git").exists() and not (root / "tools" / "build.py").exists())
+
+
+def update_info(rel: dict) -> dict:
+    """Resposta da API de releases do GitHub -> o que a extensão precisa saber (puro: testável sem rede)."""
+    tag = str((rel or {}).get("tag_name") or "").lstrip("vV")
+    out = {"current": VERSION, "latest": tag, "newer": False, "page": str((rel or {}).get("html_url") or ""),
+           "can_apply": False, "reason": ""}
+    if not re.match(r"^\d+\.\d+\.\d+$", tag):
+        out["reason"] = "release sem versão válida"
+        return out
+    out["newer"] = _vtuple(tag) > _vtuple(VERSION)
+    name = "noevfx-downloader-%s.zip" % tag
+    asset = next((a for a in (rel.get("assets") or []) if a.get("name") == name), None)
+    sha = ""
+    if asset:
+        sha = str(asset.get("digest") or "").lower().replace("sha256:", "")
+        out["asset"] = str(asset.get("browser_download_url") or "")
+    if not re.match(r"^[0-9a-f]{64}$", sha):
+        m = re.search(r"\b([0-9a-fA-F]{64})\b", str(rel.get("body") or ""))      # plano B: o hash que está nas notas da release
+        sha = m.group(1).lower() if m else ""
+    out["sha256"] = sha
+    if not out["newer"]:
+        return out
+    if not asset or not UPDATE_ASSET_RE.match(out.get("asset", "")):
+        out["reason"] = "a release não tem o pacote esperado"
+    elif not sha:
+        out["reason"] = "a release não informa o SHA-256 do pacote"
+    elif not installed_layout():
+        out["reason"] = "esta cópia não é a instalada (pasta de desenvolvimento): atualize pelo instalador"
+    else:
+        out["can_apply"] = True
+    return out
+
+
+def update_check(force: bool = False) -> dict:
+    now = time.time()
+    if not force and _UPD_CACHE["data"] and now - _UPD_CACHE["at"] < 600:
+        return _UPD_CACHE["data"]
+    req = UrlRequest("https://api.github.com/repos/%s/releases/latest" % UPDATE_REPO,
+                     headers={"User-Agent": "NoeVFX-Downloader", "Accept": "application/vnd.github+json"})
+    with url_open(req, timeout=15) as r:
+        rel = json.load(r)
+    data = update_info(rel)
+    _UPD_CACHE.update(at=now, data=data)
+    return data
+
+
+def update_apply_package(zip_path: Path, latest: str, root: Path, plat: str) -> dict:
+    """Troca os arquivos de <root>/extension e <root>/server/server.py pelos do pacote. Guarda cópia do que sai (nunca sobrescreve backup)."""
+    import zipfile
+    prefix = "noevfx-downloader/%s/" % plat
+    with zipfile.ZipFile(zip_path) as z:
+        names = [n for n in z.namelist() if n.startswith(prefix) and not n.endswith("/")]
+        for n in z.namelist():
+            if n.startswith("/") or ".." in n.split("/") or ":" in n:
+                raise RuntimeError("pacote com caminho inválido")
+        want = {n[len(prefix):]: n for n in names if n.startswith(prefix + "extension/") or n == prefix + "server/server.py"}
+        if "extension/manifest.json" not in want or "server/server.py" not in want:
+            raise RuntimeError("pacote sem a extensão ou o servidor")
+        man = json.loads(z.read(want["extension/manifest.json"]).decode("utf-8"))
+        if str(man.get("version")) != latest or ('VERSION = "%s"' % latest) not in z.read(want["server/server.py"]).decode("utf-8", "replace"):
+            raise RuntimeError("a versão dentro do pacote não é a anunciada")
+        old = _read_installed_version(root)
+        bk = root / "_backups" / ("v%s" % old)
+        n = 1
+        while bk.exists():
+            n += 1
+            bk = root / "_backups" / ("v%s_%d" % (old, n))
+        shutil.copytree(root / "extension", bk / "extension")
+        shutil.copy2(root / "server" / "server.py", bk / "server.py")
+        for rel_name, member in sorted(want.items()):
+            dest = root / rel_name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(dest.name + ".novo")
+            tmp.write_bytes(z.read(member))
+            os.replace(str(tmp), str(dest))
+    return {"backup": str(bk), "files": len(want)}
+
+
+def _read_installed_version(root: Path) -> str:
+    try:
+        return str(json.loads((root / "extension" / "manifest.json").read_text(encoding="utf-8")).get("version") or VERSION)
+    except Exception:
+        return VERSION
+
+
+def update_apply() -> dict:
+    """Baixa, confere e instala a última release. Levanta RuntimeError com mensagem para o usuário."""
+    if not UPDATE_LOCK.acquire(blocking=False):
+        raise RuntimeError("já há uma atualização em andamento")
+    zip_path = None
+    try:
+        info = update_check(force=True)
+        if not info["newer"]:
+            raise RuntimeError("você já está na versão mais recente")
+        if not info["can_apply"]:
+            raise RuntimeError("não dá para atualizar sozinho: " + (info["reason"] or "motivo desconhecido"))
+        with JOBS_LOCK:
+            if any(j["status"] in ACTIVE for j in JOBS.values()):
+                raise RuntimeError("há downloads em andamento: espere terminar e tente de novo")
+        latest = info["latest"]
+        fd, zp = tempfile.mkstemp(prefix="nvf_upd_", suffix=".zip", dir=str(TMP))
+        os.close(fd)
+        zip_path = Path(zp)
+        h = hashlib.sha256()
+        size = 0
+        req = UrlRequest(info["asset"], headers={"User-Agent": "NoeVFX-Downloader"})
+        with url_open(req, timeout=60) as r, open(zip_path, "wb") as f:
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > UPDATE_MAX_BYTES:
+                    raise RuntimeError("pacote grande demais")
+                h.update(chunk)
+                f.write(chunk)
+        if h.hexdigest() != info["sha256"]:
+            raise RuntimeError("o SHA-256 do pacote baixado não confere: nada foi alterado")
+        plat = "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else "linux")
+        res = update_apply_package(zip_path, latest, BASE.parent, plat)
+        _UPD_CACHE["data"] = None
+        threading.Thread(target=_restart_self, daemon=True).start()
+        return {"ok": True, "version": latest, "backup": res["backup"], "restarting": True}
+    finally:
+        if zip_path:
+            try:
+                zip_path.unlink()
+            except Exception:
+                pass
+        UPDATE_LOCK.release()
+
+
+def _restart_self():
+    """Fecha a porta e sobe o servidor novo (mesmo Python, mesmo arquivo já trocado), desligado deste processo."""
+    time.sleep(1.0)                                  # deixa a resposta do /update/apply chegar na extensão
+    try:
+        if HTTPD is not None:
+            HTTPD.server_close()
+    except Exception:
+        pass
+    try:
+        kw = {"cwd": str(BASE), "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        if IS_WIN:
+            kw["creationflags"] = 0x00000008 | 0x00000200 | NO_WINDOW        # DETACHED_PROCESS | NEW_PROCESS_GROUP | sem janela
+        else:
+            kw["start_new_session"] = True
+        subprocess.Popen([sys.executable, str(BASE / "server.py")] + sys.argv[1:], **kw)
+    finally:
+        time.sleep(0.3)
+        os._exit(0)
+
+
 def main():
+    global HTTPD
     if already_running():
         print("[NOÉ VFX] Já existe um servidor rodando na porta %d." % PORT, flush=True)
         return 0
@@ -1527,6 +1794,7 @@ def main():
     except OSError as exc:
         print("[NOÉ VFX] Porta %d ocupada (%s). Já deve haver um servidor rodando." % (PORT, exc), flush=True)
         return 1
+    HTTPD = httpd
     sweep_temp()
     threading.Thread(target=supports_impersonate, daemon=True).start()   # aquece em segundo plano
     threading.Thread(target=ffmpeg_state, daemon=True).start()

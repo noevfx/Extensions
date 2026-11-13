@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.12-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.14-0066FF">
   <img alt="plataformas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
 </p>
@@ -21,7 +21,7 @@
 ## Baixar
 
 **Pacote completo (extensão + servidor + instaladores):**
-[`noevfx-downloader-3.0.12.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.12/noevfx-downloader-3.0.12.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele)</sub>
+[`noevfx-downloader-3.0.14.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.14/noevfx-downloader-3.0.14.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele)</sub>
 
 <sub>Todas as versões ficam na página de [releases](https://github.com/noevfx/Extensions/releases).</sub>
 
@@ -32,6 +32,28 @@
 | Linux | `linux/` | `instalar-noevfx.sh` |
 
 > A pasta extraída serve **somente para instalar**. O programa é copiado para uma pasta do sistema e roda de lá — depois você pode apagar o que extraiu.
+
+---
+
+## Plataformas testadas
+
+Funciona nas plataformas abaixo (testadas de verdade, em Windows com Edge/Chrome):
+
+| Plataforma | O que funciona |
+|---|---|
+| **YouTube** | botão Baixar no player e item no popup, na melhor qualidade, com áudio |
+| **Instagram** | posts e reels; **carrossel: baixa todos os vídeos** (fotos ignoradas); cada vídeo com a própria miniatura |
+| **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
+| **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **no feed ainda não está confirmado** (em ajuste) |
+| **X (Twitter)** | um item por tweet com vídeo (testado no feed real); baixa **todos os vídeos do tweet** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Vimeo** | vídeos públicos e embutidos em outras páginas |
+| **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
+| **Sites comuns** | players com MP4, HLS (.m3u8) e DASH; players embutidos (iframe) de cursos |
+
+**O que não baixa:** vídeo protegido por DRM (Netflix, Disney+ e vídeos Vimeo/Globo marcados como protegidos), conteúdo privado sem login e transmissão ao vivo cancelada no meio (perde o parcial). Para conteúdo que exige login, entre na sua conta no navegador e deixe os cookies ligados nas Configurações.
+
+**Ainda em ajuste:** o feed do Facebook (o X já foi confirmado no uso real). Se algum item vier sem miniatura ou com o arquivo errado, mande o print e o link do post.
 
 ---
 
@@ -166,12 +188,17 @@ A instalação nos três sistemas é testada automaticamente a cada versão
 
 ## Atualizar
 
-A extensão é carregada da pasta instalada e **não tem auto-update**. Para atualizar:
+A extensão roda em modo desenvolvedor, então o navegador **não a atualiza sozinho**. Quem atualiza é o app local:
 
-1. Rode o instalador do zip novo — ele detecta a instalação existente, substitui
-   os arquivos e reinicia o aplicativo local
-2. Em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar**
+- **Pelo botão (a partir da 3.0.14):** abra o popup. Se houver versão nova, aparece uma faixa azul com **Atualizar agora**
+  (a checagem é automática ao abrir o popup). Para checar na hora, clique na **versão no rodapé do popup** ou em
+  **Verificar atualizações** nas Configurações. Ao confirmar, o app baixa o zip da última release do GitHub, **confere o SHA-256**,
+  guarda uma cópia da versão atual em `_backups\v<versão>` (na pasta instalada), troca os arquivos, reinicia o servidor e
+  a extensão se recarrega sozinha. Não atualiza com download em andamento.
+- **Pelo instalador (sempre funciona):** rode o instalador do zip novo e, em `chrome://extensions` (ou `edge://extensions`),
+  clique em **Recarregar**.
 
+Versões anteriores à 3.0.14 não têm o botão: a primeira atualização para a 3.0.14 é pelo instalador.
 Configurações, pasta escolhida e posições salvas são preservadas.
 
 ---
@@ -193,7 +220,7 @@ Configurações, pasta escolhida e posições salvas são preservadas.
 | Nenhum vídeo detectado | Dê **play** e clique em **⟳** |
 | Erro de FFmpeg | Rode o instalador (a união vídeo+áudio depende dele) |
 | Vídeo só aparece logado | Ative **Usar os cookies do navegador** nas configurações |
-| Erro 403 | Atualize o yt-dlp: `yt-dlp -U` (ou rode o instalador) |
+| Erro 403 | O yt-dlp já se atualiza sozinho (1x por dia, com o app ligado). Se o erro persistir, reinicie o computador para o app subir e atualizar, ou rode `yt-dlp -U` (ou o instalador) |
 
 **Logs:** Windows `%LOCALAPPDATA%\NoeVFXDownloader\server.log` · macOS/Linux `/tmp/noevfx-downloader.log`
 

@@ -340,6 +340,74 @@ class SiteRulesCase(unittest.TestCase):
         self.assertIn("--no-playlist", c2)
         self.assertIn("--playlist-items", c2)
 
+    def test_pinterest_carrossel_story_e_nome(self):
+        vl = lambda h: {"video_list": {
+            "V_720P": {"url": "https://v1.pinimg.com/videos/iht/expMp4/aa/bb/cc/%s_720w.mp4" % h, "width": 720},
+            "V_HLSV4": {"url": "https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/%s.m3u8" % h, "width": 720}}}
+        titulo, urls = self.m.pin_pick({"seo_title": "Cartaz 100% animado: v1 | Graphicdesign, Morph",
+                                        "carousel_data": {"carousel_slots": [{"videos": vl("a" * 32)}, {"images": {}}, {"videos": vl("b" * 32)}]}})
+        self.assertEqual(len(urls), 2)                                  # a foto do carrossel (sem vídeo) fica de fora
+        self.assertTrue(all(u.endswith("_720w.mp4") for u in urls))     # MP4 de preferência ao HLS
+        self.assertEqual(titulo, "Cartaz 100 animado v1")               # sem o que vem depois do "|" e sem caracteres proibidos no nome
+        _, hls = self.m.pin_pick({"story_pin_data": {"pages": [{"blocks": [{"video": {"video_list": {
+            "V_HLSV3_MOBILE": {"url": "https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/%s.m3u8" % ("c" * 32)}}}}]}]}})
+        self.assertEqual(len(hls), 1)
+        self.assertTrue(hls[0].endswith(".m3u8"))                       # story pin só tem HLS
+        self.assertEqual(self.m.pin_pick({"images": {}}), ("", []))     # pin só de foto: nada a baixar
+        self.assertTrue(self.m.PIN_RE.match("https://br.pinterest.com/pin/1102537552566561894/"))
+        self.assertFalse(self.m.PIN_RE.match("https://br.pinterest.com/ideas/motion/"))
+
+    def test_atualizacao_pelo_github(self):
+        import tempfile, zipfile
+        m = self.m
+        sha = "ab" * 32
+        rel = lambda tag, **kw: dict({"tag_name": tag, "html_url": "https://github.com/noevfx/Extensions/releases/tag/" + tag,
+            "assets": [{"name": "noevfx-downloader-%s.zip" % tag.lstrip("v"), "digest": "sha256:" + sha,
+                        "browser_download_url": "https://github.com/noevfx/Extensions/releases/download/%s/noevfx-downloader-%s.zip" % (tag, tag.lstrip("v"))}]}, **kw)
+        nova = "9.9.9"
+        i = m.update_info(rel("v" + nova))
+        self.assertTrue(i["newer"])
+        self.assertEqual(i["sha256"], sha)
+        self.assertFalse(i["can_apply"])                      # a pasta de desenvolvimento (tem .git/tools) nunca se atualiza sozinha
+        self.assertIn("desenvolvimento", i["reason"])
+        self.assertFalse(m.update_info(rel("v0.0.1"))["newer"])
+        self.assertFalse(m.update_info(rel("v" + m.VERSION))["newer"])
+        self.assertEqual(m.update_info({"tag_name": "lixo"})["reason"], "release sem versão válida")
+        sem = rel("v" + nova); sem["assets"][0]["digest"] = ""
+        self.assertEqual(m.update_info(sem)["sha256"], "")    # sem hash não há como conferir: não atualiza
+        com_nota = dict(sem, body="SHA-256 do zip: `" + sha + "`")
+        self.assertEqual(m.update_info(com_nota)["sha256"], sha)
+        self.assertTrue(m._vtuple("3.0.10") > m._vtuple("3.0.9"))
+
+        # troca de arquivos num "Target" falso: extension/ e server/server.py viram os do pacote, com cópia do que saiu
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "inst"
+            (root / "extension").mkdir(parents=True); (root / "server").mkdir()
+            (root / "extension" / "manifest.json").write_text(json.dumps({"version": "1.0.0"}), encoding="utf-8")
+            (root / "extension" / "velho.js").write_text("velho", encoding="utf-8")
+            (root / "server" / "server.py").write_text('VERSION = "1.0.0"', encoding="utf-8")
+            def pacote(nome, ver, vserver=None):
+                zp = Path(d) / nome
+                with zipfile.ZipFile(zp, "w") as z:
+                    z.writestr("noevfx-downloader/windows/extension/manifest.json", json.dumps({"version": ver}))
+                    z.writestr("noevfx-downloader/windows/extension/novo.js", "novo")
+                    z.writestr("noevfx-downloader/windows/server/server.py", 'VERSION = "%s"' % (vserver or ver))
+                    z.writestr("noevfx-downloader/mac/extension/manifest.json", "{}")
+                return zp
+            with self.assertRaises(RuntimeError):             # versão do servidor dentro do pacote diferente da anunciada
+                m.update_apply_package(pacote("ruim.zip", "2.0.0", "3.0.0"), "2.0.0", root, "windows")
+            self.assertEqual((root / "server" / "server.py").read_text(), 'VERSION = "1.0.0"')     # nada foi trocado
+            res = m.update_apply_package(pacote("ok.zip", "2.0.0"), "2.0.0", root, "windows")
+            self.assertEqual(json.loads((root / "extension" / "manifest.json").read_text())["version"], "2.0.0")
+            self.assertEqual((root / "extension" / "novo.js").read_text(), "novo")
+            self.assertEqual((root / "server" / "server.py").read_text(), 'VERSION = "2.0.0"')
+            self.assertEqual(json.loads((Path(res["backup"]) / "extension" / "manifest.json").read_text())["version"], "1.0.0")
+            self.assertTrue((Path(res["backup"]) / "server.py").exists())
+            # segunda atualização na mesma versão antiga: outra pasta de backup (nunca sobrescreve)
+            (root / "extension" / "manifest.json").write_text(json.dumps({"version": "1.0.0"}), encoding="utf-8")
+            res2 = m.update_apply_package(pacote("ok2.zip", "2.0.0"), "2.0.0", root, "windows")
+            self.assertNotEqual(res["backup"], res2["backup"])
+
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
             c = self.cmd(u)

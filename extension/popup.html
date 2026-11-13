@@ -180,6 +180,13 @@
     .bar { height: 3px; margin-top: 8px; background: var(--border); border-radius: 3px; overflow: hidden; }
     .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
     .ver { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+    .ver-btn { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+    .ver-btn:hover { color: var(--accent); text-decoration: underline; }
+    .upd {
+      margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.4;
+      padding: 6px 8px; border: 1px solid rgba(0,102,255,.5); border-radius: 8px; background: var(--surface);
+    }
+    .upd span { flex: 1; min-width: 0; }
     .mail { font-size: 10px; color: var(--muted); text-decoration: none; flex-shrink: 0; }
     .mail:hover { color: var(--accent); }
   </style>
@@ -253,11 +260,16 @@
     <div class="empty" data-i18n="empty"></div>
   </div>
 
+  <div id="updRow" class="upd" hidden role="status" aria-live="polite">
+    <span id="updMsg"></span>
+    <button id="updBtn" class="mini-btn all" type="button" hidden></button>
+  </div>
+
   <div id="barWrap" class="bar" hidden><i id="bar"></i></div>
   <footer>
     <div id="status" data-i18n="ready" role="status" aria-live="polite"></div>
     <button id="cancelBtn" class="mini-btn" type="button" hidden data-i18n="cancel" data-i18n-title="cancelTip"></button>
-    <span id="ver" class="ver">v3.0.12</span>
+    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.0.14</button>
     <a class="mail" href="mailto:labs@noevfx.com" title="labs@noevfx.com">labs@noevfx.com</a>
   </footer>
   <script src="i18n.js"></script>

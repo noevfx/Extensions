@@ -14,6 +14,7 @@ computador: sem conta, sem anúncios e sem telemetria.
 2. [Instalar](#2-instalar)
 3. [Primeiro uso: configurações](#3-primeiro-uso-configurações)
 4. [Baixar um vídeo](#4-baixar-um-vídeo) (ícone no vídeo · popup · botão direito · YouTube)
+   - [Plataformas testadas](#plataformas-testadas)
 5. [Qualidades](#5-qualidades)
 6. [Baixar vários, cancelar e repetidos](#6-baixar-vários-cancelar-e-repetidos)
 7. [Cursos, áreas de membros e lives gravadas](#7-cursos-áreas-de-membros-e-lives-gravadas)
@@ -44,7 +45,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.12.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.14.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -186,6 +187,24 @@ com as opções de qualidade. (O YouTube precisa do **Deno**, que o instalador j
 
 ---
 
+## Plataformas testadas
+
+| Plataforma | O que funciona |
+|---|---|
+| **YouTube** | botão Baixar no player e item no popup, na melhor qualidade, com áudio |
+| **Instagram** | posts e reels; **carrossel: baixa todos os vídeos** (fotos ignoradas); cada vídeo com a própria miniatura |
+| **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
+| **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **no feed ainda não está confirmado** (em ajuste) |
+| **X (Twitter)** | um item por tweet com vídeo (testado no feed real); baixa **todos os vídeos do tweet** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Vimeo** | vídeos públicos e embutidos em outras páginas |
+| **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
+| **Sites comuns** | players com MP4, HLS (.m3u8) e DASH; players embutidos (iframe) de cursos |
+
+**O que não baixa:** vídeo protegido por DRM (Netflix, Disney+ e vídeos Vimeo/Globo marcados como protegidos), conteúdo privado sem login e transmissão ao vivo cancelada no meio (perde o parcial). Para conteúdo que exige login, entre na sua conta no navegador e deixe os cookies ligados nas Configurações.
+
+**Ainda em ajuste:** o feed do Facebook (o X já foi confirmado no uso real). Se algum item vier sem miniatura ou com o arquivo errado, mande o print e o link do post.
+
 ## 5. Qualidades
 
 | Opção | O que baixa |
@@ -242,9 +261,17 @@ mostra versões, o que está instalado e os últimos downloads (sem links comple
 
 ## 9. Atualizar e desinstalar
 
-**Atualizar:** rode o instalador do ZIP novo (ele detecta a instalação, troca os arquivos e reinicia o app)
-e, em `chrome://extensions`, clique em **Recarregar** no cartão da extensão. Suas configurações e a pasta
-escolhida são mantidas. O **yt-dlp se atualiza sozinho** uma vez por dia (os sites mudam toda semana).
+**Atualizar pelo botão (a partir da 3.0.14):** a extensão roda em modo desenvolvedor e o navegador não a atualiza sozinho,
+então o próprio app local faz isso. Ao abrir o popup ele confere a última release no GitHub; se houver versão nova, aparece uma
+faixa azul com **Atualizar agora**. Para conferir na hora, clique na **versão no rodapé do popup** ou em **Verificar atualizações**
+nas Configurações. Ao confirmar, o app baixa o pacote, **confere o SHA-256**, guarda uma cópia da versão atual em
+`_backups` (na pasta instalada), troca os arquivos, reinicia o servidor e a extensão se recarrega. Se houver download em andamento,
+ele pede para esperar terminar.
+
+**Atualizar pelo instalador (sempre funciona, e é o caminho das versões antes da 3.0.14):** rode o instalador do ZIP novo (ele
+detecta a instalação, troca os arquivos e reinicia o app) e, em `chrome://extensions`, clique em **Recarregar** no cartão da
+extensão. Suas configurações e a pasta escolhida são mantidas. O **yt-dlp se atualiza sozinho** uma vez por dia (os sites mudam
+toda semana).
 
 **Desinstalar:** rode `DESINSTALAR_NOEVFX.bat` (Windows) ou `bash desinstalar-noevfx.sh` (Mac/Linux) e,
 no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagados.
@@ -265,4 +292,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.12 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.0.14 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

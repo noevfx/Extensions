@@ -86,8 +86,33 @@ function rawReq(port, method, p, body, headers = {}) {
     const m = url.match(/^\/v\/.*AQ(\d)x\.mp4$/);
     if (m) { res.writeHead(200, { "Content-Type": "video/mp4", "Access-Control-Allow-Origin": "*" }); return res.end(vids[+m[1]]); }
     if (url.startsWith("/ext_tw_video/") || url.startsWith("/amplify_video/")) { res.writeHead(200, { "Content-Type": "video/mp4", "Access-Control-Allow-Origin": "*" }); return res.end(vids[1]); }
+    if (url.startsWith("/videos/iht/")) { res.writeHead(200, { "Content-Type": "video/mp4", "Access-Control-Allow-Origin": "*" }); return res.end(vids[1]); }
+    if (host === "www.pinterest.com" && url.startsWith("/resource/PinResource/get/")) {
+      // API do próprio Pinterest (mesma origem): pin 111... = carrossel com 2 vídeos; 222... = vídeo único (story pin, só HLS)
+      const dq = new URL(req.url, "https://x").searchParams.get("data");
+      if (!dq) { console.log("  (API sem data: " + url.slice(0, 120) + ")"); res.writeHead(400); return res.end("x"); }
+      const id = JSON.parse(dq).options.id;
+      const vl = (h) => ({ V_720P: { url: "https://v1.pinimg.com/videos/iht/expMp4/aa/bb/cc/" + h + "_720w.mp4", width: 720, thumbnail: "https://i.pinimg.com/videos/thumbnails/originals/aa/bb/cc/" + h + ".0000000.jpg" } });
+      const data = id.startsWith("111")
+        ? { seo_title: "Motion poster com texto 3d | Morphing type, Graphicdesign", carousel_data: { carousel_slots: [{ videos: { video_list: vl("a".repeat(32)) }, images: {} }, { videos: { video_list: vl("b".repeat(32)) }, images: {} }] } }
+        : { seo_title: "Segundo pin | Logo", story_pin_data: { pages: [{ blocks: [{ video: { video_list: { V_HLSV3_MOBILE: { url: "https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/" + "c".repeat(32) + ".m3u8", thumbnail: "https://i.pinimg.com/videos/thumbnails/originals/aa/bb/cc/" + "c".repeat(32) + ".0000000.jpg" } } } }] }] } };
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ resource_response: { data } }));
+    }
     if (url.startsWith("/fbv/")) { res.writeHead(200, { "Content-Type": "video/mp4", "Access-Control-Allow-Origin": "*" }); return res.end(vids[0]); }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    if (host === "www.pinterest.com") {
+      // pin aberto: o pin principal só tem IMAGENS no DOM (o carrossel); abaixo, "relacionados": cartões com vídeo blob:, um com link
+      // /pin/ID/ e outro SEM link; o link /pin/ID/repin do pin principal fica num ancestral de TODOS os cartões (não pode vazar)
+      const card = (i, href) => `<div role="listitem" style="width:260px;margin:10px"><div>${href ? `<a href="${href}"></a>` : ""}${"<div>".repeat(8)}<video muted playsinline autoplay loop width=240 height=300 data-i=${i} poster="https://i.pinimg.com/videos/thumbnails/originals/aa/bb/cc/${String(i).repeat(32)}.0000000.jpg"></video>${"</div>".repeat(8)}</div></div>`;
+      return res.end(`<!doctype html><meta charset=utf-8><title>Pin em Algum Site</title><body style="margin:0;background:#111;color:#fff">
+        <div data-test-id="CloseupMainPin"><ul><li><img width=300 height=300 src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></li><li><img width=300 height=300 src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></li></ul></div>
+        <a href="/pin/1111111111111111111/repin"></a>
+        <div data-test-id="relatedPins">${card(0, "/pin/2222222222222222222/")}${card(1, "")}</div>
+        <script>${blobJs}; document.querySelectorAll("video").forEach((v) => loadBlob(v, v.dataset.i));
+          for (let i = 0; i < 6; i++) fetch("https://v1.pinimg.com:${fp}/videos/iht/hls/aa/bb/cc/" + "d".repeat(32) + "_" + i + "_360w.m3u8").then(r => r.blob());
+          fetch("https://v1.pinimg.com:${fp}/videos/iht/expMp4/aa/bb/cc/" + "e".repeat(32) + "_720w.mp4").then(r => r.blob());</script>`);
+    }
     if (host === "www.facebook.com") {
       // feed do Facebook: cada post é um [role=article]; o vídeo (blob:) fica fundo; o link do vídeo/reel está no cabeçalho
       // junto de outros links (grupo, perfil); o vídeo chega em pedaços de fbcdn.net
@@ -184,7 +209,7 @@ function rawReq(port, method, p, body, headers = {}) {
   const jobs = async () => (await rawReq(sp, "GET", "/jobs", null, H)).json.jobs || [];
 
   const br = spawn(BROWSER, ["--headless=new", `--remote-debugging-port=${dbg}`, `--user-data-dir=${path.join(tmp, "prof")}`, `--load-extension=${extDir}`,
-    "--host-resolver-rules=MAP www.instagram.com 127.0.0.1, MAP www.tiktok.com 127.0.0.1, MAP x.com 127.0.0.1, MAP www.facebook.com 127.0.0.1, MAP video.xx.fbcdn.net 127.0.0.1, MAP video.twimg.com 127.0.0.1, MAP www.exemplo.test 127.0.0.1, MAP scontent.cdninstagram.com 127.0.0.1",
+    "--host-resolver-rules=MAP www.instagram.com 127.0.0.1, MAP www.tiktok.com 127.0.0.1, MAP x.com 127.0.0.1, MAP www.pinterest.com 127.0.0.1, MAP v1.pinimg.com 127.0.0.1, MAP www.facebook.com 127.0.0.1, MAP video.xx.fbcdn.net 127.0.0.1, MAP video.twimg.com 127.0.0.1, MAP www.exemplo.test 127.0.0.1, MAP scontent.cdninstagram.com 127.0.0.1",
     "--autoplay-policy=no-user-gesture-required", "--ignore-certificate-errors", "--window-size=1100,900",
     "--no-first-run", "--no-default-browser-check", "--disable-features=DisableLoadExtensionCommandLineSwitch",
     ...(process.env.CI ? ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"] : []), "about:blank"],
@@ -193,7 +218,7 @@ function rawReq(port, method, p, body, headers = {}) {
   for (let i = 0; i < 80; i++) { try { await targets(); break; } catch (_) { await sleep(250); } }
   await sleep(1500);
   const cleanup = async () => { try { br.kill(); } catch (_) {} try { srv.kill(); } catch (_) {} site.close(); await sleep(400);
-    if (!process.env.KEEP) fs.rmSync(tmp, { recursive: true, force: true }); };
+    if (!process.env.KEEP) { try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 }); } catch (_) {} } };
 
   try {
     let swT = null;
@@ -311,6 +336,38 @@ function rawReq(port, method, p, body, headers = {}) {
     await clickFabMain();
     const dlf = (await rec()).filter((m) => m.type === "DOWNLOAD").pop();
     check("clicar no ícone do 2º vídeo pede o REEL dele", !!dlf && dlf.url === "https://www.facebook.com/reel/9876543210987654", dlf ? dlf.url : "sem DOWNLOAD");
+
+    /* ============================ Pinterest ============================ */
+    console.log("\n== Pin aberto (carrossel só com imagens no DOM + vídeos relacionados; HLS/MP4 de v1.pinimg.com na rede)");
+    await goto(`https://www.pinterest.com:${fp}/pin/1111111111111111111/`);
+    const cpn = await page.eval(`(()=>{const r=document.querySelectorAll("video")[0].getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
+    await hover(cpn[0], cpn[1]);
+    check("ícone aparece sobre o vídeo do cartão", await fabVisible());
+    const pns = await waitItems((m) => [...m.keys()].filter((u) => /pinterest\.com\/pin\//.test(u)).length >= 2);
+    const pni = [...pns.values()].filter((x) => /pinterest\.com\/pin\//.test(x.url));
+    info("itens enviados", pni.map((x) => x.kind + " " + x.url.replace("https://", "") + " th=" + (x.th ? "sim" : "não") + " | " + x.title));
+    check("um item por PIN, com o link do pin (o aberto + o do cartão com link)", pni.map((x) => x.url.replace(/:\d+/, "")).sort().join(",") === "https://www.pinterest.com/pin/1111111111111111111/,https://www.pinterest.com/pin/2222222222222222222/", pni.map((x) => x.url).join(","));
+    check("o link /repin do pin principal NÃO vaza para o cartão sem link (só 2 itens)", pni.length === 2, pni.length + " itens");
+    check("nenhum HLS/MP4 solto de pinimg.com na lista", ![...pns.keys()].some((u) => /pinimg\.com/.test(u)), [...pns.keys()].filter((u) => /pinimg/.test(u)).length + " vazaram");
+    const pmain = pni.find((x) => /1111111111111111111/.test(x.url));
+    const psec = pni.find((x) => /2222222222222222222/.test(x.url));
+    check("pin principal: nome da API (sem o resto depois do \"|\") e aviso de 2 vídeos", !!pmain && pmain.title === "Motion poster com texto 3d (2 vídeos)", pmain ? pmain.title : "sem item");
+    check("pin do cartão: nome da API", !!psec && psec.title === "Segundo pin", psec ? psec.title : "sem item");
+    check("cada pin tem miniatura PRÓPRIA", !!pmain && !!psec && !!pmain.th && !!psec.th && pmain.th !== psec.th);
+    await clickFabMain();
+    const dlp = (await rec()).filter((m) => m.type === "DOWNLOAD").pop();
+    check("clicar no ícone do cartão com link pede o pin DELE", !!dlp && dlp.url.replace(/:\d+/, "") === "https://www.pinterest.com/pin/2222222222222222222/", dlp ? dlp.url : "sem DOWNLOAD");
+
+    /* ============================ Popup: verificar atualizações ============================ */
+    console.log("\n== Popup: clicar na versão verifica a última release no GitHub (pelo servidor local)");
+    await goto(`chrome-extension://${EXT_ID}/popup.html`, 3000);
+    await page.eval(`document.getElementById("ver").click()`);
+    await sleep(3500);
+    const updTxt = await page.eval(`document.getElementById("updMsg").textContent`);
+    const updVis = await page.eval(`!document.getElementById("updRow").hidden`);
+    info("mensagem", updTxt);
+    check("a faixa de atualização aparece com o resultado (versão mais recente / nova versão / erro claro)", updVis && /mais recente|latest|Nova versão|New version|Não consegui|Could not/.test(updTxt), updTxt);
+    check("a pasta de desenvolvimento nunca oferece 'Atualizar agora'", await page.eval(`document.getElementById("updBtn").hidden`));
 
     /* ============================ TikTok (SPA) ============================ */
     console.log("\n== Site de página única estilo TikTok (troca de vídeo sem recarregar)");

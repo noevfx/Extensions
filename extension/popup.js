@@ -386,6 +386,52 @@ async function downloadAll() {
   statusEl.textContent = res.queued ? t("queuedN", res.queued) : t("nothing");
 }
 
+/* ---------------------------------------------------------------- atualizar -- */
+/* A extensão em modo desenvolvedor não se atualiza sozinha: quem baixa e troca os arquivos é o servidor local (confere o SHA-256);
+   aqui só se pergunta, se confirma e se recarrega a extensão quando o servidor novo sobe. */
+const updRow = $("updRow"), updMsg = $("updMsg"), updBtn = $("updBtn");
+let updInfo = null, updBusy = false;
+
+function showUpd(msg, canApply) {
+  updRow.hidden = false;
+  updMsg.textContent = msg;
+  updBtn.hidden = !canApply;
+  if (canApply) updBtn.textContent = t("updApply");
+}
+
+async function checkUpdate(manual) {
+  if (updBusy) return;
+  if (manual) showUpd(t("updChecking"), false);
+  const r = await send({ type: "UPDATE_CHECK", force: !!manual });
+  if (!r || !r.ok) { if (manual) showUpd(r && r.error ? r.error : t("updFail"), false); return; }
+  updInfo = r;
+  if (r.newer) {
+    showUpd(t("updNew", r.latest) + (!r.can_apply && r.reason ? " — " + r.reason : ""), r.can_apply);
+  } else if (manual) {
+    showUpd(t("updLatest", r.current), false);
+    setTimeout(() => { if (!updBusy && updInfo && !updInfo.newer) updRow.hidden = true; }, 5000);
+  }
+}
+
+async function applyUpdate() {
+  if (updBusy || !updInfo || !updInfo.newer) return;
+  if (!confirm(t("updConfirm", updInfo.latest))) return;
+  updBusy = true;
+  showUpd(t("updApplying"), false);
+  const r = await send({ type: "UPDATE_APPLY" });
+  if (!r || !r.ok) { updBusy = false; showUpd(r && r.error ? r.error : t("updFail"), updInfo.can_apply); return; }
+  showUpd(t("updRestarting"), false);
+  for (let i = 0; i < 40; i++) {                      // espera o servidor novo subir (a versão do /health muda)
+    await new Promise((x) => setTimeout(x, 1000));
+    const h = await send({ type: "HEALTH" });
+    if (h && h.ok && h.data && h.data.version === r.version) break;
+  }
+  chrome.runtime.reload();
+}
+
+if (verEl) verEl.addEventListener("click", () => checkUpdate(true));
+if (updBtn) updBtn.addEventListener("click", applyUpdate);
+
 /* ------------------------------------------------------------------ boot -- */
 async function boot() {
   urlInput.setAttribute("aria-label", t("urlPh"));
@@ -396,6 +442,7 @@ async function boot() {
     checkHealth()
   ]);
   currentTab = tabs[0] || null;
+  if (serverOnline) checkUpdate(false);               // em silêncio: só aparece a faixa se houver versão nova
   const u = (currentTab && currentTab.url) || "";
   if (u.startsWith("http")) urlInput.value = u;
 

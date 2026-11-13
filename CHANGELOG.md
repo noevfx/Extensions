@@ -6,6 +6,46 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.14] — 2026-11-13
+
+### Novo
+- **Botão "Verificar atualizações":** a extensão em modo desenvolvedor não se atualiza sozinha, então o servidor local faz o trabalho.
+  Ao abrir o popup ele checa (em silêncio) a última release do GitHub; clicar na **versão no rodapé** ou em *Verificar atualizações*
+  nas Configurações força a checagem. Havendo versão nova, **Atualizar agora** baixa o zip da release (só de
+  `github.com/noevfx/Extensions`), **confere o SHA-256**, guarda cópia da versão atual em `_backups\v<versão>`, troca `extension\` e
+  `server\server.py`, reinicia o servidor e recarrega a extensão. Não atualiza com download em andamento nem a pasta de
+  desenvolvimento. Rotas novas: `GET /update/check`, `POST /update/apply`.
+- Documentação: seção **Plataformas testadas** (README, manual rápido e completo; X confirmado no uso real, Facebook ainda em ajuste) e seção **Atualizar** reescrita.
+
+### Como foi testado
+- Navegador de teste: 50 checagens ao todo (inclui clicar na versão do popup e ver o resultado); 33 testes do servidor.
+- Atualização de verdade testada: instalação falsa 3.0.11 → servidor real → release v3.0.12 do GitHub (SHA-256 conferido) → arquivos
+  trocados, backup criado, servidor reiniciado na mesma porta já na 3.0.12.
+- X confirmado pelo Eduardo no uso real. **Facebook ainda não** funcionou no feed dele: fica para a próxima revisão.
+- **Atenção:** quem está numa versão anterior à 3.0.14 não tem o botão: a primeira atualização é pelo instalador do zip novo.
+
+---
+
+## [3.0.13] — 2026-11-13 (só local; entra na 3.0.14)
+
+### Novo
+- **Pinterest:** a página de um pin carrega dezenas de vídeos de pins relacionados, e a extensão listava todos como "Pin em ..."
+  (sem miniatura e com o mesmo nome). Agora cada pin é **um item**, com o **link do pin**, a **miniatura certa** e o **nome do pin**
+  (vindos da API pública do próprio Pinterest). HLS e MP4 soltos de `pinimg.com` não entram mais na lista.
+- **Pin com vários vídeos (carrossel):** o yt-dlp falha nesse caso ("No video formats found"). O servidor agora pergunta à API do
+  Pinterest, pega **todos os vídeos do pin** (MP4 de preferência; story pin usa o HLS) e salva cada um como
+  `Nome do pin (1 de 2) [ID].mp4`. Antes o nome saía como `Pinterest video #ID` ou o código do arquivo.
+
+### Como foi testado
+- Navegador de teste com mouse de verdade (pin aberto com carrossel só de imagens no DOM, cartões relacionados com e sem link,
+  HLS/MP4 de `pinimg.com` na rede): 48 checagens ao todo; 32 testes do servidor.
+- Pinterest real: o pin com 2 vídeos baixou os 2 (h264, 720x960); o pin de vídeo único baixou com áudio; os dois aparecem
+  como um item só, com a miniatura do próprio vídeo.
+- **Limite:** no feed (sem pin aberto) o link do pin vem do cartão; sem estar logado o Pinterest não põe link nos cartões, então
+  vídeo de feed sem link não vira item (abra o pin e baixe de lá; o ícone avisa).
+
+---
+
 ## [3.0.12] — 2026-11-13
 
 ### Novo

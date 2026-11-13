@@ -1,4 +1,4 @@
-# Noe VFX Downloader 3.0.12 — Manual rápido
+# Noe VFX Downloader 3.0.14 — Manual rápido
 
 **Site:** https://noevfx.com · **Navegadores:** Chrome, Edge, Brave, Opera, Vivaldi · **Sistemas:** Windows, macOS, Linux
 
@@ -30,6 +30,24 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 - Ou botão direito → *Baixar vídeo na qualidade nativa*.
 - No primeiro uso a extensão pergunta a **pasta** onde salvar (muda depois na engrenagem ⚙).
 
+## Plataformas testadas
+
+| Plataforma | O que funciona |
+|---|---|
+| **YouTube** | botão Baixar no player e item no popup, na melhor qualidade, com áudio |
+| **Instagram** | posts e reels; **carrossel: baixa todos os vídeos** (fotos ignoradas); cada vídeo com a própria miniatura |
+| **TikTok** | um item por vídeo, com miniatura e nome certos; a lista se atualiza ao rolar o feed |
+| **Facebook** | vídeo público baixa pelo link do vídeo/Reel; **no feed ainda não está confirmado** (em ajuste) |
+| **X (Twitter)** | um item por tweet com vídeo (testado no feed real); baixa **todos os vídeos do tweet** |
+| **Pinterest** | um item por pin, com o nome do pin; **pin com vários vídeos baixa todos** |
+| **Vimeo** | vídeos públicos e embutidos em outras páginas |
+| **G1 / Globoplay** | o vídeo da matéria (sem confundir com os "veja também"); transmissão ao vivo grava a partir do HLS |
+| **Sites comuns** | players com MP4, HLS (.m3u8) e DASH; players embutidos (iframe) de cursos |
+
+**O que não baixa:** vídeo protegido por DRM (Netflix, Disney+ e vídeos Vimeo/Globo marcados como protegidos), conteúdo privado sem login e transmissão ao vivo cancelada no meio (perde o parcial). Para conteúdo que exige login, entre na sua conta no navegador e deixe os cookies ligados nas Configurações.
+
+**Ainda em ajuste:** o feed do Facebook (o X já foi confirmado no uso real). Se algum item vier sem miniatura ou com o arquivo errado, mande o print e o link do post.
+
 ## Problemas
 
 | Sintoma | Solução |
@@ -39,7 +57,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 | Extensão sumiu / cinza | você apagou a pasta de onde carregou: carregue a pasta **instalada** |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
-**Atualizar:** rode o instalador do ZIP novo e clique em **Recarregar** na extensão.
+**Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.
 **Desinstalar:** `DESINSTALAR_NOEVFX.bat` / `bash desinstalar-noevfx.sh`; depois **Remover** a extensão.
 
 Use apenas com conteúdo que você tem o direito de salvar. O app **não** contorna DRM, login, assinatura

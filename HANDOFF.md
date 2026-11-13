@@ -6,10 +6,10 @@ Para quem for continuar o projeto (pessoa ou agente). O resto da documentação:
 
 ## Estado (13/11/2026)
 
-- **Versão atual: 3.0.12** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Publicada no GitHub como `v3.0.12`.
-- Pacote: `release\v3.0.12\noevfx-downloader-3.0.12.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X e Facebook (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
-- **Testes de sites** (`tests/e2e_sites.js`, 40 checagens com sites simulados em HTTPS; `tests/real_site.js` e `tests/dl_url.js` para site real). Ainda não vistos em feed real logado: X e Facebook. Limites: lives (cancelar perde o parcial), vídeos com DRM, Mac/Linux sem máquina real.
-- **GitHub:** as releases **`v3.0.5` e `v3.0.12`** estão publicadas com `noevfx-downloader-3.0.5.zip`; o SHA-256 do asset está nas notas e em `release\v3.0.5\SHA256.txt`. A `v3.0.1` ficou com um aviso nas notas: tem um bug (leitura da extensão recusada com 403), **não distribuir**.
+- **Versão atual: 3.0.14** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Publicada no GitHub como `v3.0.14` (a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
+- Pacote: `release\v3.0.14\noevfx-downloader-3.0.14.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X, Facebook e Pinterest (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
+- **Testes de sites** (`tests/e2e_sites.js`, 50 checagens com sites simulados em HTTPS; `tests/real_site.js` e `tests/dl_url.js` para site real). Ainda não vistos em feed real logado: X, Facebook e feed do Pinterest (sem login o Pinterest não põe link nos cartões). Limites: lives (cancelar perde o parcial), vídeos com DRM, Mac/Linux sem máquina real.
+- **GitHub:** as releases **`v3.0.5`, `v3.0.12` e `v3.0.14`** estão publicadas (cada uma com o seu zip); o SHA-256 do asset está nas notas e em `release\v3.0.5\SHA256.txt`. A `v3.0.1` ficou com um aviso nas notas: tem um bug (leitura da extensão recusada com 403), **não distribuir**.
 - **PC do Eduardo:** instalação feita pelo próprio Eduardo (3.0.12 em teste em 13/11/2026; antes: 3.0.5) (backup em `_backups\instalacao-do-pc-2026-11-13-antes-3.0.5`). Espelho no Drive feito.
 - Sem loja: projeto de **uso próprio e de amigos**. Todo o material de loja foi removido (v3.0.5).
 
@@ -66,3 +66,7 @@ node tools/capturar-telas.js                # refaz as telas do manual em docs/i
    iframe de outra origem exigindo o Referer do iframe).
 5. Teste e2e tem 1 verificação intermitente (mídia sem extensão e fora do DOM): vira AVISO, não falha.
 6. Considerar `yt-dlp` fixo/versão mínima se algum site quebrar (hoje ele se atualiza sozinho 1x/dia).
+
+- **CI (próxima revisão, combinado com o Eduardo em 13/11/2026):** o job `extensão no navegador` (`tests/e2e.js`) falha no GitHub em Ubuntu e Windows com "sem service worker" (já falhava na v3.0.5); os jobs de macOS cancelam por falta de máquina do GitHub. Plano: trocar o `e2e.js` pelo `tests/e2e_sites.js` no `test.yml` e validar nos runners antes de dizer que ficou certo. Não afeta o uso da extensão.
+
+- **Atualização pelo botão (3.0.14):** `server.py` tem `update_check`/`update_apply` (rotas `GET /update/check`, `POST /update/apply`, cache de 10 min; GitHub sem login limita 60 consultas/hora). Baixa só de `github.com/noevfx/Extensions/releases/download/vX.Y.Z/noevfx-downloader-X.Y.Z.zip`, confere o SHA-256 (campo `digest` do asset, ou o hash nas notas da release), valida que `extension/manifest.json` e `server.py` do pacote têm a versão anunciada, guarda cópia em `_backups\v<antiga>` da pasta instalada, troca `extension/` e `server/server.py` e reinicia o servidor (`_restart_self`). Recusa se houver download ativo ou se a pasta tiver `.git`/`tools\build.py` (desenvolvimento). **Toda release nova precisa ter o hash do zip no `digest` do asset ou nas notas**, senão `can_apply` fica falso. O popup (`popup.js`) e as Configurações (`options.js`) falam com o servidor pelas mensagens `UPDATE_CHECK`/`UPDATE_APPLY` do `background.js`. Teste real: instalação falsa 3.0.11 → release v3.0.12 (feito em 13/11/2026). Versões antes da 3.0.14 não têm o botão (atualizam pelo instalador).
