@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.0.14  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.0.15  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -218,8 +218,34 @@ function paintBadge(tabId) {
   try { chrome.action.setBadgeText({ tabId, text: n ? String(n) : "" }).catch(() => {}); } catch (_) {}
 }
 
+/* Pinterest: os vídeos do feed chegam por HLS/MP4 de pinimg.com (não vão para a lista: a lista mostra o PIN). Guarda só o endereço
+   por "hash" do vídeo (32 hex, o mesmo do pôster do <video>) para o ícone baixar o vídeo certo quando o cartão não tem link de pin. */
+const PIN_MEDIA_RE = /^https:\/\/[\w.-]*pinimg\.com(?::\d+)?\/videos\/.*?([0-9a-f]{32})[^/?#]*\.(m3u8|mp4)(\?|#|$)/i;
+const PIN_MEDIA = new Map();            // tabId -> Map(hash -> { mp4, hls })
+function notePinMedia(tabId, url) {
+  const m = PIN_MEDIA_RE.exec(url);
+  if (!m) return;
+  let tm = PIN_MEDIA.get(tabId);
+  if (!tm) PIN_MEDIA.set(tabId, (tm = new Map()));
+  const h = m[1].toLowerCase();
+  const e = tm.get(h) || {};
+  if (m[2].toLowerCase() === "mp4") { if (!e.mp4 || /_720w\./i.test(url)) e.mp4 = url; }
+  else if (!e.hls) e.hls = url;
+  tm.set(h, e);
+  if (tm.size > 400) tm.delete(tm.keys().next().value);
+}
+function pinStreamUrl(tabId, hash) {
+  const h = String(hash || "").toLowerCase();
+  let e = PIN_MEDIA.get(tabId) && PIN_MEDIA.get(tabId).get(h);
+  if (!e) for (const tm of PIN_MEDIA.values()) { if (tm.has(h)) { e = tm.get(h); break; } }
+  if (!e) return "";
+  // várias qualidades do HLS ficam lado a lado (<hash>_360w.m3u8, <hash>_audio.m3u8): a principal é <hash>.m3u8
+  return e.mp4 || (e.hls ? e.hls.replace(/_(\d+w|audio)(\.m3u8)/i, "$2") : "");
+}
+
 function addStream(tabId, url, kind, extra) {
   if (tabId == null || tabId < 0 || !url) return;
+  notePinMedia(tabId, url);
   if (!/^https?:/i.test(url)) return;
   if (IGNORE_RE.test(url)) return;
   if (!(extra && extra.pg)) { try { if (FRAG_HOST_RE.test(new URL(url).hostname)) return; } catch (_) { return; } }
@@ -282,6 +308,7 @@ function setThumb(tabId, thumb, title) {
 }
 
 function clearTab(tabId) {
+  PIN_MEDIA.delete(tabId);
   MEM.delete(tabId);
   THUMB.delete(tabId);
   PAGE_TITLE.delete(tabId);
@@ -605,6 +632,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         } catch (e) {
           return { ok: false, error: String(e) };
         }
+      }
+
+      case "PIN_STREAM": {
+        const u = pinStreamUrl(sender && sender.tab ? sender.tab.id : -1, msg.hash);
+        return u ? { ok: true, url: u } : { ok: false };
       }
 
       case "UPDATE_CHECK": {

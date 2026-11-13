@@ -6,6 +6,28 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.15] — 2026-11-13
+
+### Corrigido
+- **Pinterest, ícone no feed:** na 3.0.13/3.0.14 o ícone sobre um vídeo do feed mostrava "não achei o link deste pin" (o Pinterest não põe
+  link nos cartões quando você não está logado) e não baixava nada. Agora o vídeo se reconhece pelo **hash do pôster** e a extensão
+  usa o stream que o próprio player pediu (a playlist HLS principal): o ícone **baixa**, e o popup lista cada vídeo do feed com a
+  **miniatura dele**. Quando o cartão tem link de pin, continua usando o pin. A busca do link também ficou mais flexível (sobe a partir
+  do vídeo, sem pegar o link do cartão vizinho).
+- O arquivo de um vídeo do feed sem link sai como `Vídeo do Pinterest [código].mp4` (antes: o código do arquivo).
+
+### Mudou
+- **Pasta padrão = `NoeVFX` dentro da pasta de Vídeos do usuário**, em qualquer sistema: Windows `Vídeos` (pelo próprio sistema, vale
+  se foi movida ou está no OneDrive), macOS `Filmes`, Linux `Vídeos` (xdg). Antes o Windows usava `Downloads` e a tela dizia
+  "Downloads/NoeVFX" mesmo no Mac/Linux, onde salvava em Filmes/Vídeos. Quem já escolheu uma pasta mantém a dela; o botão **Usar a pasta
+  padrão do sistema** vai para a nova.
+
+### Como foi testado
+- Navegador de teste: 52 checagens (inclui cartão sem link no Pinterest: o ícone pede a playlist principal do vídeo); 34 testes do servidor.
+- Pinterest real (sem login): o ícone sobre um vídeo do feed baixou o vídeo (h264 + aac, 720x1280) com o nome certo.
+
+---
+
 ## [3.0.14] — 2026-11-13
 
 ### Novo

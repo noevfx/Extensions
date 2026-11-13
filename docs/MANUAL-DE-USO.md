@@ -31,7 +31,7 @@ São **duas peças** que conversam entre si, as duas no seu computador:
 ```mermaid
 flowchart LR
     A["🌐 Extensão<br/>(no navegador)<br/>acha o vídeo na página"] -- "pedido local<br/>127.0.0.1" --> B["⚙️ App local<br/>(roda em segundo plano)<br/>yt-dlp + FFmpeg"]
-    B -- "salva o arquivo" --> C["📁 Sua pasta<br/>Downloads/NoeVFX"]
+    B -- "salva o arquivo" --> C["📁 Sua pasta<br/>Vídeos/NoeVFX"]
 ```
 
 - A **extensão** mostra o ícone azul sobre os vídeos e lista tudo que a página carrega.
@@ -45,7 +45,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.14.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.15.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -97,7 +97,9 @@ o **Deno** (necessário para o YouTube) e o Python. Se algo falhar, rode o insta
 O botão **Copiar diagnóstico** gera um texto curto para você colar numa conversa quando precisar de ajuda.
 
 **2 · Pasta padrão** — onde os vídeos serão salvos. Clique em **Escolher pasta…** (abre a janela normal do
-sistema). **Abrir pasta** abre ela no Explorer/Finder.
+sistema). **Abrir pasta** abre ela no Explorer/Finder. Se você não escolher nada, os vídeos vão para a pasta de
+**Vídeos** do seu usuário, dentro de uma pasta `NoeVFX` (Windows: `Vídeos\NoeVFX`; macOS: `Filmes/NoeVFX`; Linux: `Vídeos/NoeVFX`).
+O botão **Usar a pasta padrão do sistema** volta para ela.
 
 ![Configurações: ícone e qualidade](img/09-config-icone-e-qualidade.png)
 
@@ -292,4 +294,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.14 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.0.15 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

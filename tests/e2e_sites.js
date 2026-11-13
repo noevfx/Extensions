@@ -111,7 +111,8 @@ function rawReq(port, method, p, body, headers = {}) {
         <div data-test-id="relatedPins">${card(0, "/pin/2222222222222222222/")}${card(1, "")}</div>
         <script>${blobJs}; document.querySelectorAll("video").forEach((v) => loadBlob(v, v.dataset.i));
           for (let i = 0; i < 6; i++) fetch("https://v1.pinimg.com:${fp}/videos/iht/hls/aa/bb/cc/" + "d".repeat(32) + "_" + i + "_360w.m3u8").then(r => r.blob());
-          fetch("https://v1.pinimg.com:${fp}/videos/iht/expMp4/aa/bb/cc/" + "e".repeat(32) + "_720w.mp4").then(r => r.blob());</script>`);
+          fetch("https://v1.pinimg.com:${fp}/videos/iht/expMp4/aa/bb/cc/" + "e".repeat(32) + "_720w.mp4").then(r => r.blob());
+          for (const suf of ["_360w.m3u8", "_audio.m3u8"]) fetch("https://v1.pinimg.com:${fp}/videos/iht/hls/aa/bb/cc/" + "1".repeat(32) + suf).then(r => r.blob());</script>`);
     }
     if (host === "www.facebook.com") {
       // feed do Facebook: cada post é um [role=article]; o vídeo (blob:) fica fundo; o link do vídeo/reel está no cabeçalho
@@ -348,7 +349,8 @@ function rawReq(port, method, p, body, headers = {}) {
     info("itens enviados", pni.map((x) => x.kind + " " + x.url.replace("https://", "") + " th=" + (x.th ? "sim" : "não") + " | " + x.title));
     check("um item por PIN, com o link do pin (o aberto + o do cartão com link)", pni.map((x) => x.url.replace(/:\d+/, "")).sort().join(",") === "https://www.pinterest.com/pin/1111111111111111111/,https://www.pinterest.com/pin/2222222222222222222/", pni.map((x) => x.url).join(","));
     check("o link /repin do pin principal NÃO vaza para o cartão sem link (só 2 itens)", pni.length === 2, pni.length + " itens");
-    check("nenhum HLS/MP4 solto de pinimg.com na lista", ![...pns.keys()].some((u) => /pinimg\.com/.test(u)), [...pns.keys()].filter((u) => /pinimg/.test(u)).length + " vazaram");
+    const pinKeys = [...pns.keys()].filter((u) => /pinimg\.com/.test(u));
+    check("nenhum HLS/MP4 solto de pinimg.com na lista, a não ser a playlist PRINCIPAL do vídeo sem link de pin", pinKeys.length === 1 && /\/hls\/aa\/bb\/cc\/1{32}\.m3u8$/.test(pinKeys[0]), pinKeys.join(" | "));
     const pmain = pni.find((x) => /1111111111111111111/.test(x.url));
     const psec = pni.find((x) => /2222222222222222222/.test(x.url));
     check("pin principal: nome da API (sem o resto depois do \"|\") e aviso de 2 vídeos", !!pmain && pmain.title === "Motion poster com texto 3d (2 vídeos)", pmain ? pmain.title : "sem item");
@@ -357,6 +359,16 @@ function rawReq(port, method, p, body, headers = {}) {
     await clickFabMain();
     const dlp = (await rec()).filter((m) => m.type === "DOWNLOAD").pop();
     check("clicar no ícone do cartão com link pede o pin DELE", !!dlp && dlp.url.replace(/:\d+/, "") === "https://www.pinterest.com/pin/2222222222222222222/", dlp ? dlp.url : "sem DOWNLOAD");
+    // cartão SEM link (Pinterest sem login): o ícone baixa o stream desse vídeo (pelo hash do pôster), não avisa "não achei o link"
+    await goto(`https://www.pinterest.com:${fp}/pin/1111111111111111111/`);      // página nova: o ícone ainda estaria "ocupado" com o 1º download
+    const cpn2 = await page.eval(`(()=>{document.querySelectorAll("video")[1].scrollIntoView({block:"center"});const r=document.querySelectorAll("video")[1].getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()`);
+    await hover(cpn2[0], cpn2[1]);
+    await clickFabMain();
+    await sleep(3500);
+    const allr = await rec(); info("últimas mensagens", allr.slice(-6).map((m) => m.type + ":" + String(m.url || m.hash || "").slice(-40)));
+    const dlp2 = allr.filter((m) => m.type === "DOWNLOAD").pop();
+    check("cartão sem link: o ícone pede a playlist principal do vídeo (não o pin errado, nem aviso)", !!dlp2 && /\/hls\/aa\/bb\/cc\/1{32}\.m3u8$/.test(dlp2.url), dlp2 ? dlp2.url : "sem DOWNLOAD");
+    check("o pedido leva o nome do Pinterest, não o título da aba", !!dlp2 && /Pinterest/.test(dlp2.title || ""), dlp2 ? dlp2.title : "");
 
     /* ============================ Popup: verificar atualizações ============================ */
     console.log("\n== Popup: clicar na versão verifica a última release no GitHub (pelo servidor local)");

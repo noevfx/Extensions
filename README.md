@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.14-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.0.15-0066FF">
   <img alt="sistemas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
   <img alt="telemetria" src="https://img.shields.io/badge/telemetria-zero-171a24">
@@ -43,7 +43,7 @@ Feita para uso próprio e de amigos: **não está em nenhuma loja**; instala-se 
 ## Baixar
 
 **Pacote completo (extensão + aplicativo local + instaladores):**
-[`noevfx-downloader-3.0.14.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.14/noevfx-downloader-3.0.14.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
+[`noevfx-downloader-3.0.15.zip`](https://github.com/noevfx/Extensions/releases/download/v3.0.15/noevfx-downloader-3.0.15.zip)  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -91,7 +91,7 @@ navegador foi validado só no Windows. Se algum item vier sem miniatura ou com o
 - **Botão direito** no vídeo ou na página: baixar na qualidade nativa ou baixar todos.
 - **Qualidade**: a melhor que o player oferece, 1080p, 720p ou só áudio (M4A).
 - **Salvar um ou todos**, com **fila**, progresso, **cancelar** e aviso de vídeo já em download.
-- **Pasta padrão** escolhida por você (perguntada no primeiro uso), com opção de **subpasta por site**.
+- **Pasta padrão** escolhida por você (perguntada no primeiro uso). Sem escolher, vai para a pasta **Vídeos** do seu usuário, em `NoeVFX` (no Mac, `Filmes`). Opção de **subpasta por site**.
 - **Contador no ícone** da extensão: quantos vídeos existem na aba.
 - **Cookies do seu próprio navegador** (opcional) para o que exige login. Não contorna login nem assinatura.
 - **Atualização pelo próprio botão**: o app confere a última release no GitHub, valida o SHA-256 e troca os arquivos (veja [Atualizar](#atualizar)).
@@ -252,7 +252,7 @@ A extensão roda em modo desenvolvedor, então o navegador **não a atualiza soz
   Não atualiza com download em andamento.
 - **Pelo instalador (sempre funciona):** rode o instalador do zip novo e, em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar**.
 
-Versões anteriores à 3.0.14 não têm o botão: a primeira atualização para a 3.0.14 é pelo instalador. Configurações, pasta escolhida e
+Versões anteriores à 3.0.14 não têm o botão: a primeira atualização delas é pelo instalador do zip novo. Configurações, pasta escolhida e
 posições salvas são preservadas.
 
 ---

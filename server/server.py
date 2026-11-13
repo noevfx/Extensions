@@ -43,7 +43,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.14"
+VERSION = "3.0.15"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -144,13 +144,40 @@ def parse_extra_args(text):
 # --------------------------------------------------------------------------- #
 # configuração
 # --------------------------------------------------------------------------- #
-def default_output_dir() -> Path:
+def _videos_dir() -> Path:
+    """A pasta de vídeos de verdade do usuário, em qualquer sistema: Windows "Vídeos" (pasta conhecida do sistema: vale se foi movida,
+    está no OneDrive ou tem outro nome), macOS "Filmes" (~/Movies), Linux "Vídeos" (xdg-user-dir)."""
     home = Path.home()
     if IS_WIN:
-        return home / "Downloads" / "NoeVFX"
+        try:
+            import ctypes
+
+            class GUID(ctypes.Structure):
+                _fields_ = [("a", ctypes.c_ulong), ("b", ctypes.c_ushort), ("c", ctypes.c_ushort), ("d", ctypes.c_ubyte * 8)]
+
+            # FOLDERID_Videos = {18989B1D-99B5-455B-841C-AB7C74E4DDFC}
+            g = GUID(0x18989B1D, 0x99B5, 0x455B, (ctypes.c_ubyte * 8)(0x84, 0x1C, 0xAB, 0x7C, 0x74, 0xE4, 0xDD, 0xFC))
+            p = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(g), 0, None, ctypes.byref(p)) == 0 and p.value:
+                out = p.value
+                ctypes.windll.ole32.CoTaskMemFree(p)
+                return Path(out)
+        except Exception:
+            pass
+        return home / "Videos"
     if IS_MAC:
-        return home / "Movies" / "NoeVFX"
-    return home / "Videos" / "NoeVFX"
+        return home / "Movies"
+    try:
+        out = subprocess.run(["xdg-user-dir", "VIDEOS"], capture_output=True, text=True, timeout=3).stdout.strip()
+        if out and Path(out) != home:
+            return Path(out)
+    except Exception:
+        pass
+    return home / "Videos"
+
+
+def default_output_dir() -> Path:
+    return _videos_dir() / "NoeVFX"
 
 
 DEFAULT_CFG = {
@@ -593,6 +620,14 @@ def _videos_since(folder: Path, since: float) -> list:
 PIN_RE = re.compile(r"^https?://(?:[\w-]+\.)?pinterest\.[a-z.]+/pin/(\d{6,})", re.I)
 
 
+def _safe_name(t, n: int = 100) -> str:
+    t = re.sub(r'[<>:"/\\|?*%\x00-\x1f]', " ", str(t or ""))
+    return re.sub(r"\s+", " ", t).strip(" .")[:n]
+
+
+PIN_MEDIA_RE = re.compile(r"/videos/.*?([0-9a-f]{32})", re.I)
+
+
 def pin_pick(data: dict):
     """(título, [urls]) a partir da resposta da API: vídeo único, carrossel e story pin. MP4 se houver, senão o HLS."""
     lists = []
@@ -617,9 +652,7 @@ def pin_pick(data: dict):
         if best and best["url"] not in urls:
             urls.append(best["url"])
     title = str(data.get("seo_title") or data.get("title") or data.get("grid_title") or "").split(" | ")[0]
-    title = re.sub(r'[<>:"/\\|?*%\x00-\x1f]', " ", title)
-    title = re.sub(r"\s+", " ", title).strip(" .")[:100]
-    return title, urls
+    return _safe_name(title), urls
 
 
 def pin_media(pin_id: str):
@@ -918,6 +951,9 @@ def run_job(job_id: str, req: dict):
             Path(cookies_file).write_text(cookie_txt, encoding="utf-8")
 
         out_tmpl = str(out_dir / "%(title).100s [%(id)s].%(ext)s")
+        pmm = PIN_MEDIA_RE.search(urlparse(url or "").path or "")
+        if pmm and (urlparse(url or "").hostname or "").endswith("pinimg.com"):
+            out_tmpl = str(out_dir / ((_safe_name(req.get("title")) or "Pinterest") + " [" + pmm.group(1)[:8] + "].%(ext)s"))
         imp = supports_impersonate()
         single = req.get("single", True) is not False
         use_ff = ffmpeg_state()["ok"]          # FFmpeg que realmente EXECUTA (não basta o arquivo existir)

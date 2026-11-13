@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Noe VFX Downloader 3.0.14 - Instalador (macOS e Linux)          noevfx.com
+#  Noe VFX Downloader 3.0.15 - Instalador (macOS e Linux)          noevfx.com
 #
 #  Instala TUDO sozinho, sem sudo e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -75,7 +75,7 @@ case "$OS-$ARCH" in
 esac
 
 printf "\n\033[1m============================================================\033[0m\n"
-printf "        Noe VFX Downloader  v3.0.14  -  INSTALADOR\n"
+printf "        Noe VFX Downloader  v3.0.15  -  INSTALADOR\n"
 printf "                 https://noevfx.com\n"
 printf "\033[1m============================================================\033[0m\n\n"
 printf "Sistema:        %s (%s)\n" "$OS" "$ARCH"

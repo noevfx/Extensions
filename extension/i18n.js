@@ -26,6 +26,7 @@
       empty: "No stream captured yet. Play the video and click ⟳.",
       download: "Download",
       ready: "Ready.",
+      pinVideo: "Pinterest video",
       updTip: "Check for updates",
       updTitle: "Updates",
       updDesc: "The extension runs in developer mode, so the browser does not update it. This button asks GitHub for the latest version, checks its SHA-256 and replaces the installed files.",
@@ -62,7 +63,7 @@
       iconOffMsg: "Icon disabled. Detection keeps working.",
       saveFailMsg: "Could not save (local server offline?).",
       openFolderFail: "Could not open the folder (server offline?).",
-      folderLabel: "Downloads/NoeVFX",
+      folderLabel: "Videos/NoeVFX",
 
       /* content / panel */
       saveVideo: "Save video",
@@ -208,6 +209,7 @@
       empty: "Nenhum stream capturado ainda. Dê play no vídeo e clique em ⟳.",
       download: "Baixar",
       ready: "Pronto.",
+      pinVideo: "Vídeo do Pinterest",
       updTip: "Verificar atualizações",
       updTitle: "Atualizações",
       updDesc: "A extensão roda em modo desenvolvedor, então o navegador não a atualiza. Este botão pergunta ao GitHub qual é a última versão, confere o SHA-256 e troca os arquivos instalados.",
@@ -244,7 +246,7 @@
       iconOffMsg: "Ícone desativado. A detecção continua funcionando.",
       saveFailMsg: "Não consegui salvar (servidor local offline?).",
       openFolderFail: "Não consegui abrir a pasta (servidor offline?).",
-      folderLabel: "Downloads/NoeVFX",
+      folderLabel: "Vídeos/NoeVFX",
 
       saveVideo: "Salvar vídeo",
       downloadDefault: "Baixar na pasta padrão",

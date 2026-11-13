@@ -6,8 +6,8 @@ Para quem for continuar o projeto (pessoa ou agente). O resto da documentação:
 
 ## Estado (13/11/2026)
 
-- **Versão atual: 3.0.14** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Publicada no GitHub como `v3.0.14` (a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
-- Pacote: `release\v3.0.14\noevfx-downloader-3.0.14.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X, Facebook e Pinterest (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
+- **Versão atual: 3.0.15** (`extension\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Ainda não publicada no GitHub (a publicada é a `v3.0.14`; a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
+- Pacote: `release\v3.0.15\noevfx-downloader-3.0.15.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X, Facebook e Pinterest (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
 - **Testes de sites** (`tests/e2e_sites.js`, 50 checagens com sites simulados em HTTPS; `tests/real_site.js` e `tests/dl_url.js` para site real). Ainda não vistos em feed real logado: X, Facebook e feed do Pinterest (sem login o Pinterest não põe link nos cartões). Limites: lives (cancelar perde o parcial), vídeos com DRM, Mac/Linux sem máquina real.
 - **GitHub:** as releases **`v3.0.5`, `v3.0.12` e `v3.0.14`** estão publicadas (cada uma com o seu zip); o SHA-256 do asset está nas notas e em `release\v3.0.5\SHA256.txt`. A `v3.0.1` ficou com um aviso nas notas: tem um bug (leitura da extensão recusada com 403), **não distribuir**.
 - **PC do Eduardo:** instalação feita pelo próprio Eduardo (3.0.12 em teste em 13/11/2026; antes: 3.0.5) (backup em `_backups\instalacao-do-pc-2026-11-13-antes-3.0.5`). Espelho no Drive feito.

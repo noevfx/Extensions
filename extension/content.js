@@ -382,9 +382,37 @@
           if (m) return `https://www.pinterest.com/pin/${m[1]}/`;
         }
       }
+      // layout sem cartão conhecido: sobe a partir do vídeo e pega o 1º link /pin/ID/ que apareça, parando quando o bloco
+      // já tem mais de um vídeo (aí o link seria de outro cartão)
+      for (let el = v.parentElement, d = 0; el && el !== document.body && d < 16; el = el.parentElement, d++) {
+        if (el.querySelectorAll("video").length > 1) break;
+        for (const a of el.querySelectorAll('a[href*="/pin/"]')) {
+          const m = new URL(a.getAttribute("href"), location.href).pathname.match(PIN_LINK_RE);
+          if (m) return `https://www.pinterest.com/pin/${m[1]}/`;
+        }
+      }
       const here = location.pathname.match(PIN_PATH_RE);
       if (here && !v.closest('[data-test-id="relatedPins"]') && !card) return `https://www.pinterest.com/pin/${here[1]}/`;
     } catch (_) {}
+    return "";
+  }
+
+  // Cartão do feed SEM link de pin (o Pinterest não põe link quando você não está logado): o vídeo se reconhece pelo "hash" do
+  // pôster, e o endereço do stream (o que o player pediu) o fundo da extensão guarda por esse mesmo hash.
+  const pinHashCache = new Map();      // hash -> { url, at }
+  function pinFeedUrl(v) {
+    const u = pinCardUrl(v);
+    if (u) return u;
+    const m = String(v.poster || "").match(/([0-9a-f]{32})\.\d+\.jpe?g/i);
+    if (!m) return "";
+    const h = m[1].toLowerCase();
+    const c = pinHashCache.get(h);
+    if (c && c.url) return c.url;
+    if (c && Date.now() - c.at < 2500) return "";
+    pinHashCache.set(h, { url: "", at: Date.now() });
+    sendMsg({ type: "PIN_STREAM", hash: h }, 4000).then((r) => {
+      if (r && r.ok && r.url) { pinHashCache.set(h, { url: r.url, at: Date.now() }); publish(true); }
+    });
     return "";
   }
 
@@ -616,11 +644,12 @@
       vids.forEach((v) => {
         const r = v.getBoundingClientRect();
         if (r.width < 120 || r.height < 120) return;
-        const u = pinCardUrl(v);
+        const u = pinFeedUrl(v);
         if (!u || u === mainUrl) return;
-        const info = pinInfo(u.match(/\/pin\/(\d+)/)[1]);
+        const pid = u.match(/pinterest\.com\/pin\/(\d+)/);
+        const info = pid ? pinInfo(pid[1]) : null;
         const own = frameOf(v) || (/^https?:/i.test(v.poster || "") ? v.poster : "") || (info && info !== "-" ? info.thumb : "");
-        push(u, "Pinterest", own, pinTitle(u, "Pinterest"), v.paused ? 1 : 2);
+        push(u, "Pinterest", own, pinTitle(u, pid ? "Pinterest" : t("pinVideo")), v.paused ? 1 : 2);
       });
     }
 
@@ -1003,7 +1032,7 @@
       </div>
       <div class="dest">
         <span>📁</span>
-        <span class="path" title="${esc(dest)}">${esc(dest ? folderName(dest) : "Downloads/NoeVFX")}</span>
+        <span class="path" title="${esc(dest)}">${esc(dest ? folderName(dest) : t("folderLabel"))}</span>
         <button type="button" class="change">${t("change")}</button>
       </div>
       <div class="grid">
@@ -1119,7 +1148,7 @@
     let primary = page;
     let fallback = "";
     const manyVideos = vids > 1;
-    const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : isPin() ? pinCardUrl(state.video) : "") : "";
+    const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : isPin() ? pinFeedUrl(state.video) : "") : "";
     if (igUrl) primary = igUrl;
     else if (direct && /^https?:/i.test(direct) && !isYT()) {
       if (manyVideos) { primary = direct; fallback = page; }
@@ -1144,7 +1173,10 @@
       toast(/^pt/i.test(navigator.language) ? "Instagram: não achei o link deste post. Clique na data do post (abre o post) e baixe de lá." : "Instagram: could not find this post's link. Click the post date to open it, then download from there.", "err", 7000);
       return;
     }
-    if (isPin() && !igUrl) {
+    if (isPin() && !igUrl) {                 // ainda procurando o stream (ele chega em instantes): tenta de novo antes de avisar
+      await new Promise((x) => setTimeout(x, 1800));
+      const again = state.video ? pinFeedUrl(state.video) : "";
+      if (again) { state.busy = false; return startOne(quality); }
       state.busy = false;
       toast(/^pt/i.test(navigator.language) ? "Pinterest: não achei o link deste pin. Abra o pin (clique nele) e baixe de lá." : "Pinterest: could not find this pin's link. Open the pin (click it) and download from there.", "err", 7000);
       return;
@@ -1167,7 +1199,7 @@
       url: primary,
       fallbackStream: fallback,
       referer: (window !== window.top && /^https?:/i.test(document.referrer || "")) ? document.referrer : page,
-      title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : igUrl && isPin() ? pinTitle(igUrl, document.title) : document.title,
+      title: igUrl && isIG() ? igTitle(state.video) : igUrl && isX() ? xTitle(state.video) : igUrl && isFB() ? fbTitle(state.video) : igUrl && isPin() ? pinTitle(igUrl, t("pinVideo")) : document.title,
       pageUrl: page,
       quality: quality || "best"
     });
@@ -1290,7 +1322,7 @@
     menu.className = "noevfx-dl-menu noevfx-hidden";
     const dest = (state.cfg && state.cfg.output_dir) || "";
     menu.innerHTML = `
-      <div class="noevfx-dl-dest" title="${esc(dest)}">📁 ${esc(dest ? folderName(dest) : "Downloads/NoeVFX")}</div>
+      <div class="noevfx-dl-dest" title="${esc(dest)}">📁 ${esc(dest ? folderName(dest) : t("folderLabel"))}</div>
       <button type="button" data-q="best">${t("ytBest")}</button>
       <button type="button" data-q="1080">${t("yt1080")}</button>
       <button type="button" data-q="720">${t("yt720")}</button>

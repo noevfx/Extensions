@@ -408,6 +408,14 @@ class SiteRulesCase(unittest.TestCase):
             res2 = m.update_apply_package(pacote("ok2.zip", "2.0.0"), "2.0.0", root, "windows")
             self.assertNotEqual(res["backup"], res2["backup"])
 
+    def test_pasta_padrao_e_nome_do_video_do_pinterest(self):
+        d = self.m.default_output_dir()
+        self.assertEqual(d.name, "NoeVFX")
+        self.assertTrue(d.parent.exists())                      # a pasta de vídeos do usuário (no Windows vem do sistema)
+        self.assertEqual(self.m._safe_name('Meu: vídeo/1 | 100%?'), "Meu vídeo 1 100")
+        m = self.m.PIN_MEDIA_RE.search("/videos/iht/hls/70/dd/03/70dd03035339892e98ea13d46116d6a7.m3u8")
+        self.assertEqual(m.group(1)[:8], "70dd0303")
+
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
             c = self.cmd(u)
