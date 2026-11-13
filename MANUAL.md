@@ -1,4 +1,4 @@
-# Noe VFX Downloader 3.0.16 — Manual rápido
+# Noe VFX Downloader 3.0.17 — Manual rápido
 
 **Site:** https://noevfx.com · **Navegadores:** Chrome, Edge, Brave, Opera, Vivaldi · **Sistemas:** Windows, macOS, Linux
 
@@ -58,7 +58,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 | Botão de atualizar não acha nada | a extensão está carregada da pasta extraída do zip: remova e carregue a pasta **instalada** |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
-**Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.
+**Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Com mais de um perfil do navegador, os outros perfis mostram o botão **Recarregar extensão** no popup. Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.
 **Desinstalar:** `DESINSTALAR_NOEVFX.bat` / `bash desinstalar-noevfx.sh`; depois **Remover** a extensão.
 
 Use apenas com conteúdo que você tem o direito de salvar. O app **não** contorna DRM, login, assinatura

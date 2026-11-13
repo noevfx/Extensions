@@ -6,6 +6,23 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.0.17] — 2026-11-13
+
+### Corrigido
+- **Atualizar com mais de um perfil do navegador:** a extensão de cada perfil é uma cópia separada, mas o app local é um só. Ao clicar em
+  "Atualizar agora" em um perfil, o app e os arquivos iam para a versão nova e o **outro perfil ficava com a extensão antiga na memória e sem
+  nenhuma faixa** (o app já estava na versão nova, então não havia "nova versão" para mostrar). Agora, quando o app está numa versão mais nova
+  que a da extensão, o popup mostra sozinho a faixa **"O app já está na X, mas esta extensão ainda é a Y"** com o botão **Recarregar extensão**
+  (também nas Configurações). Um clique e o perfil fica igual ao app. O botão só recarrega por clique: se a extensão estiver carregada de
+  outra pasta (a do zip), recarregar não muda a versão, e o aviso continua até carregar a pasta instalada.
+
+### Como foi testado
+- Navegador de teste com o app 1 versão à frente da extensão: o popup abre com a faixa pedindo para recarregar e nunca oferece
+  "Atualizar agora" nesse caso. 55 checagens ao todo; 34 testes do servidor.
+- Visto no uso real: dois perfis do Edge com a mesma pasta instalada; só o que atualizou mostrava a versão nova.
+
+---
+
 ## [3.0.16] — 2026-11-13
 
 ### Corrigido

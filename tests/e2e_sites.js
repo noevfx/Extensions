@@ -58,6 +58,9 @@ function rawReq(port, method, p, body, headers = {}) {
   const extDir = path.join(tmp, "ext"), srvDir = path.join(tmp, "srv"), dl = path.join(tmp, "dl");
   fs.cpSync(path.join(ROOT, "extension"), extDir, { recursive: true });
   fs.mkdirSync(srvDir); fs.copyFileSync(path.join(ROOT, "server", "server.py"), path.join(srvDir, "server.py"));
+  // o app do teste fica 1 versão À FRENTE da extensão (como num 2º perfil do navegador depois de atualizar pelo 1º)
+  { const sp0 = path.join(srvDir, "server.py"); const mv = JSON.parse(fs.readFileSync(path.join(ROOT, "extension", "manifest.json"), "utf8")).version.split(".").map(Number);
+    fs.writeFileSync(sp0, fs.readFileSync(sp0, "utf8").replace(/VERSION = "[\d.]+"/, `VERSION = "${mv[0]}.${mv[1]}.${mv[2] + 1}"`)); }
   for (const f of ["background.js", "options.js"]) { const p = path.join(extDir, f); fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("http://127.0.0.1:8765", "http://127.0.0.1:" + sp)); }
 
   // 3 vídeos de cores bem diferentes (a miniatura de cada um precisa ser DIFERENTE das outras)
@@ -381,13 +384,17 @@ function rawReq(port, method, p, body, headers = {}) {
     /* ============================ Popup: verificar atualizações ============================ */
     console.log("\n== Popup: clicar na versão verifica a última release no GitHub (pelo servidor local)");
     await goto(`chrome-extension://${EXT_ID}/popup.html`, 3000);
+    // ao abrir, sem clicar em nada: o app (do teste) está 1 versão à frente da extensão -> a faixa pede para RECARREGAR a extensão
+    const bootMsg = await page.eval(`document.getElementById("updMsg").textContent`);
+    const bootMode = await page.eval(`document.getElementById("updBtn").hidden ? "oculto" : document.getElementById("updBtn").dataset.mode`);
+    check("app mais novo que a extensão: a faixa aparece sozinha pedindo para recarregar (outro perfil já atualizou)", /ainda é a|still/.test(bootMsg) && bootMode === "reload", bootMsg + " | botão: " + bootMode);
     await page.eval(`document.getElementById("ver").click()`);
     await sleep(3500);
     const updTxt = await page.eval(`document.getElementById("updMsg").textContent`);
     const updVis = await page.eval(`!document.getElementById("updRow").hidden`);
     info("mensagem", updTxt);
-    check("a faixa de atualização aparece com o resultado (versão mais recente / nova versão / erro claro)", updVis && /mais recente|latest|Nova versão|New version|Não consegui|Could not/.test(updTxt), updTxt);
-    check("a pasta de desenvolvimento nunca oferece 'Atualizar agora'", await page.eval(`document.getElementById("updBtn").hidden`));
+    check("a faixa de atualização aparece com o resultado (versão mais recente / nova versão / erro claro)", updVis && /mais recente|latest|Nova versão|New version|Não consegui|Could not|ainda é a|still/.test(updTxt), updTxt);
+    check("nunca oferece 'Atualizar agora' quando o app já está na frente: só 'Recarregar extensão'", await page.eval(`(()=>{const b=document.getElementById("updBtn"); return !b.hidden && b.dataset.mode==="reload" && /Recarregar|Reload/.test(b.textContent)})()`));
 
     console.log("\n== Pin aberto no Pinterest LOGADO (vídeo grande dentro de relatedPins, sem CloseupMainPin, pôster sem código)");
     await goto(`https://www.pinterest.com:${fp}/pin/3333333333333333333/`);

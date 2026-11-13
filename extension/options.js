@@ -314,16 +314,20 @@ function copyText(txt, btn) {
   const msg = $("updMsg"), chk = $("updCheck"), app = $("updApply");
   if (!chk || !app) return;
   let info = null;
-  const show = (m, canApply) => { msg.textContent = m; app.hidden = !canApply; if (canApply) app.textContent = t("updApply"); };
+  const ext = chrome.runtime.getManifest().version;
+  const behind = (a, b) => { const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; } return false; };
+  const show = (m, canApply, mode) => { msg.textContent = m; app.hidden = !canApply; app.dataset.mode = mode || "apply"; if (canApply) app.textContent = mode === "reload" ? t("updReload") : t("updApply"); };
   chk.addEventListener("click", async () => {
     show(t("updChecking"), false);
     const r = await send({ type: "UPDATE_CHECK", force: true });
     if (!r || !r.ok) { show(r && r.error ? r.error : t("updFail"), false); return; }
     info = r;
+    if (behind(r.current, ext)) { show(t("updReloadMsg", r.current, ext), true, "reload"); return; }
     if (r.newer) show(t("updNew", r.latest) + (!r.can_apply && r.reason ? " — " + r.reason : ""), r.can_apply);
     else show(t("updLatest", r.current), false);
   });
   app.addEventListener("click", async () => {
+    if (app.dataset.mode === "reload") { chrome.runtime.reload(); return; }
     if (!info || !info.newer || !confirm(t("updConfirm", info.latest))) return;
     show(t("updApplying"), false);
     const r = await send({ type: "UPDATE_APPLY" });

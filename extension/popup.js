@@ -83,9 +83,11 @@ async function loadConfig(force) {
 }
 
 /* ---------------------------------------------------------------- server -- */
+let srvVersion = "";
 async function checkHealth() {
   const r = await send({ type: "HEALTH" });
   serverOnline = !!(r && r.ok);
+  srvVersion = (r && r.data && r.data.version) || "";
   srv.textContent = serverOnline ? t("online") : t("offline");
   srv.classList.toggle("on", serverOnline);
   srv.classList.toggle("off", !serverOnline);
@@ -392,11 +394,25 @@ async function downloadAll() {
 const updRow = $("updRow"), updMsg = $("updMsg"), updBtn = $("updBtn");
 let updInfo = null, updBusy = false;
 
-function showUpd(msg, canApply) {
+// 1.2.3 -> [1,2,3]; > 0 quando a é mais nova que b
+function verCmp(a, b) {
+  const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
+  return 0;
+}
+const extVersion = chrome.runtime.getManifest().version;
+
+// mode "reload": o app local JÁ foi atualizado (por este ou por outro perfil do navegador) e esta extensão ainda é a antiga
+function showUpd(msg, canApply, mode) {
   updRow.hidden = false;
   updMsg.textContent = msg;
   updBtn.hidden = !canApply;
-  if (canApply) updBtn.textContent = t("updApply");
+  updBtn.dataset.mode = mode || "apply";
+  if (canApply) updBtn.textContent = mode === "reload" ? t("updReload") : t("updApply");
+}
+function showReloadIfBehind(serverVer) {
+  if (verCmp(serverVer, extVersion) > 0) { showUpd(t("updReloadMsg", serverVer, extVersion), true, "reload"); return true; }
+  return false;
 }
 
 async function checkUpdate(manual) {
@@ -405,6 +421,7 @@ async function checkUpdate(manual) {
   const r = await send({ type: "UPDATE_CHECK", force: !!manual });
   if (!r || !r.ok) { if (manual) showUpd(r && r.error ? r.error : t("updFail"), false); return; }
   updInfo = r;
+  if (showReloadIfBehind(r.current)) return;
   if (r.newer) {
     showUpd(t("updNew", r.latest) + (!r.can_apply && r.reason ? " — " + r.reason : ""), r.can_apply);
   } else if (manual) {
@@ -414,6 +431,7 @@ async function checkUpdate(manual) {
 }
 
 async function applyUpdate() {
+  if (updBtn.dataset.mode === "reload") { chrome.runtime.reload(); return; }
   if (updBusy || !updInfo || !updInfo.newer) return;
   if (!confirm(t("updConfirm", updInfo.latest))) return;
   updBusy = true;
@@ -442,7 +460,7 @@ async function boot() {
     checkHealth()
   ]);
   currentTab = tabs[0] || null;
-  if (serverOnline) checkUpdate(false);               // em silêncio: só aparece a faixa se houver versão nova
+  if (serverOnline && !showReloadIfBehind(srvVersion)) checkUpdate(false);      // em silêncio: só aparece a faixa se houver versão nova
   const u = (currentTab && currentTab.url) || "";
   if (u.startsWith("http")) urlInput.value = u;
 
