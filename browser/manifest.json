@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "3.1.1",
+  "version": "3.2.0",
   "minimum_chrome_version": "116",
   "description": "__MSG_extDesc__",
   "default_locale": "en",
@@ -37,7 +37,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["edition.js", "i18n.js", "content.js"],
+      "js": ["edition.js", "i18n.js", "collection.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_start",
       "all_frames": true

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Noe VFX Downloader 3.1.1 - Instalador (macOS e Linux)          noevfx.com
+#  Noe VFX Downloader 3.2.0 - Instalador (macOS e Linux)          noevfx.com
 #
 #  Instala TUDO sozinho, sem sudo e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -75,7 +75,7 @@ case "$OS-$ARCH" in
 esac
 
 printf "\n\033[1m============================================================\033[0m\n"
-printf "        Noe VFX Downloader  v3.1.1  -  INSTALADOR\n"
+printf "        Noe VFX Downloader  v3.2.0  -  INSTALADOR\n"
 printf "                 https://noevfx.com\n"
 printf "\033[1m============================================================\033[0m\n\n"
 printf "Sistema:        %s (%s)\n" "$OS" "$ARCH"
@@ -93,7 +93,7 @@ fi
 
 if [ ! -f "$BASE/extension/manifest.json" ]; then
   err "Voce abriu o instalador de dentro do arquivo ZIP."
-  printf "   Extraia o noevfx-downloader.zip primeiro e rode de novo.\n\n"
+  printf "   Extraia o ZIP do Noe VFX Downloader primeiro e rode de novo.\n\n"
   exit 1
 fi
 command -v curl >/dev/null 2>&1 || { err "O comando 'curl' nao foi encontrado (instale com o gerenciador do sistema)."; exit 1; }

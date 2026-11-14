@@ -2,7 +2,7 @@
 //   node tests/popup_group.js
 "use strict";
 const fs = require("fs"), path = require("path"), assert = require("assert");
-const src = fs.readFileSync(path.join(__dirname, "..", "browser", "popup.js"), "utf8");
+const src = fs.readFileSync(path.join(__dirname, "..", "browser", "popup.js"), "utf8").replace(/\r\n/g, "\n");
 const grab = (re) => { const m = src.match(re); if (!m) throw new Error("não achei no popup.js: " + re); return m[0]; };
 const code = [grab(/const RANK = \{[^}]*\};/), grab(/function globoIdOf[^\n]*\n/), grab(/function groupize\(list\) \{[\s\S]*?\n\}\n/)].join("\n");
 const groupize = new Function(code + "; return groupize;")();

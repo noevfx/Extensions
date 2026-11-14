@@ -1,197 +1,126 @@
-# Noe VFX Downloader — do primeiro clique ao projeto
+# Do vídeo ao seu projeto
 
-**[Abrir o manual visual](https://noevfx.github.io/noevfx-downloader/instalar.html)** · [Apresentação](https://noevfx.github.io/noevfx-downloader/) · [Downloads](https://github.com/noevfx/noevfx-downloader/releases)
+**Manual 3.2.0** · [Versão ilustrada e interativa](https://noevfx.github.io/noevfx-downloader/) · [Downloads](https://github.com/noevfx/noevfx-downloader/releases)
 
-Você pode começar de dois jeitos: **encontrar uma referência no navegador** e enviar ao editor, ou **colar os links recebidos do cliente** no painel Adobe. O resultado é o mesmo: os arquivos na pasta do trabalho e dentro do projeto.
+Encontre referências no navegador e envie ao Premiere ou After Effects. Recebeu links do cliente? Cole no painel e continue editando. Uma playlist de músicas também pode virar uma seleção de áudios.
 
-A extensão é para **Chrome, Edge, Brave, Opera, Vivaldi e outros navegadores Chromium**. A integração Adobe está na edição **for Editors**. Este manual descreve a 3.1.1 em validação; confira a versão publicada antes de baixar.
+> As telas usam as interfaces do produto com dados demonstrativos. Consulte Releases para saber qual versão está publicada; código e manual novos não são, por si só, uma atualização disponível.
 
-## Escolha o que você quer fazer
+## 1. Instale e conecte
 
-1. [Instalar e começar](#1-instalar-e-começar)
-2. [Achei um vídeo no navegador](#2-achei-um-vídeo-no-navegador)
-3. [Recebi links do cliente ou do roteiro](#3-recebi-links-do-cliente-ou-do-roteiro)
-4. [Quero baixar vários vídeos](#4-quero-baixar-vários-vídeos)
-5. [Escolher qualidade e compatibilidade](#5-escolher-qualidade-e-compatibilidade)
-6. [Configurar a pasta e o botão](#6-configurar-a-pasta-e-o-botão)
-7. [Atualizar ou desinstalar](#7-atualizar-ou-desinstalar)
-8. [Algo não funcionou](#8-algo-não-funcionou)
+1. Baixe a edição desejada e extraia o ZIP inteiro.
+2. Windows: abra `windows/INSTALAR_NOEVFX.bat`. macOS: `mac/INSTALAR-MAC.command`. Linux: `bash instalar-noevfx.sh` na pasta linux.
+3. Siga o guia do instalador para carregar a pasta **extension instalada** no navegador.
+4. Abra o popup e confira **Online**. Defina a pasta dos downloads comuns.
+5. Em **for Editors**, feche e abra Premiere/After Effects e salve seu projeto numa pasta do trabalho.
 
-## 1. Instalar e começar
+A extensão é para **Chromium**: Chrome, Edge, Brave, Opera, Vivaldi e compatíveis. Os exemplos usam o Edge; Firefox e Safari não usam este pacote. O Noe VFX Downloader salva na pasta. For Editors também envia e importa no Adobe, em versões compatíveis com CEP, no Windows/macOS.
 
-**Quer só salvar vídeos numa pasta?** Escolha o pacote **basic**. **Quer enviar ao Premiere/After Effects e importar pelo painel?** Escolha **for Editors**, o pacote sem “basic” no nome. Uma edição substitui a outra.
+[Instalação com telas e etapas Adobe →](https://noevfx.github.io/noevfx-downloader/instalar.html)
 
-1. Baixe o ZIP em [Releases](https://github.com/noevfx/noevfx-downloader/releases) e use **Extrair tudo**.
-2. Abra o instalador da pasta do seu sistema:
+## 2. Vi uma referência no navegador
 
-   | Sistema | O que abrir |
-   |---|---|
-   | Windows | `windows/INSTALAR_NOEVFX.bat` |
-   | macOS | `mac/INSTALAR-MAC.command` — botão direito → Abrir na primeira vez |
-   | Linux | No terminal, dentro de `linux/`: `bash instalar-noevfx.sh` |
+![Player web com botão, dropdown de qualidade e destinos Adobe](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/video-envio-3.2.0.png)
 
-3. Espere o instalador preparar o aplicativo e as ferramentas. Precisa de internet; a instalação padrão é por usuário, sem senha de administrador. Leia os avisos antes de fechar.
-4. No navegador, abra a página de extensões: `edge://extensions` no Edge ou `chrome://extensions` no Chrome. Nos demais Chromium, use o gerenciador de extensões.
-5. Ligue **Modo do desenvolvedor**, escolha a opção de carregar uma extensão sem pacote e selecione a pasta **extension instalada**. O guia e o Explorer/Finder abertos pelo instalador ajudam a encontrá-la.
-6. Abra o popup do Downloader: o selo deve mostrar **Online**. Escolha sua pasta de downloads.
+1. Passe o mouse sobre o vídeo e abra o **botão azul** do Downloader. Ele pertence à extensão, não ao site.
+2. Escolha **Nativa**, **1080p** ou **720p** no dropdown.
+3. Para sua pasta, use **Baixar na pasta padrão**. Para o projeto, escolha **Premiere** ou **After Effects**.
+4. Acompanhe o progresso. O app prepara a compatibilidade quando necessário e o componente Adobe importa no projeto aberto.
 
-> **A pasta certa faz diferença.** No Windows, use `%LOCALAPPDATA%/NoeVFXDownloader/extension`. Evite a pasta extraída do ZIP: o navegador pode continuar lendo essa cópia enquanto o atualizador modifica a instalação.
+O envio Adobe usa a qualidade escolhida nesse menu. O projeto precisa estar salvo e o componente instalado/ativo. Você pode arrastar o ícone para outra posição no player.
 
-**Para usar com Adobe:** na edição for Editors, reinicie o Premiere/After Effects depois de instalar. Abra e salve um projeto. Procure **Janela → Extensões → Noe VFX for Editors** e confira se o painel mostra o projeto. O painel usa CEP; a disponibilidade depende da versão do editor. No macOS, a validação física ainda está pendente.
+[Experimente o menu sobre o vídeo →](https://noevfx.github.io/noevfx-downloader/navegador.html#player)
 
-[Ver a instalação ilustrada →](https://noevfx.github.io/noevfx-downloader/instalar.html)
+## 3. Prefiro o popup da extensão
 
-## 2. Achei um vídeo no navegador
+![Popup atual com qualidade, áudio, playlist e destinos Adobe](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/popup-editors-3.2.0.png)
 
-Você está pesquisando uma linguagem, um movimento ou uma referência. Encontrou o vídeo certo?
+Abra o ícone na barra do navegador. Use o endereço atual ou cole outro. O dropdown define a qualidade do download rápido e do envio ao Adobe.
 
-1. **Passe o mouse sobre o player** e clique no botão azul do Downloader.
-2. Em **Enviar para o projeto**, escolha **Premiere** ou **After Effects**.
-3. Acompanhe o andamento e confira o arquivo no projeto aberto.
+- **Baixar o vídeo atual:** baixa só esse vídeo.
+- **Só áudio · escolher formato…:** abre a seleção com esse vídeo para escolher MP3 ou outro formato.
+- **Links e playlists…:** abre uma aba independente para montar uma seleção.
+- **Escolher vídeos:** abre os vídeos detectados nessa página para você marcar.
+- **Ver playlist deste vídeo…:** aparece em contextos reconhecidos, como vídeos do YouTube com uma playlist.
 
-<table><tr><th>Na página web</th><th>No projeto</th></tr><tr><td width="50%"><img src="img/video-envio-3.1.1.png" alt="Player em uma página web e menu do Downloader com os destinos Adobe"></td><td width="50%"><img src="img/painel-adobe-3.1.1.png" alt="Painel Adobe acompanhando os arquivos e sua importação"><p>O arquivo é salvo na pasta do trabalho e importado na pasta/bin <code>_Noe VFX Downloader</code> do projeto.</p></td></tr></table>
+A engrenagem abre as configurações. Atualizar procura novamente os vídeos. Se nada aparecer, dê play por alguns segundos. Em feeds, prefira o botão sobre o vídeo desejado para apontar o post certo.
 
-<sub>Interfaces atuais com dados de exemplo. O projeto precisa estar salvo e aberto, com o componente Adobe instalado e ativo.</sub>
+## 4. Links do documento ou do cliente
 
-O envio usa a **qualidade padrão** configurada. Se quiser escolher qualidade e destino no mesmo pedido, use **Vários links** ou o painel Adobe. Os botões 1080p, 720p, Nativa e Só áudio do menu são atalhos para a sua pasta de downloads.
+Cole uma lista com um endereço por linha **ou vá colando um link após o outro**. Cada colagem reconhecida vira um item separado; não precisa apertar Enter entre colagens. Links idênticos já adicionados são ignorados.
 
-**Prefere abrir pela barra do navegador?** O popup também oferece os destinos Adobe, permite colar outra URL e lista os vídeos detectados na aba.
+Se você digitou em vez de colar, use **Adicionar links** ou Enter. Os endereços precisam começar com `http://` ou `https://`. Confira o contador e os itens identificados. O × remove uma origem antes do download; as caixas marcam quais itens baixar.
 
-<p align="center"><img src="img/popup-editors-3.1.1.png" width="388" alt="Popup atual com Enviar para o projeto, Premiere, After Effects e Vários links"></p>
+![Seleção de links com tipo de mídia e destino](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/varios-links-3.2.0.png)
 
-Você pode arrastar o botão azul para outra posição. Para desligá-lo, use o controle do ícone; o popup continua disponível. Em páginas que carregam o vídeo aos poucos, dê play por um instante e procure novamente.
+## 5. Playlist inteira ou só alguns itens
 
-[Experimente o tutorial visual navegador → projeto →](https://noevfx.github.io/noevfx-downloader/manual.html#pelo-navegador)
+1. Em **Links e playlists…**, cole o endereço da playlist na plataforma. No painel Adobe, use o mesmo campo de links.
+2. Espere os títulos. **Ler a lista não inicia downloads.**
+3. Escolha **Vídeo** e a qualidade, ou **Só áudio** e o formato.
+4. Use **Selecionar todos**, **Limpar seleção** ou as caixas individuais.
+5. Escolha o destino e confira o botão: por exemplo, **Baixar 3 áudios em MP3**.
+6. Confirme para enviar a seleção ao app local.
 
-## 3. Recebi links do cliente ou do roteiro
+![Playlist com formato MP3 e itens selecionáveis](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/playlist-audio-3.2.0.png)
 
-Continue no editor. Não precisa abrir e baixar cada endereço separadamente.
+**Vídeo + playlist:** um link de vídeo do YouTube com `list=` começa como vídeo individual. Use **Ver playlist** se quiser abrir o conjunto. Uma playlist de vídeos também é diferente dos manifestos `.m3u8`/`.mpd` usados internamente por um player.
 
-1. Abra **Noe VFX for Editors** no Premiere ou After Effects.
-2. Confira o nome do projeto e a pasta mostrados no painel.
-3. Cole **um link por linha**.
-4. Escolha **Qualidade nativa**, **Até 1080p** ou **Até 720p**.
-5. Clique em **Baixar e importar** e acompanhe o resultado de cada item.
+A leitura mostra até 500 itens e avisa quando há mais. A seleção aceita até 500 itens; divida listas maiores. Privados/removidos ficam desativados quando a plataforma informa a situação. Alguns erros de acesso só aparecem durante o download. Nem toda plataforma expõe suas playlists.
 
-<p align="center"><img src="img/painel-adobe-3.1.1.png" width="420" alt="Painel Adobe atual com vários links, seleção de qualidade e botão Baixar e importar"></p>
+Playlists que exigem login dependem do acesso permitido e da sessão do navegador. O painel Adobe não lê os cookies do navegador; tente pelo navegador conectado se necessário. O app não contorna DRM ou restrições de acesso.
 
-### Onde o arquivo fica?
+[Passo a passo interativo de playlists →](https://noevfx.github.io/noevfx-downloader/navegador.html#playlists)
 
-O app salva os vídeos na pasta `_Noe VFX Downloader` do trabalho. O painel também os importa na pasta/bin de mesmo nome dentro do projeto.
+## 6. Dentro do Premiere ou After Effects
 
-- Se o projeto está em `Filme/Premiere/corte.prproj`, os vídeos vão para `Filme/_Noe VFX Downloader`.
-- Se o projeto está solto em `Filme/corte.prproj`, o destino também é `Filme/_Noe VFX Downloader`.
-- No After Effects, vale o mesmo princípio para a pasta do trabalho.
+![Painel Adobe atual com seleção e importação](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-3.2.0.png)
 
-Se não identificar o projeto, o app avisa. Se o download terminar e a importação falhar, confira a mensagem e a pasta do trabalho: o arquivo pode continuar disponível para importação manual.
+1. Abra **Janela → Extensões → Noe VFX Downloader for Editors**; o caminho pode variar conforme a versão do editor.
+2. Confira o projeto reconhecido no topo e cole os links ou a playlist.
+3. Marque os itens e escolha vídeo ou áudio.
+4. Confira o resumo e clique em **Baixar e importar…**.
+5. Acompanhe cada item até a mensagem de importação.
 
-[Ver os dois editores no guia visual →](https://noevfx.github.io/noevfx-downloader/manual.html#passos)
+No painel, o destino é o projeto do próprio programa. Os arquivos ficam na pasta `_Noe VFX Downloader` do trabalho e são organizados no projeto. O app fixa o projeto de destino ao enviar a lista; mudar de projeto durante a fila não redireciona os próximos arquivos.
 
-## 4. Quero baixar vários vídeos
+Download e importação são etapas distintas. Se o arquivo baixou mas não entrou no projeto, confira o aviso e a pasta do trabalho. Mantenha o projeto de destino aberto e o componente Adobe ativo para importar.
 
-| O que você tem | O caminho mais direto |
+[Os dois caminhos ilustrados, com Premiere e After Effects →](https://noevfx.github.io/noevfx-downloader/manual.html)
+
+## 7. Qualidade de vídeo e formatos de áudio
+
+| Opção | O que você recebe |
 |---|---|
-| Vários vídeos detectados na mesma página | **Baixar todos os vídeos desta página** no menu integrado ao player. Salva na pasta de downloads. |
-| Uma lista de links de páginas diferentes | **Vários links** no popup: cole a lista, escolha qualidade e destino e use **Baixar tudo**. |
-| Uma lista e o projeto já aberto no editor | Cole os links no painel Adobe e use **Baixar e importar**. |
+| Nativa | Melhor resolução disponível entre os formatos acessíveis. |
+| 1080p / 720p | Limite de resolução; não amplia um original menor. |
+| MP3 | Escolha prática e amplamente compatível. Pasta ou Adobe. |
+| M4A | Áudio AAC em arquivo compacto. Pasta ou Adobe. |
+| WAV | Áudio sem compressão, maior. Pasta ou Adobe. |
+| FLAC / Opus | Para salvar em pasta pelo navegador; não são oferecidos nos destinos Adobe. |
 
-![Tela atual de vários links com qualidade e destino](img/varios-links-3.1.1.png)
+WAV/FLAC não recuperam qualidade perdida na plataforma. FFmpeg e ffprobe são necessários para entregar o formato escolhido. Se faltarem, o app avisa em vez de entregar outro formato silenciosamente.
 
-Em **Vários links**, o menu **Salvar em** oferece pasta padrão, outra pasta e, na edição for Editors, projeto do Premiere ou After Effects. O envio ao projeto exige o componente Adobe instalado e ativo.
+**MP4 é um recipiente, não um codec.** No fluxo Adobe, o app prefere H.264 na resolução escolhida quando a plataforma oferece esse formato. Se já estiver compatível, preserva o vídeo. Se só o áudio precisar de AAC, converte só o áudio. AV1/VP9 podem exigir conversão de vídeo depois do download.
 
-Links repetidos e textos que não forem endereços são filtrados. Pedir o mesmo vídeo enquanto ele já baixa não deve criar outro download. A fila mostra o resultado dos itens; não é uma biblioteca permanente de tudo que você já baixou.
+Quando converter, o progresso informa a CPU/GPU usada. No Windows, a seleção identifica o dispositivo indicado para alto desempenho; a comparação pode preferir a CPU. O resultado fica na sessão, sem separar resoluções. Se a GPU falhar, tenta pelo processador. Isso não garante a melhor velocidade em todo vídeo e hardware.
 
-## 5. Escolher qualidade e compatibilidade
+[Qualidade, áudio e GPU em detalhes →](https://noevfx.github.io/noevfx-downloader/formatos.html)
 
-| Opção | Resultado |
-|---|---|
-| **Nativa / Máxima** | A melhor resolução disponível para aquele download. |
-| **1080p** | Até 1080p; não amplia um vídeo menor. |
-| **720p** | Até 720p; costuma gerar arquivo menor. |
-| **Só áudio** | Salva o som em M4A no navegador. Não aparece no painel Adobe. |
+## 8. Fila, cancelamento e atualização
 
-**Precisa abrir no editor?** O envio ao projeto já pede compatibilidade H.264. Nos downloads comuns do navegador, você pode ligar **Converter para H.264** quando precisar.
+Após confirmar, você pode fechar a aba: **a fila continua no app local**. Reabra Links e playlists para ver a última lista enviada nesse perfil. No Adobe, reabra o painel no mesmo programa para acompanhar a última lista dele.
 
-**Se a plataforma já oferece H.264 na resolução escolhida, o app prefere esse formato e preserva o vídeo.** Se vídeo e áudio vierem separados, apenas junta os dois. Se só o áudio precisar virar AAC, converte só o áudio. Se o vídeo só estiver disponível em AV1/VP9, converte depois de baixar.
+**Cancelar lista** cancela os itens ativos e os que ainda esperam. Arquivos já concluídos ficam no disco. O app precisa continuar rodando: reiniciar o serviço ou desligar o computador interrompe a fila, sem restauração automática.
 
-MP4 é o recipiente, não o codec: um `.mp4` também pode conter AV1. A compatibilidade com seu editor depende do conteúdo, da versão do programa e do hardware.
+Para migrar para o novo padrão da 3.2.0:
 
-<details>
-<summary><b>Como a CPU e a GPU entram nesse processo?</b></summary>
+1. Baixe `NoeVFX-Downloader-3.2.0.zip` ou `NoeVFX-Downloader-for-Editors-3.2.0.zip`.
+2. Extraia o ZIP e rode o instalador **por cima**, inclusive se você usa 3.1.0 ou 3.1.1. **Não precisa desinstalar.** Sua configuração e os vídeos baixados são preservados.
+3. Recarregue a extensão da pasta instalada, reinicie os editores e dê F5 nas páginas abertas. Não use a cópia da extensão extraída do ZIP.
 
-Na 3.1.1, no Windows, o app identifica a GPU indicada para alto desempenho e testa se consegue usá-la. O progresso mostra o modelo. Para vídeos longos, compara uma pequena amostra na GPU e na CPU; se a CPU ganhar, usa o processador. Se a GPU falhar durante a conversão, tenta pela CPU.
+Os atualizadores antigos não reconhecem os nomes novos. Essa migração pelo instalador é necessária uma vez; a partir da 3.2.0, o botão Atualizar agora reconhece o novo padrão para as próximas releases. Uma release precisa estar publicada com um pacote e hash válidos para aparecer no botão.
 
-A identificação e o vencedor ficam guardados durante a sessão. A comparação ainda não é separada por resolução, então não garante a escolha mais rápida em todo vídeo. A seleção entre placas da mesma marca foi simulada; duas Intel reais ainda precisam de validação. Fora do Windows permanece o caminho anterior de seleção por codificador disponível.
+Para remover: feche os editores, rode o desinstalador e confira os avisos. Ele tenta remover o app e o painel Adobe do usuário atual. Remova o cadastro da extensão em cada navegador/perfil manualmente. Vídeos baixados são preservados; a configuração do app é removida.
 
-</details>
-
-[Entenda os formatos e veja exemplos →](https://noevfx.github.io/noevfx-downloader/formatos.html)
-
-## 6. Configurar a pasta e o botão
-
-Abra a **engrenagem** no popup.
-
-- **Pasta padrão:** escolha onde salvar downloads comuns. Sem escolha anterior, o app usa `NoeVFX` dentro da pasta de vídeos do usuário. O envio ao projeto segue o destino do trabalho, não essa pasta.
-- **Comportamento do botão:** “Perguntar antes de salvar” abre o menu; “Salvar direto” usa a qualidade padrão. Para escolher um editor no menu, mantenha a opção de perguntar.
-- **Ícone visível:** você pode desligar o botão sobre os vídeos e continuar usando o popup.
-- **Cookies:** para conteúdo que exige login, entre na plataforma no navegador. Essa opção permite usar sua sessão, sem contornar restrições de acesso.
-- **Subpasta por site:** organiza downloads comuns por domínio.
-
-Clique em **Salvar configurações** após alterar os campos. Nas mesmas configurações, os indicadores de ferramentas ajudam a verificar se o app local está pronto.
-
-[Ver as configurações ilustradas →](https://noevfx.github.io/noevfx-downloader/configuracoes.html)
-
-## 7. Atualizar ou desinstalar
-
-### Vou migrar do repositório antigo
-
-Recebeu o pacote do novo `noevfx-downloader`? **Rode o instalador desse pacote e recarregue a extensão instalada.** Não dependa do botão das versões antigas para atravessar a mudança de endereço.
-
-Normalmente é possível instalar por cima e manter as preferências. Se desinstalar primeiro, anote pasta e configurações: os arquivos de configuração também serão removidos.
-
-### Já estou no novo fluxo e quero atualizar
-
-1. Espere os downloads ativos terminarem.
-2. Abra o popup. Se houver uma versão publicada nova, use **Atualizar agora**. Para conferir, clique na versão ou em **Verificar atualizações** nas configurações.
-3. Depois, dê **F5** nas páginas com vídeo. Em outros perfis do navegador, use **Recarregar extensão** quando solicitado.
-
-O botão depende de uma **release publicada**, não apenas de código novo no GitHub. Na 3.1.1, se o painel Adobe faltar, o app pode tentar instalá-lo a partir da release da mesma versão; o popup informa as etapas ou a falha. Se não conseguir, rode o instalador for Editors e reinicie o editor.
-
-### Quero desinstalar
-
-1. Feche os programas Adobe.
-2. Rode `DESINSTALAR_NOEVFX.bat` no Windows ou `bash desinstalar-noevfx.sh` no macOS/Linux.
-3. Leia os avisos: o desinstalador tenta remover aplicativo, inicialização automática e painel Adobe do usuário atual.
-4. **Remova a extensão em cada navegador e perfil** onde a instalou.
-
-Os vídeos baixados são preservados. Arquivos em uso podem impedir a remoção completa; confira os avisos antes de considerar concluído.
-
-## 8. Algo não funcionou
-
-| O que aconteceu | Primeiro passo |
-|---|---|
-| **Offline** | Rode o instalador novamente para iniciar o app e conferir as ferramentas. |
-| O vídeo não aparece | Dê play por um instante e atualize a busca no popup. |
-| Atualizei, mas parece antigo | Recarregue a extensão em cada perfil, dê F5 na página e confira se carregou a pasta instalada. |
-| O painel Adobe não aparece | Confira a edição for Editors, reinicie o editor e veja os avisos da instalação. A versão do editor precisa suportar CEP. |
-| O projeto não foi reconhecido | Abra e salve o projeto, deixe o correto ativo e confira a mensagem do painel. |
-| Baixou, mas não importou | Confira a mensagem de importação e procure o arquivo na pasta do trabalho. |
-| Veio sem áudio | Confira FFmpeg nas configurações; ele une vídeo e áudio de muitas plataformas. |
-| O editor não abre o arquivo | Ligue a compatibilidade H.264 e baixe novamente. Um arquivo antigo não é convertido sozinho. |
-
-**Ainda precisa de ajuda?** Use **Configurações → Copiar diagnóstico** e informe o que fez e a mensagem recebida. Revise o material antes de enviar: não publique cookies, tokens, configurações pessoais ou links privados de clientes.
-
-[Mais soluções](https://noevfx.github.io/noevfx-downloader/ajuda.html) · [Abrir issue](https://github.com/noevfx/noevfx-downloader/issues) · [labs@noevfx.com](mailto:labs@noevfx.com)
-
-<details>
-<summary><b>Plataformas, privacidade e limites</b></summary>
-
-A disponibilidade varia por site, vídeo e sessão. Há testes de players e feeds simulados, além de validações reais descritas no histórico; isso não garante acesso a todo conteúdo. macOS/Linux e alguns cenários de hardware ainda precisam de validação física.
-
-Conteúdo protegido por DRM não é suportado. Conteúdo privado exige acesso válido. Cancelar uma live pode não preservar um arquivo parcial utilizável. Use apenas vídeos que você tenha autorização para salvar e usar.
-
-Não há conta nem telemetria da Noé VFX. Os pedidos vão ao app local e aos serviços necessários para baixar ou atualizar. [Privacidade](../PRIVACY.md) · [Termos](../TERMS.md) · [Licença](../LICENSE).
-
-</details>
-
-<sub>Manual da versão 3.1.1 · renderizações das interfaces atuais com dados de exemplo · [noevfx.com](https://noevfx.com)</sub>
+[Atualizar ou desinstalar →](https://noevfx.github.io/noevfx-downloader/atualizar.html) · [Resolver problemas →](https://noevfx.github.io/noevfx-downloader/ajuda.html) · [Contato](mailto:labs@noevfx.com)

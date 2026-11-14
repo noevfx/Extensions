@@ -44,8 +44,14 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.1.1"
+VERSION = "3.2.0"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
+AUDIO_FORMATS = {"mp3", "m4a", "wav", "flac", "opus"}
+ADOBE_AUDIO_FORMATS = {"mp3", "m4a", "wav"}
+COLLECTION_LIMIT = 500
+INSPECT_SEM = threading.BoundedSemaphore(2)
+BATCHES = {}
+BATCH_LOCK = threading.RLock()
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("NOEVFX_PORT", "8765"))
@@ -1144,7 +1150,7 @@ def normalize_target(url: str, referer: str):
 # post do Instagram OU tweet do X: podem ter VÁRIOS vídeos (e fotos no meio); baixa todos os vídeos e pula as fotos
 IG_POST_URL_RE = re.compile(
     r"^https?://(?:(?:www\.)?instagram\.com/(?:[\w.]+/)?(?:p|reel|reels|tv)/[\w-]+|(?:www\.|mobile\.)?(?:x|twitter)\.com/\w+/status/\d+)", re.I)
-VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v", ".m4a", ".mp3")
+VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".mov", ".m4v", ".m4a", ".mp3", ".wav", ".flac", ".opus")
 
 
 def _videos_since(folder: Path, since: float) -> list:
@@ -1471,7 +1477,7 @@ def run_job(job_id: str, req: dict):
 
     out_dir = Path(cfg.get("output_dir") or DEFAULT_CFG["output_dir"]).expanduser()
     project_dir = req.get("project_dir") or ""
-    compat = bool(req.get("force_compat")) or bool(cfg.get("compat_h264", False))
+    compat = bool(req.get("force_compat")) or (req["compat_override"] if isinstance(req.get("compat_override"), bool) else bool(cfg.get("compat_h264", False)))
     if project_dir:
         try:
             Path(project_dir).mkdir(parents=True, exist_ok=True)
@@ -1526,8 +1532,12 @@ def run_job(job_id: str, req: dict):
                 ex = list(extra)
                 if quality != "audio" and compat:
                     ex += ["-S", COMPAT_SORT]
-                if quality == "audio" and ff_on:
-                    ex += ["-x", "--audio-format", "m4a"]       # (se der erro de FFmpeg, o attempt refaz sem isto)
+                if quality == "audio":
+                    if not ff_on:
+                        raise RuntimeError("FFmpeg e ffprobe são necessários para entregar o formato de áudio escolhido. Rode o instalador novamente.")
+                    if (req.get("audio_format") or "m4a") != "m4a":
+                        fm = "bestaudio/best"
+                    ex += ["-x", "--audio-format", req.get("audio_format") or "m4a", "--audio-quality", "0"]
                 job_update(job_id, ffmpeg_problem=False)
                 return run_ytdlp(job_id, u, fm, tmpl or out_tmpl, rf, ua, cookies_file, ex, imp_flag, single, ff_on)
 
@@ -1632,7 +1642,8 @@ def _prune_jobs_locked():
         JOBS.pop(jid, None)
         CANCELED.discard(jid)
     if len(JOBS) > MAX_JOBS_KEPT:
-        done = sorted((v for v in JOBS.values() if v["status"] not in ACTIVE), key=lambda v: v.get("created", 0))
+        done = sorted((v for v in JOBS.values() if v["status"] not in ACTIVE
+                       and not (v.get("import_app") and not v.get("imported"))), key=lambda v: v.get("created", 0))
         for v in done[: len(JOBS) - MAX_JOBS_KEPT]:
             JOBS.pop(v["id"], None)
             CANCELED.discard(v["id"])
@@ -1645,7 +1656,10 @@ def new_job(req: dict):
         _prune_jobs_locked()
         active = [j for j in JOBS.values() if j["status"] in ACTIVE]
         for j in active:
-            if j.get("url") == req["url"] and j.get("quality") == quality and j.get("import_app", "") == req.get("import_app", ""):
+            if (j.get("url") == req["url"] and j.get("quality") == quality
+                    and j.get("audio_format", "m4a") == req.get("audio_format", "m4a")
+                    and j.get("import_app", "") == req.get("import_app", "")
+                    and j.get("requested_dir", "") == req.get("project_dir", "")):
                 return j["id"], True
         if len(active) >= MAX_ACTIVE:
             raise QueueFull()
@@ -1656,6 +1670,8 @@ def new_job(req: dict):
             "progress": "na fila",
             "url": req["url"],
             "quality": quality,
+            "audio_format": req.get("audio_format") or "m4a",
+            "requested_dir": req.get("project_dir", ""),
             "title": req.get("title", ""),
             "created": time.time(),
             "import_app": req.get("import_app", ""),
@@ -1902,6 +1918,192 @@ class TooLarge(Exception):
     pass
 
 
+def inspect_collection(body):
+    """Lê metadados, nunca baixa mídia. Manifestos HLS/DASH não são coleções."""
+    url = clean_url(body.get("url"))
+    if not url or MEDIA_FILE_RE.search(urlparse(url).path):
+        raise ValueError("Cole o endereço da playlist na plataforma, não um manifesto ou arquivo de mídia.")
+    if not INSPECT_SEM.acquire(blocking=False):
+        raise RuntimeError("Já estou lendo duas listas. Aguarde e tente novamente.")
+    cookie_path = ""
+    try:
+        yt = exe_path("yt-dlp")
+        if not yt:
+            raise RuntimeError("yt-dlp não encontrado. Rode o instalador novamente.")
+        cmd = [yt, "--ignore-config", "--flat-playlist", "--dump-single-json", "--skip-download",
+               "--yes-playlist", "--ignore-errors", "--playlist-end", str(COLLECTION_LIMIT + 1),
+               "--socket-timeout", "12", "--retries", "1", "--extractor-retries", "1"]
+        cookies = clean_cookies(body.get("cookies"))
+        if cookies and load_cfg().get("use_cookies", True):
+            fd, cookie_path = tempfile.mkstemp(prefix="nvf_list_", suffix=".txt")
+            os.close(fd)
+            os.chmod(cookie_path, 0o600)
+            Path(cookie_path).write_text(cookies, encoding="utf-8")
+            cmd += ["--cookies", cookie_path]
+        referer = clean_url(body.get("referer"))
+        if referer:
+            cmd += ["--referer", referer]
+        cmd.append(url)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                    timeout=80, creationflags=NO_WINDOW, env=child_env(), cwd=str(BASE))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("A playlist demorou a responder. Tente novamente ou cole links individuais.") from None
+        if len(result.stdout) > 12 * 1024 * 1024:
+            raise RuntimeError("Esta lista é grande demais para a leitura. Use uma lista menor.")
+        try:
+            data = json.loads(result.stdout)
+        except (ValueError, TypeError):
+            raise RuntimeError("Não consegui ler a playlist. Confira o link, o acesso pela sua conta e tente novamente.") from None
+        return collection_entries(data, url)
+    finally:
+        if cookie_path:
+            Path(cookie_path).unlink(missing_ok=True)
+        INSPECT_SEM.release()
+
+
+def collection_entries(data, source):
+    raw = data.get("entries")
+    if not isinstance(raw, list):
+        raise ValueError("Esse endereço não retornou uma playlist. Use-o como vídeo individual.")
+    items = []
+    for index, entry in enumerate(raw[:COLLECTION_LIMIT]):
+        entry = entry if isinstance(entry, dict) else {}
+        url = clean_url(entry.get("webpage_url") or entry.get("url"))
+        video_id = str(entry.get("id") or "")
+        if not url and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) and "youtube" in str(data.get("extractor") or source).lower():
+            url = "https://www.youtube.com/watch?v=" + video_id
+        available = bool(url) and entry.get("availability") not in ("private", "needs_auth", "premium_only", "subscriber_only")
+        title = str(entry.get("title") or "Item indisponível")[:300]
+        if title in ("[Private video]", "[Deleted video]"):
+            available = False
+        items.append({"url": url, "title": title, "index": index + 1, "available": available,
+                      "thumbnail": clean_url(entry.get("thumbnail") or next((t.get("url") for t in reversed(entry.get("thumbnails") or []) if isinstance(t, dict) and t.get("url")), "")),
+                      "duration": entry.get("duration") if isinstance(entry.get("duration"), (int, float)) else None})
+    return {"title": str(data.get("title") or "Playlist")[:300], "items": items,
+            "truncated": len(raw) > COLLECTION_LIMIT, "limit": COLLECTION_LIMIT}
+
+
+def prepare_download(body):
+    url = clean_url(body.get("url"))
+    if not url:
+        raise ValueError("URL inválida")
+    quality = body.get("quality") or load_cfg().get("default_quality") or "best"
+    if not isinstance(quality, str) or quality not in FORMAT_MAP:
+        raise ValueError("Qualidade inválida")
+    audio_format = body.get("audio_format") or "m4a"  # clientes antigos continuam em M4A
+    if not isinstance(audio_format, str) or audio_format not in AUDIO_FORMATS:
+        raise ValueError("Formato de áudio inválido")
+    target = body.get("target") or ""
+    if not isinstance(target, str) or (target and target not in ADOBE_APPS):
+        raise ValueError("Destino inválido")
+    if target and quality == "audio" and audio_format not in ADOBE_AUDIO_FORMATS:
+        raise ValueError("Para importar no Adobe, escolha MP3, M4A ou WAV. FLAC e Opus podem ser salvos em uma pasta.")
+    req = {"url": url, "quality": quality, "audio_format": audio_format,
+           "fallback_stream": clean_url(body.get("fallbackStream") or body.get("fallback_stream")),
+           "referer": clean_url(body.get("referer"), 2048),
+           "fallback_referer": clean_url(body.get("fallbackReferer") or body.get("fallback_referer"), 2048),
+           "userAgent": clean_header(body.get("userAgent"), 300), "title": clean_header(body.get("title"), 300),
+           "cookies": clean_cookies(body.get("cookies")), "organizeBySite": body.get("organizeBySite") is True,
+           "single": body.get("single") is not False}
+    if isinstance(body.get("compat"), bool):
+        req["compat_override"] = body["compat"]
+    if target:
+        proj = find_adobe_project(target)
+        if proj.get("status") != "ok":
+            raise RuntimeError(proj.get("message") or "Abra e salve o projeto no editor.")
+        req.update(project_dir=proj["dest"], force_compat=True, organizeBySite=False, import_app=target, project=proj["project"])
+    else:
+        od = body.get("outDir")
+        if isinstance(od, str) and od.strip():
+            path = Path(od.strip()).expanduser()
+            if not path.is_absolute():
+                raise ValueError("Pasta inválida")
+            req.update(project_dir=str(path), organizeBySite=False)
+        if body.get("compat") is True:
+            req["force_compat"] = True
+    return req
+
+
+def batch_snapshot(batch_id):
+    with BATCH_LOCK:
+        batch = BATCHES.get(batch_id)
+        if not batch:
+            return None
+        records = []
+        with JOBS_LOCK:
+            for item in batch["items"]:
+                record = dict(item)
+                job = JOBS.get(item.get("job_id"))
+                if job:
+                    record.update({key: job.get(key) for key in ("status", "progress", "error", "import_app", "imported", "import_error", "file")})
+                    item.update(record)  # preserva o resultado quando o histórico de jobs for podado
+                records.append(record)
+        return {"id": batch_id, "items": records, "canceled": batch["canceled"], "finished": batch.get("finished", False)}
+
+
+def create_batch(body):
+    raw = body.get("items")
+    if not isinstance(raw, list) or not 1 <= len(raw) <= COLLECTION_LIMIT:
+        raise ValueError("Selecione entre 1 e %d itens." % COLLECTION_LIMIT)
+    # Resolve projeto/destino uma vez: mudar de projeto durante a fila não desvia os próximos arquivos.
+    base = prepare_download(dict(body, url=raw[0].get("url") if isinstance(raw[0], dict) else ""))
+    if not base.get("project_dir"):
+        cfg = load_cfg()
+        base["project_dir"] = cfg.get("output_dir") or DEFAULT_CFG["output_dir"]
+        base["batch_site_folder"] = bool(cfg.get("organize_by_site"))
+    items, seen = [], set()
+    for item in raw:
+        if not isinstance(item, dict) or not clean_url(item.get("url")):
+            raise ValueError("Há um endereço inválido na seleção.")
+        url = clean_url(item["url"])
+        if url not in seen:
+            seen.add(url)
+            items.append({"url": url, "title": clean_header(item.get("title"), 300), "status": "pending",
+                          "fallbackStream": clean_url(item.get("fallbackStream")), "referer": clean_url(item.get("referer"))})
+    batch_id = uuid.uuid4().hex[:16]
+    with BATCH_LOCK:
+        for key in list(BATCHES):
+            if BATCHES[key].get("finished") and time.time() - BATCHES[key]["created"] > JOB_TTL:
+                del BATCHES[key]
+        if sum(not b.get("finished") for b in BATCHES.values()) >= 10:
+            raise RuntimeError("Há muitas listas em andamento. Aguarde uma terminar.")
+        BATCHES[batch_id] = {"items": items, "canceled": False, "created": time.time()}
+    def dispatch():
+        while True:
+            with BATCH_LOCK:
+                batch = BATCHES[batch_id]
+                with JOBS_LOCK:
+                    for item in items:
+                        job = JOBS.get(item.get("job_id"))
+                        if job:
+                            item.update({key: job.get(key) for key in ("status", "progress", "error", "import_app", "imported", "import_error", "file")})
+                    active = sum(JOBS.get(it.get("job_id"), {}).get("status") in ACTIVE for it in items)
+                pending = next((it for it in items if it["status"] == "pending"), None)
+                if batch["canceled"]:
+                    for it in items:
+                        if it["status"] == "pending":
+                            it["status"] = "canceled"
+                    pending = None
+                if pending and active < 8:
+                    req = dict(base, url=pending["url"], title=pending["title"], single=True,
+                               fallback_stream=pending["fallbackStream"], referer=pending["referer"] or base.get("referer", ""))
+                    if base.get("batch_site_folder"):
+                        site = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", urlparse(req["url"]).netloc) or "outros"
+                        req["project_dir"] = str(Path(base["project_dir"]) / site)
+                    try:
+                        jid, _ = new_job(req)
+                        pending.update(job_id=jid, status="queued")
+                    except QueueFull:
+                        pass  # aguarda vaga sem descartar itens
+                if not pending and not active:
+                    batch["finished"] = True
+                    return
+            time.sleep(0.5)
+    threading.Thread(target=dispatch, daemon=True, name="playlist-" + batch_id).start()
+    return batch_id
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "NoeVFX/" + VERSION
     protocol_version = "HTTP/1.1"
@@ -2008,6 +2210,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         qs = parse_qs(parsed.query)
 
+        if parsed.path == "/batch":
+            snapshot = batch_snapshot(qs.get("id", [""])[0])
+            self._json(200 if snapshot else 404, snapshot or {"error": "Lista não encontrada nesta sessão do app."})
+            return
+
         if parsed.path == "/health":
             yt = exe_path("yt-dlp")
             fst = ffmpeg_state()
@@ -2092,6 +2299,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         if self._auth(path) != "ext":
+            self.close_connection = True  # corpo recusado não vira um segundo pedido na conexão
             self._json(403, {"error": "forbidden"})
             return
 
@@ -2145,44 +2353,47 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200 if ok else 500, {"ok": ok})
             return
 
+        if path == "/inspect":
+            try:
+                self._json(200, inspect_collection(body))
+            except ValueError as exc:
+                self._json(400, {"error": str(exc)})
+            except RuntimeError as exc:
+                self._json(409, {"error": str(exc)})
+            except Exception:
+                self._json(500, {"error": "Não consegui ler esta lista. Confira o link e tente novamente."})
+            return
+
+        if path == "/batch":
+            try:
+                self._json(200, {"batch_id": create_batch(body)})
+            except ValueError as exc:
+                self._json(400, {"error": str(exc)})
+            except RuntimeError as exc:
+                self._json(409, {"error": str(exc)})
+            return
+
+        if path == "/batch/cancel":
+            with BATCH_LOCK:
+                batch = BATCHES.get(str(body.get("id") or ""))
+                if batch:
+                    batch["canceled"] = True
+                    for item in batch["items"]:
+                        if item.get("job_id"):
+                            cancel_job(item["job_id"])
+            self._json(200 if batch else 404, {"ok": bool(batch)})
+            return
+
         if path == "/download":
-            url = clean_url(body.get("url"))
-            if not url:
-                self._json(400, {"error": "URL inválida"})
+            try:
+                req = prepare_download(body)
+            except ValueError as exc:
+                self._json(400, {"error": str(exc)})
                 return
-            quality = body.get("quality")
-            target = body.get("target") if body.get("target") in ADOBE_APPS else ""
-            proj = None
-            if target:
-                proj = find_adobe_project(target)
-                if proj.get("status") != "ok":
-                    self._json(409, {"error": proj.get("message") or "Projeto não encontrado.", "project_status": proj.get("status")})
-                    return
-            req = {
-                "url": url,
-                "fallback_stream": clean_url(body.get("fallbackStream") or body.get("fallback_stream")),
-                "referer": clean_url(body.get("referer"), 2048),
-                "fallback_referer": clean_url(body.get("fallbackReferer") or body.get("fallback_referer"), 2048),
-                "userAgent": clean_header(body.get("userAgent"), 300),
-                "quality": quality if quality in FORMAT_MAP else "",
-                "title": clean_header(body.get("title"), 300),
-                "cookies": clean_cookies(body.get("cookies")),
-                "organizeBySite": body.get("organizeBySite") is True,
-                "single": body.get("single") is not False,
-            }
-            if proj:
-                req.update(project_dir=proj["dest"], force_compat=True, organizeBySite=False, import_app=target,
-                           project=proj["project"])
-            else:
-                od = body.get("outDir")
-                if isinstance(od, str) and od.strip():
-                    od_path = Path(od.strip()).expanduser()
-                    if not od_path.is_absolute():
-                        self._json(400, {"error": "pasta inválida"})
-                        return
-                    req.update(project_dir=str(od_path), organizeBySite=False)
-                if body.get("compat") is True:
-                    req["force_compat"] = True
+            except RuntimeError as exc:
+                self._json(409, {"error": str(exc)})
+                return
+            proj = {"dest": req["project_dir"], "project": req["project"]} if req.get("import_app") else None
             try:
                 job_id, dup = new_job(req)
             except QueueFull:
@@ -2267,7 +2478,7 @@ def _updater_loop():
 # --------------------------------------------------------------------------- #
 UPDATE_REPO = "noevfx/noevfx-downloader"
 # Endereço atual; aceita também URLs históricas do repositório antes da renomeação.
-UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/(?:Extensions|noevfx-downloader)/releases/download/v\d+\.\d+\.\d+/noevfx-downloader(?:-basic)?-\d+\.\d+\.\d+\.zip$")
+UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/(?:Extensions|noevfx-downloader)/releases/download/v\d+\.\d+\.\d+/(?:NoeVFX-Downloader(?:-for-Editors)?|noevfx-downloader(?:-basic)?)-\d+\.\d+\.\d+\.zip$")
 UPDATE_LOCK = threading.Lock()
 _UPD_CACHE = {"at": 0.0, "data": None}
 UPDATE_MAX_BYTES = 80 * 1024 * 1024
@@ -2303,14 +2514,19 @@ def update_info(rel: dict) -> dict:
         out["reason"] = "release sem versão válida"
         return out
     out["newer"] = _vtuple(tag) > _vtuple(VERSION)
-    name = ("noevfx-downloader-basic-%s.zip" if installed_edition() == "basic" else "noevfx-downloader-%s.zip") % tag
+    name = ("NoeVFX-Downloader-%s.zip" if installed_edition() == "basic" else "NoeVFX-Downloader-for-Editors-%s.zip") % tag
     asset = next((a for a in (rel.get("assets") or []) if a.get("name") == name), None)
     sha = ""
     if asset:
         sha = str(asset.get("digest") or "").lower().replace("sha256:", "")
         out["asset"] = str(asset.get("browser_download_url") or "")
     if not re.match(r"^[0-9a-f]{64}$", sha):
-        m = re.search(r"\b([0-9a-fA-F]{64})\b", str(rel.get("body") or ""))      # plano B: o hash que está nas notas da release
+        notes = str(rel.get("body") or "")
+        line = next((line for line in notes.splitlines() if name in line and re.search(r"\b[0-9a-fA-F]{64}\b", line)), "")
+        # Dois pacotes têm hashes diferentes: a nota deve identificar o arquivo correspondente.
+        if not line and len(rel.get("assets") or []) == 1:
+            line = notes
+        m = re.search(r"\b([0-9a-fA-F]{64})\b", line)
         sha = m.group(1).lower() if m else ""
     out["sha256"] = sha
     if not out["newer"]:
@@ -2450,7 +2666,7 @@ def ensure_panel():
                          headers={"User-Agent": "NoeVFX-Downloader", "Accept": "application/vnd.github+json"})
         with url_open(req, timeout=20) as r:
             rel = json.load(r)
-        name = "noevfx-downloader-%s.zip" % VERSION
+        name = "NoeVFX-Downloader-for-Editors-%s.zip" % VERSION
         asset = next((x for x in rel.get("assets") or [] if x.get("name") == name), None)
         url = str((asset or {}).get("browser_download_url") or "")
         sha = str((asset or {}).get("digest") or "").lower().replace("sha256:", "")

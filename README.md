@@ -1,21 +1,21 @@
-<p align="center"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/site/assets/logo-noevfx-oficial.svg" width="110" alt="Noé VFX"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/site/assets/logo-noevfx-azul.svg" width="110" alt="Noé VFX"></p>
 
 <h1 align="center">Do vídeo ao seu projeto.</h1>
 <p align="center"><b>Noe VFX Downloader · for Editors</b><br>Encontre uma referência no navegador. Envie para o Premiere ou After Effects.<br>Recebeu links do cliente? Cole a lista no painel e continue editando.</p>
 
 <p align="center"><a href="https://noevfx.github.io/noevfx-downloader/"><b>Conheça o produto ↗</b></a>　·　<a href="https://noevfx.github.io/noevfx-downloader/instalar.html"><b>Instale e comece ↗</b></a>　·　<a href="https://github.com/noevfx/noevfx-downloader/blob/main/docs/MANUAL-DE-USO.md"><b>Manual completo ↗</b></a>　·　<a href="https://github.com/noevfx/noevfx-downloader/releases"><b>Downloads ↗</b></a></p>
 
-**Para navegadores Chromium:** Chrome, Edge, Brave, Opera e Vivaldi. Painéis Adobe na edição **for Editors**, para Windows e macOS. A edição comum também funciona no Linux.
+**Para navegadores Chromium:** Chrome, Edge, Brave, Opera e Vivaldi. Painéis Adobe na edição **for Editors**, para Windows e macOS. O Noe VFX Downloader também funciona no Linux.
 
-> **Versão:** o código e o manual já descrevem a 3.1.1 em validação. Confira a versão disponível em [Releases](https://github.com/noevfx/noevfx-downloader/releases). O repositório agora se chama `noevfx-downloader`; quem usava o endereço antigo deve instalar o pacote novo para migrar.
+> **Versão:** o código e o manual já descrevem a 3.2.0 em validação. Confira a versão disponível em [Releases](https://github.com/noevfx/noevfx-downloader/releases). O repositório agora se chama `noevfx-downloader`; os pacotes agora se chamam NoeVFX-Downloader e NoeVFX-Downloader-for-Editors. Para migrar de qualquer versão anterior à 3.2.0, rode o instalador novo por cima uma vez.
 
 ## Você encontra. O projeto recebe.
 
 <table>
 <tr><th>No navegador</th><th>No Premiere e no After Effects</th></tr>
 <tr>
-<td width="50%"><a href="https://noevfx.github.io/noevfx-downloader/navegador.html"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/popup-editors-3.1.1.png" alt="Popup atual: Enviar para o projeto, botões Premiere e After Effects e Vários links"></a></td>
-<td width="50%"><a href="https://noevfx.github.io/noevfx-downloader/manual.html"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-3.1.1.png" alt="Painel Adobe atual com uma lista de links, qualidade, Baixar e importar e resultado de cada vídeo"></a></td>
+<td width="50%"><a href="https://noevfx.github.io/noevfx-downloader/navegador.html"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/popup-editors-3.2.0.png" alt="Popup atual: Enviar para o projeto, botões Premiere e After Effects e Links e playlists…"></a></td>
+<td width="50%"><a href="https://noevfx.github.io/noevfx-downloader/manual.html"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-3.2.0.png" alt="Painel Adobe atual com uma lista de links, qualidade, Baixar e importar e resultado de cada vídeo"></a></td>
 </tr>
 <tr><td>Achou uma referência? Use <b>Enviar para o projeto</b>.</td><td>Recebeu uma lista? Cole os links e use <b>Baixar e importar</b>.</td></tr>
 </table>
@@ -33,38 +33,54 @@ O editor precisa estar aberto, com o projeto salvo e o componente Adobe instalad
 <details>
 <summary><b>Veja o botão sobre o player e o menu de envio</b></summary>
 
-<p align="center"><a href="https://noevfx.github.io/noevfx-downloader/manual.html#pelo-navegador"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/video-envio-3.1.1.png" width="420" alt="Página web com player, botão do Downloader e menu com os destinos Premiere e After Effects"></a></p>
+<p align="center"><a href="https://noevfx.github.io/noevfx-downloader/manual.html#pelo-navegador"><img src="https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/video-envio-3.2.0.png" width="420" alt="Página web com player, botão do Downloader e menu com os destinos Premiere e After Effects"></a></p>
 
 </details>
 
-### “O cliente mandou vários links.”
+### “O cliente mandou links e playlists.”
 
-Abra **Noe VFX for Editors** no Premiere ou After Effects. Cole um link por linha, escolha a qualidade e clique em **Baixar e importar**. O painel acompanha cada vídeo e organiza os arquivos na pasta/bin `_Noe VFX Downloader` do projeto.
+Abra **Noe VFX Downloader for Editors** no Premiere ou After Effects. Cole os links de uma vez ou um após o outro. Escolha vídeo ou áudio, marque os itens e confirme em **Baixar e importar…**. O painel acompanha cada vídeo e organiza os arquivos na pasta/bin `_Noe VFX Downloader` do projeto.
 
 [Veja o passo a passo com as interfaces →](https://noevfx.github.io/noevfx-downloader/manual.html#passos)
 
 ### “Quero baixar vários de uma vez.”
 
-- **Vídeos da mesma página:** use **Baixar todos os vídeos desta página** para salvar os itens detectados na pasta de downloads.
-- **Links de páginas diferentes:** abra **Vários links** no popup. Cole a lista e escolha qualidade e destino: uma pasta ou o projeto Adobe.
+- **Vídeos da mesma página:** use **Escolher vídeos desta página…** e marque os itens que quer baixar.
+- **Links de páginas diferentes:** abra **Links e playlists…** no popup. Cole a lista, escolha vídeo ou áudio, marque os itens e defina o destino: uma pasta ou o projeto Adobe.
 
 <details>
 <summary><b>Veja os menus de qualidade e destino</b></summary>
 
-![Vários links com qualidade e destino do projeto](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/varios-links-3.1.1.png)
+![Links e playlists… com qualidade e destino do projeto](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/varios-links-3.2.0.png)
 
 </details>
 
+### “Quero a playlist em MP3. Mas só algumas faixas.”
+
+1. Abra **Links e playlists…** no popup ou cole o endereço da playlist no painel Adobe.
+2. Espere os títulos aparecerem. A leitura ainda não baixa nada.
+3. Escolha **Só áudio → MP3** e marque as faixas desejadas.
+4. Confira o resumo — por exemplo, **Baixar 3 áudios em MP3** — e confirme.
+
+Também há M4A, WAV, FLAC e Opus para salvar em pasta. Para importar no Premiere/After Effects, escolha MP3, M4A ou WAV. Vídeo atual e playlist têm ações separadas; um link com vídeo + playlist não inicia a lista inteira sem sua escolha.
+
+![Playlist com seleção individual, formatos de áudio e destino](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/playlist-audio-3.2.0.png)
+
+**Cole sem se preocupar com Enter:** cada colagem reconhecida vira um item. Uma lista com um link por linha também funciona. Depois de enviar a seleção, a fila continua no app local mesmo ao fechar a aba; reabra Links e playlists para acompanhar a última lista do perfil. Reiniciar o app ou desligar o PC interrompe a fila, sem retomada automática.
+
+[Veja playlists, áudio e seleção passo a passo →](https://noevfx.github.io/noevfx-downloader/navegador.html#playlists)
+
 ## Escolha sua edição
 
-| | **Downloader** | **Downloader for Editors** |
+| | **Noe VFX Downloader** | **Noe VFX Downloader for Editors** |
 |---|---|---|
 | Salvar vídeos pelo navegador | Sim | Sim |
-| Botão sobre o vídeo, popup e vários links | Sim | Sim |
+| Botão sobre o vídeo, popup e links e playlists | Sim | Sim |
+| Selecionar itens de playlists e baixar áudio em cinco formatos | Sim | Sim |
 | Enviar do navegador ao projeto Adobe | — | Sim |
 | Colar links no painel do Premiere/After Effects | — | Sim |
 | Preparar compatibilidade H.264 | — | Sim |
-| Nome do pacote | `noevfx-downloader-basic-<versão>.zip` | `noevfx-downloader-<versão>.zip` |
+| Nome do pacote | `NoeVFX-Downloader-<versão>.zip` | `NoeVFX-Downloader-for-Editors-<versão>.zip` |
 
 As duas edições usam o aplicativo local. Instalar uma substitui a outra. A integração Adobe depende do suporte a CEP na versão do editor. [Escolha e instale →](https://noevfx.github.io/noevfx-downloader/instalar.html)
 
@@ -81,9 +97,17 @@ O instalador prepara as ferramentas e inicia o app local. Use a pasta instalada 
 
 ## Qualidade sem reconversão desnecessária
 
-Escolha **Nativa**, **até 1080p**, **até 720p** ou **Só áudio** no navegador. No envio ao Adobe, o app pede compatibilidade H.264: se a plataforma já oferece esse formato na resolução escolhida, preserva o vídeo. Se precisar converter, o progresso informa a etapa e o processador/GPU usado.
+Escolha **Nativa**, **até 1080p** ou **até 720p** no dropdown. **Só áudio** abre a escolha do formato no navegador e no painel Adobe. No envio ao Adobe, o app pede compatibilidade H.264: se a plataforma já oferece esse formato na resolução escolhida, preserva o vídeo. Se precisar converter, o progresso informa a etapa e o processador/GPU usado.
 
 [Entenda formatos, qualidade e GPU →](https://noevfx.github.io/noevfx-downloader/formatos.html)
+
+## Já tenho o app. Como migro?
+
+**Para entrar na 3.2.0 com os nomes novos, rode o instalador por cima uma vez.** Não precisa desinstalar: sua pasta, preferências e vídeos baixados são preservados. Isso vale também para 3.1.0 e 3.1.1, pois os atualizadores antigos procuram os nomes anteriores dos ZIPs.
+
+Escolha **Noe VFX Downloader** para salvar na pasta ou **Noe VFX Downloader for Editors** para integrar com Premiere/After Effects. Recarregue a extensão da pasta instalada, reinicie os editores e dê F5 nas páginas com vídeo.
+
+**Depois de migrar**, o botão **Atualizar agora** passa a reconhecer os pacotes novos nas próximas releases. Código e manual enviados ao GitHub, sem release publicada, não disponibilizam uma atualização.
 
 ## Precisa de ajuda?
 
@@ -94,6 +118,8 @@ Escolha **Nativa**, **até 1080p**, **até 720p** ou **Só áudio** no navegador
 <details>
 <summary><b>Compatibilidade, privacidade e limites</b></summary>
 
+Playlists: até 500 itens por seleção, com aviso quando a leitura é limitada. Itens privados/removidos podem ficar indisponíveis; alguns erros só são conhecidos ao baixar. O painel Adobe não lê cookies do navegador.
+
 Vídeos públicos, players MP4/HLS/DASH e conteúdo acessível pela sua sessão podem ser baixados conforme a plataforma. Não contorna DRM ou controles de acesso. Testes simulados não garantem funcionamento em todo site; macOS/Linux e alguns cenários de hardware ainda dependem de validação física.
 
 O processamento acontece no seu computador. Não há conta nem telemetria da Noé VFX. O app acessa a plataforma do vídeo e serviços de instalação/atualização. [Privacidade](https://github.com/noevfx/noevfx-downloader/blob/main/PRIVACY.md) · [Termos de uso](https://github.com/noevfx/noevfx-downloader/blob/main/TERMS.md) · [Licença](https://github.com/noevfx/noevfx-downloader/blob/main/LICENSE).
@@ -103,7 +129,21 @@ O processamento acontece no seu computador. Não há conta nem telemetria da No�
 <details>
 <summary><b>Para quem desenvolve</b></summary>
 
-`browser/` contém a extensão Chromium; `adobe/`, os painéis CEP; `server/`, o app local; `installers/`, os instaladores; `docs/site/`, o site e o manual HTML. `tools/build.py` gera os dois ZIPs em `dist/`. A pasta instalada continua se chamando `extension/`.
+| Pasta | O que fica aqui |
+|---|---|
+| `dist/` | Somente os dois pacotes da versão atual, hashes e notas da release. |
+| `browser/` | Código da extensão Chromium e da seleção de links/playlists. |
+| `adobe/` | Código dos painéis Premiere/After Effects. |
+| `server/` | Aplicativo local que mantém a fila e processa os arquivos. |
+| `installers/` | Instaladores separados por sistema. |
+| `docs/site/` | Site e manual HTML publicados pelo GitHub Pages. |
+| `docs/img/` | Imagens usadas pela documentação atual. |
+| `tools/` | Gerar pacotes, demonstrações, notas e conferir atualização. |
+| `tests/` | Testes do app e da distribuição. |
+| `build/` | Compilações temporárias, separadas por versão e execução; fora do Git. |
+| `_Arquivo/` | Pacotes anteriores, rascunhos e cópias das releases retiradas; fora do Git. |
+
+`python tools/build.py` gera os dois ZIPs em `dist/` e arquiva pacotes de versões anteriores. A pasta instalada continua se chamando `extension/`. As pastas históricas `release/` e `_backups/` são preservadas.
 
 Consulte [HANDOFF.md](https://github.com/noevfx/noevfx-downloader/blob/main/HANDOFF.md), [CHANGELOG.md](https://github.com/noevfx/noevfx-downloader/blob/main/CHANGELOG.md) e os testes em `tests/`.
 

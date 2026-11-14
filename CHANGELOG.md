@@ -6,6 +6,20 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.2.0] — 2026-11-14 (local, aguardando aprovação/publicação)
+
+- Padrão definitivo de produtos: **Noe VFX Downloader** e **Noe VFX Downloader for Editors**. ZIPs `NoeVFX-Downloader-3.2.0.zip` e `NoeVFX-Downloader-for-Editors-3.2.0.zip`, instaladores, atualizador, testes, geração de release e materiais alinhados. A mudança exige uma migração pelo instalador por cima para versões anteriores; depois, o botão reconhece os nomes novos.
+
+- Links e playlists no navegador e nos painéis Premiere/After Effects, com seleção individual, selecionar todos, limpar e resumo da ação.
+- Colagens sucessivas viram itens separados automaticamente; listas de um link por linha e links idênticos são tratados sem exigir Enter entre colagens.
+- Leitura de playlists sem iniciar downloads; vídeo do YouTube com contexto de playlist permanece individual até a escolha explícita da lista. HLS/DASH não são confundidos com coleções de vídeos.
+- Áudio MP3, M4A, WAV, FLAC e Opus para pasta; MP3/M4A/WAV nos destinos Adobe. Falta de FFmpeg não entrega outro formato silenciosamente.
+- Fila de até 500 itens por seleção no app local, com poucos ativos por vez e espera quando a fila global está cheia. Continua ao fechar a janela, mas não após reiniciar o serviço/PC. Cancelamento inclui pendentes.
+- Dropdown de qualidade no popup e no menu do player, usado pelo download rápido e pelo envio ao projeto. Áudio e seleção de múltiplos itens abrem a janela compartilhada.
+- Projeto de destino fixado no envio do lote; resultados de download e importação separados. Deduplicação distingue formatos de áudio e pastas.
+- README com marca azul, manuais por tarefa, interfaces e demonstrações atualizadas. Não inicia downloads nas demonstrações do site.
+- Validado: 69 testes Python, 74 verificações de navegador, cinco formatos de áudio reais com codecs conferidos, playlist pública real e ensaios isolados da estrutura de migração nas duas edições. Com os nomes definitivos, o instalador é necessário uma vez para clientes anteriores à 3.2.0. Importação nos programas Adobe e macOS/Linux não foram validados fisicamente nesta rodada.
+
 ## [3.1.1] — 2026-11-13
 
 ### Corrigido

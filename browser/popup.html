@@ -268,11 +268,13 @@
 
   <input id="urlInput" type="url" data-i18n-ph="urlPh" />
 
-  <div class="actions">
-    <button class="act primary" data-q="best" data-i18n="best"></button>
-    <button class="act" data-q="1080" data-i18n="q1080"></button>
-    <button class="act" data-q="720" data-i18n="q720"></button>
-    <button class="act" data-q="audio" data-i18n="audioOnly"></button>
+  <label style="display:block;color:var(--muted);font-size:11px;margin:6px 0">Qualidade do vídeo
+    <select id="quickQuality" style="width:100%;padding:9px;margin-top:5px;border-radius:7px;background:var(--surface);color:var(--text);border:1px solid var(--border)"><option value="best">Nativa · Máxima disponível</option><option value="1080">1080p · Full HD</option><option value="720">720p · HD</option></select>
+  </label>
+  <div class="actions" style="display:flex;flex-direction:column">
+    <button class="act primary" data-q="selected">Baixar o vídeo atual</button>
+    <button class="act" id="audioBtn">Só áudio · escolher formato…</button>
+    <button class="act" id="playlistBtn" hidden>Ver playlist deste vídeo…</button>
   </div>
   <div id="sendRow" hidden>
     <div class="send-h" data-i18n="sendTo"></div>
@@ -289,10 +291,10 @@
   <div class="sec-head">
     <div class="sec-title"><span data-i18n="detected"></span> <span id="countPill" class="count-pill">0</span></div>
     <span style="flex:1"></span>
-    <button id="batchBtn" class="mini-btn" type="button" data-i18n-title="batchTip"><span data-i18n="batchBtn"></span></button>
+    <button id="batchBtn" class="mini-btn" type="button">Links e playlists…</button>
     <button id="allBtn" class="mini-btn all" type="button">
       <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v10m0 0l-3.5-3.5M12 13l3.5-3.5M4 19h16"/></svg>
-      <span data-i18n="downloadAll"></span>
+      <span>Escolher vídeos</span>
     </button>
   </div>
   <div id="streams" class="streams">
@@ -308,11 +310,12 @@
   <footer>
     <div id="status" data-i18n="ready" role="status" aria-live="polite"></div>
     <button id="cancelBtn" class="mini-btn" type="button" hidden data-i18n="cancel" data-i18n-title="cancelTip"></button>
-    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.1.1</button>
+    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.2.0</button>
     <a class="mail" href="mailto:labs@noevfx.com" title="labs@noevfx.com">labs@noevfx.com</a>
   </footer>
   <script src="edition.js"></script>
   <script src="i18n.js"></script>
+  <script src="collection.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

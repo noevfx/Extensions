@@ -17,19 +17,21 @@ Passe o mouse sobre o vídeo → abra o botão azul → **Enviar para o projeto*
 
 ## Recebi links do cliente ou do roteiro
 
-No editor, abra **Janela → Extensões → Noe VFX for Editors**. Confira o projeto, cole um link por linha, escolha a qualidade e use **Baixar e importar**.
+No editor, abra **Janela → Extensões → Noe VFX Downloader for Editors**. Confira o projeto, cole os links ou a playlist, escolha vídeo ou áudio, marque os itens e use **Baixar e importar…**.
 
 ## Quero baixar vários
 
-**Na mesma página:** “Baixar todos os vídeos desta página” salva os vídeos detectados na pasta de downloads. **Uma lista de endereços:** “Vários links” no popup permite escolher pasta ou projeto. **Dentro do editor:** cole a lista no painel Adobe.
+**Na mesma página:** “Escolher vídeos desta página…” abre a seleção. **Uma lista ou playlist:** “Links e playlists…” no popup permite escolher itens, vídeo/áudio, formato e destino. **No editor:** use a mesma seleção no painel Adobe. Cada colagem vira um item; não é preciso dar Enter entre links.
 
 ## Qualidade e compatibilidade
 
-Nativa busca a maior resolução disponível; 1080p e 720p são limites. No fluxo Adobe, se houver H.264 na resolução escolhida, o vídeo é preservado. Se precisar converter, o progresso informa a etapa e a CPU/GPU usada. “Só áudio” está disponível no navegador.
+Nativa busca a maior resolução disponível; 1080p e 720p são limites. No fluxo Adobe, se houver H.264 na resolução escolhida, o vídeo é preservado. Se precisar converter, o progresso informa a etapa e a CPU/GPU usada. “Só áudio” oferece MP3, M4A, WAV, FLAC e Opus para pasta; nos destinos Adobe, MP3, M4A e WAV. WAV/FLAC não recuperam qualidade perdida.
+
+Depois de confirmar, a fila continua no app local mesmo se fechar a janela. Reiniciar o app ou desligar o PC interrompe a fila, sem retomada automática.
 
 ## Atualizar ou remover
 
-Para migrar do repositório antigo, rode o instalador do pacote novo e recarregue a extensão. Nas atualizações seguintes, confira a versão no popup. Dê F5 nas abas e recarregue nos outros perfis quando solicitado.
+Para migrar de uma versão anterior à 3.2.0, rode o instalador do pacote novo por cima, uma vez. Os atualizadores antigos procuram os nomes antigos dos ZIPs. Não precisa desinstalar: configurações e downloads são preservados. Depois da migração, o botão Atualizar agora reconhece os novos pacotes nas próximas releases. Recarregue a extensão instalada, reinicie os editores e dê F5 nas páginas com vídeo.
 
 Para desinstalar, feche os programas Adobe e rode o desinstalador do pacote. Confira os avisos e remova a extensão de cada navegador/perfil. Os vídeos baixados são preservados; as configurações do aplicativo são removidas.
 

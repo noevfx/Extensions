@@ -1,0 +1,14 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {extractLinks,playlistUrl}=require("../browser/collection.js");
+assert.deepEqual(extractLinks("https://a.example/1\nhttps://b.example/2"),["https://a.example/1","https://b.example/2"]);
+assert.deepEqual(extractLinks("• https://a.example/1\r\n2. https://b.example/2\thttps://a.example/1"),["https://a.example/1","https://b.example/2"]);
+assert.deepEqual(extractLinks("https://a.example/?next=https://b.example/"),["https://a.example/?next=https://b.example/"]);
+assert.deepEqual(extractLinks("Texto sem link file:///video.mp4"),[]);
+assert.equal(playlistUrl("https://youtube.com/watch?v=abc&list=xyz",false),"");
+assert.equal(playlistUrl("https://youtube.com/watch?v=abc&list=xyz",true),"https://www.youtube.com/playlist?list=xyz");
+assert.equal(playlistUrl("https://youtube.com/playlist?list=xyz",false),"https://www.youtube.com/playlist?list=xyz");
+assert.equal(playlistUrl("https://cdn.example/playlist.m3u8",true),"");
+assert.equal(playlistUrl("https://cdn.example/playlist.mpd",true),"");
+assert.equal(playlistUrl("https://soundcloud.com/artist/sets/album",false),"https://soundcloud.com/artist/sets/album");
+console.log("10 casos de links e detecção de playlists: OK");

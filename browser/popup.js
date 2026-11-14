@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Popup v3.0 (i18n pt/en)
+   Noe VFX Downloader — Popup v3.2.0 (i18n pt/en)
    ========================================================================== */
 "use strict";
 
@@ -66,6 +66,7 @@ function prettyFolder(p) {
 
 function applyConfig(c) {
   if (!c) return;
+  if ((!cfg || cfg.default_quality !== c.default_quality) && $("quickQuality")) $("quickQuality").value = ["best","1080","720"].includes(c.default_quality) ? c.default_quality : "best";
   cfg = c;
   destPath.textContent = prettyFolder(c.output_dir);
   destPath.title = c.output_dir || "";
@@ -549,7 +550,11 @@ openFolderBtn.addEventListener("click", async () => {
   if (!r || !r.ok) statusEl.textContent = t("openFolderFail");
 });
 
-allBtn.addEventListener("click", downloadAll);
+async function openCollection(seed) {
+  const r = await send({type:"OPEN_COLLECTION",seed});
+  if(r && r.ok) window.close();
+}
+allBtn.addEventListener("click", () => openCollection({items:groupize(streams).map(g=>({url:g.best.url,title:g.best.title||"",referer:currentTab&&currentTab.url||""})),quality:$("quickQuality").value}));
 
 cancelBtn.addEventListener("click", async () => {
   if (!currentJob) return;
@@ -559,29 +564,36 @@ cancelBtn.addEventListener("click", async () => {
 
 document.querySelectorAll("button[data-q]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const quality = btn.dataset.q;
+    const quality = $("quickQuality").value;
     const target = (urlInput.value || (currentTab && currentTab.url) || "").trim();
     const bestStream = streams[0] ? streams[0].url : "";
-    startDownload(target, quality, bestStream);
+    if(NVFCollection.playlistUrl(target,false)) openCollection({url:target,quality});
+    else startDownload(target, quality, bestStream);
   });
 });
 
-// edição "for Editors": envio para o Premiere/After Effects (Windows e Mac) e conversão H.264; a edição comum não mostra nada disso
+// edição "for Editors": envio para o Premiere/After Effects (Windows e Mac) e conversão H.264; o Noe VFX Downloader não mostra os destinos Adobe
 const EDITORS = globalThis.NVF_EDITION !== "basic";
 if (EDITORS && /Windows|Macintosh|Mac OS X/i.test(navigator.userAgent)) $("sendRow").hidden = false;
 if (!EDITORS) { const cr = $("compatRow"); if (cr) cr.hidden = true; }
 if (EDITORS) $("edPill").hidden = false;
-$("batchBtn").addEventListener("click", () => { chrome.tabs.create({ url: chrome.runtime.getURL("batch.html") }); window.close(); });
+$("batchBtn").addEventListener("click", () => openCollection({}));
+$("audioBtn").addEventListener("click",()=>{const url=(urlInput.value||(currentTab&&currentTab.url)||"").trim();openCollection({items:NVFCollection.playlistUrl(url,false)?undefined:[{url,title:currentTab&&currentTab.title||"",fallbackStream:streams[0]?streams[0].url:"",referer:currentTab&&currentTab.url||url}],url:NVFCollection.playlistUrl(url,false)?url:undefined,media:"audio"});});
+$("playlistBtn").addEventListener("click",()=>{const url=(urlInput.value||(currentTab&&currentTab.url)||"").trim();openCollection({url:NVFCollection.playlistUrl(url,true),quality:$("quickQuality").value});});
+setInterval(()=>{$("playlistBtn").hidden=!NVFCollection.playlistUrl((urlInput.value||(currentTab&&currentTab.url)||"").trim(),true);},500);
 document.querySelectorAll("button[data-target]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const target = (urlInput.value || (currentTab && currentTab.url) || "").trim();
     const bestStream = streams[0] ? streams[0].url : "";
-    startDownload(target, (cfg && cfg.default_quality) || "best", bestStream, null, btn.dataset.target);
+    startDownload(target, $("quickQuality").value, bestStream, null, btn.dataset.target);
   });
 });
 
 urlInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") startDownload(urlInput.value, "best", streams[0] ? streams[0].url : "");
+  if (e.key === "Enter") {
+    if(NVFCollection.playlistUrl(urlInput.value,false)||NVFCollection.extractLinks(urlInput.value).length>1) openCollection({url:urlInput.value});
+    else startDownload(urlInput.value, $("quickQuality").value, streams[0] ? streams[0].url : "");
+  }
 });
 
 chrome.storage.onChanged.addListener((ch, area) => {

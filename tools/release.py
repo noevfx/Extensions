@@ -1,6 +1,6 @@
 """Publica uma release do Noe VFX Downloader.
 
-Faz: build dos pacotes -> commit -> tag -> push -> GitHub Release com os zips.
+Faz: build -> notas e hashes -> commit -> tag -> push único. O workflow publica os dois produtos.
 
 Uso:
     python tools/release.py          # mostra o que vai fazer e pede confirmação
@@ -39,7 +39,7 @@ def main():
     print("\nNoe VFX Downloader — release %s\n" % tag)
     exists = run(["git", "tag", "-l", tag], check=False).stdout.strip()
     if exists:
-        print("A tag %s já existe. Suba a versão em extension/manifest.json primeiro." % tag)
+        print("A tag %s já existe. Suba a versão em browser/manifest.json primeiro." % tag)
         raise SystemExit(1)
 
     dirty = run(["git", "status", "--porcelain"], check=False).stdout.strip()
@@ -54,27 +54,20 @@ def main():
 
     print("\n[1/5] Gerando pacotes")
     run([sys.executable, "tools/build.py"])
+    run([sys.executable, "tools/release_notes.py"])
 
     print("\n[2/5] Commit")
     run(["git", "add", "-A"])
-    run(["git", "commit", "-m", "release %s" % tag], check=False)
+    run(["git", "commit", "-m", "chore: preparar release %s" % tag], check=False)
 
     print("\n[3/5] Tag")
     run(["git", "tag", "-a", tag, "-m", "Noe VFX Downloader %s" % version])
 
     print("\n[4/5] Push")
-    run(["git", "push"])
-    run(["git", "push", "origin", tag])
+    run(["git", "push", "--atomic", "origin", "HEAD", "refs/tags/" + tag])
 
-    print("\n[5/5] GitHub Release")
-    run([
-        "gh", "release", "create", tag,
-        str(ROOT / "dist" / ("noevfx-downloader-%s.zip" % version)),
-        "--title", "Noe VFX Downloader %s" % version,
-        "--generate-notes",
-    ], check=False)
-
-    print("\nPronto: https://github.com/noevfx/noevfx-downloader/releases/tag/%s" % tag)
+    print("\n[5/5] O workflow publicará os dois produtos, com notas e hashes.")
+    print("Acompanhe: https://github.com/noevfx/noevfx-downloader/actions/workflows/release.yml")
 
 
 if __name__ == "__main__":

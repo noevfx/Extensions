@@ -1,0 +1,1 @@
+(()=>{const report=()=>{const style=getComputedStyle(document.body);parent.postMessage({type:"nvf-demo-height",height:document.body.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0)},location.origin);};new ResizeObserver(report).observe(document.body);window.addEventListener('load',report);})();

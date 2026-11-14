@@ -16,15 +16,26 @@ Manual ilustrado: https://noevfx.github.io/noevfx-downloader/instalar.html
 3. ESCOLHA SEU CAMINHO
    Achei uma referencia: no video da pagina, abra o botao azul e escolha
    Enviar para o projeto > Premiere ou After Effects.
-   Recebi links: cole um por linha no painel Noe VFX for Editors e use
-   Baixar e importar.
-   Quero salvar na pasta: use os botoes de qualidade do navegador.
+   Recebi links ou playlist: cole no painel Noe VFX Downloader for Editors, marque
+   os itens, escolha video ou audio e use Baixar e importar.
+   Cada colagem vira um item separado; nao precisa dar Enter entre links.
+   Quero salvar na pasta: escolha a qualidade no dropdown e baixe.
+   Para playlists e formatos de audio: abra Links e playlists no popup.
+   MP3, M4A, WAV, FLAC e Opus para pasta; MP3, M4A e WAV no Adobe.
 
 A integracao Adobe exige a edicao for Editors, o componente instalado
 no editor e um projeto salvo e aberto. Reinicie o editor apos instalar.
 
-MIGRACAO: recebeu o pacote do novo repositorio? Rode o instalador e
-recarregue a extensao instalada. Dê F5 nas paginas com video.
+PACOTES:
+NoeVFX-Downloader-3.2.0.zip
+NoeVFX-Downloader-for-Editors-3.2.0.zip
+
+MIGRACAO PARA 3.2.0: rode o instalador por cima uma vez, inclusive
+se voce usa 3.1.0 ou 3.1.1. Os atualizadores antigos nao reconhecem
+os nomes novos dos pacotes. Nao precisa desinstalar: preferencias
+e downloads ficam. Recarregue a extensao instalada, reinicie os
+editores e de F5 nas paginas. Nas proximas releases, use o botao
+Atualizar agora da versao nova.
 
 DESINSTALAR: feche os programas Adobe e rode o desinstalador do pacote.
 Confira os avisos e remova a extensao de cada navegador e perfil.

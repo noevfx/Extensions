@@ -1,4 +1,4 @@
-"""Monta o pacote distribuível (windows/mac/linux) e gera dist/noevfx-downloader-<versão>.zip.
+"""Monta o pacote distribuível (windows/mac/linux) e gera os ZIPs NoeVFX-Downloader e NoeVFX-Downloader-for-Editors em dist/.
 
 Uso:
     python tools/build.py
@@ -8,6 +8,9 @@ import json
 import os
 import shutil
 import zipfile
+import tempfile
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,9 +44,9 @@ def copy_tree(src: Path, dst: Path):
 
 
 EDITIONS = {
-    # pacote de editores: nome de zip de sempre (quem já usa recebe a atualização sem perder nada) + painel do Premiere/AE
-    "editors": {"zip": "noevfx-downloader-%s.zip", "name": "Noe VFX Downloader for Editors", "panel": True},
-    "basic": {"zip": "noevfx-downloader-basic-%s.zip", "name": "Noe VFX Downloader", "panel": False},
+    # IDs internos preservados para reconhecer instalações existentes; nomes públicos identificam os dois produtos.
+    "editors": {"zip": "NoeVFX-Downloader-for-Editors-%s.zip", "name": "Noe VFX Downloader for Editors", "panel": True},
+    "basic": {"zip": "NoeVFX-Downloader-%s.zip", "name": "Noe VFX Downloader", "panel": False},
 }
 PANEL_DIR = ROOT / "adobe"                 # painel do Premiere/AE; o instalador liga o modo de painéis da Adobe (PlayerDebugMode)
 
@@ -59,6 +62,11 @@ def set_edition(ext_dir: Path, edition: str, name: str):
     m = json.loads(man.read_text(encoding="utf-8"))
     m.setdefault("action", {})["default_title"] = name
     man.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for page in ext_dir.glob("*.html"):
+        text = page.read_text(encoding="utf-8")
+        text = re.sub(r"Noe VFX Downloader(?! for Editors)", lambda match: name, text)
+        text = re.sub(r'(id="(?:ver|aboutVer)"[^>]*>)v\d+\.\d+\.\d+', lambda match: match.group(1) + "v" + m["version"], text)
+        page.write_text(text, encoding="utf-8")
 
 
 def build_edition(edition: str, version: str) -> Path:
@@ -83,12 +91,21 @@ def build_edition(edition: str, version: str) -> Path:
         copy_tree(ROOT / "browser", dest / "extension")
         set_edition(dest / "extension", edition, spec["name"])
         shutil.copy2(ROOT / "server" / "server.py", dest / "server" / "server.py")
-        shutil.copy2(ROOT / "installers" / "common" / "guia-extensao.html", dest / "guia-extensao.html")
+        guide = (ROOT / "installers" / "common" / "guia-extensao.html").read_text(encoding="utf-8")
+        (dest / "guia-extensao.html").write_text(guide.replace("Noe VFX Downloader", spec["name"]), encoding="utf-8")
         if spec["panel"] and plat in ("windows", "mac"):            # Linux não tem Premiere/After Effects
             shutil.copytree(PANEL_DIR, dest / "adobe")
+            # Uma fonte da interface para browser e CEP; sem versões divergentes do seletor.
+            for name in ("collection.js", "collection.css"):
+                shutil.copy2(ROOT / "browser" / name, dest / "adobe" / name)
+            index = dest / "adobe" / "index.html"
+            index.write_text(index.read_text(encoding="utf-8").replace("../browser/collection.", "collection."), encoding="utf-8")
         for f in files:
             src = ROOT / inst_dir / f
             data = src.read_bytes()
+            text = data.decode("utf-8")
+            text = re.sub(r"(Noe VFX Downloader\s+v?)\d+\.\d+\.\d+", lambda match: match.group(1) + version, text)
+            data = text.replace("Noe VFX Downloader", spec["name"]).encode("utf-8")
             data = crlf(data) if f.endswith((".bat", ".ps1")) else data.replace(b"\r\n", b"\n")
             (dest / f).write_bytes(data)
 
@@ -110,23 +127,44 @@ def build_edition(edition: str, version: str) -> Path:
                 count += 1
     with zipfile.ZipFile(zip_path) as z:
         assert z.testzip() is None
-    print("%-8s %s  (%d arquivos, %.1f KB)" % (edition, zip_path.name, count, zip_path.stat().st_size / 1024))
+    print("%s: %s  (%d arquivos, %.1f KB)" % (spec["name"], zip_path.name, count, zip_path.stat().st_size / 1024))
     return zip_path
 
 
 def main():
-    if WORK.exists():
-        shutil.rmtree(WORK)
-    DIST.mkdir(parents=True, exist_ok=True)
+    global WORK
     # a versão vem do manifest da extensão (fonte única) e entra no NOME dos zips e num VERSION.txt dentro deles
     version = json.loads((ROOT / "browser" / "manifest.json").read_text(encoding="utf-8"))["version"]
-    keep = {EDITIONS[e]["zip"] % version for e in EDITIONS}
-    for old in DIST.glob("noevfx-downloader*.zip"):             # só os zips da versão atual ficam na dist
-        if old.name not in keep:
-            old.unlink()
+    WORK = WORK / version / datetime.now(timezone.utc).strftime("compilacao-%Y%m%dT%H%M%S%fZ")
+    WORK.mkdir(parents=True)
+    DIST.mkdir(parents=True, exist_ok=True)
+    archive_old_packages(version)
     print("versao:", version)
     for e in EDITIONS:
         build_edition(e, version)
+
+
+def archive_old_packages(version):
+    """dist contém só a versão atual; pacotes anteriores vão para arquivo, sem exclusão."""
+    patterns = (
+        r"(?:NoeVFX-Downloader(?:-for-Editors)?|noevfx-downloader(?:-basic)?)-(\d+\.\d+\.\d+)\.zip",
+        r"(?:SHA256-|RELEASE-)(\d+\.\d+\.\d+)\.(?:txt|md)",
+    )
+    for source in list(DIST.iterdir()):
+        if not source.is_file():
+            continue
+        match = next((m for p in patterns if (m := re.fullmatch(p, source.name, re.I))), None)
+        if not match or match.group(1) == version:
+            continue
+        dest_dir = ROOT / "_Arquivo" / "pacotes-anteriores" / match.group(1)
+        if not source.resolve().is_relative_to(DIST.resolve()) or not dest_dir.resolve().is_relative_to(ROOT.resolve()):
+            raise RuntimeError("Destino de arquivo fora do projeto")
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        destination = dest_dir / source.name
+        if destination.exists():
+            destination = dest_dir / (source.stem + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + source.suffix)
+        shutil.move(str(source), str(destination))
+        print("Arquivado:", source.name)
 
 
 if __name__ == "__main__":

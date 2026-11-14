@@ -22,8 +22,16 @@ jobs:
       - name: Gerar pacotes
         run: python tools/build.py
 
+      - name: Preparar notas e hashes dos dois produtos
+        id: release
+        run: python tools/release_notes.py
+
       - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/noevfx-downloader-*.zip
-          generate_release_notes: true
+          name: ${{ steps.release.outputs.title }}
+          body_path: dist/RELEASE-${{ steps.release.outputs.version }}.md
+          files: |
+            dist/NoeVFX-Downloader-${{ steps.release.outputs.version }}.zip
+            dist/NoeVFX-Downloader-for-Editors-${{ steps.release.outputs.version }}.zip
+            dist/SHA256-${{ steps.release.outputs.version }}.txt

@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Content Script v3.0  (noevfx.com)
+   Noe VFX Downloader — Content Script v3.2.0  (noevfx.com)
    - Ícone flutuante sobre QUALQUER <video> (Shadow DOM, sem conflito)
    - Arrastável dentro da área do vídeo (posição salva por site)
    - Some sozinho após 2 s com o mouse parado
@@ -55,6 +55,7 @@
       all: unset; cursor:pointer; color:#7fb0ff; font-size:10.5px; font-weight:700; white-space:nowrap;
     }
     .panel .grid { display:grid; grid-template-columns: 1fr 1fr; gap:6px; }
+    .panel .grid .audio-choice { grid-column:1 / -1; }
     .panel button.opt {
       all: unset; display:flex; align-items:center; justify-content:center; gap:6px;
       padding:8px 6px; border-radius:9px; cursor:pointer; font-size:11.5px; font-weight:600;
@@ -1077,26 +1078,31 @@
         <span class="path" title="${esc(dest)}">${esc(dest ? folderName(dest) : t("folderLabel"))}</span>
         <button type="button" class="change">${t("change")}</button>
       </div>
+      <label style="display:block;font-size:11px;color:#a4afc4;margin-bottom:8px">Qualidade do vídeo<select data-quality style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid #303747;border-radius:7px;background:#1b1f29;color:#f1f4fa;font:inherit"><option value="best">Nativa · Máxima disponível</option><option value="1080">1080p · Full HD</option><option value="720">720p · HD</option></select></label>
       <div class="grid">
-        <button type="button" class="opt main" data-q="${esc(quality)}">
+        <button type="button" class="opt main" data-q="selected">
           ${direct ? t("saveHere") : t("downloadDefault")}
         </button>
-        <button type="button" class="opt" data-q="1080">1080p</button>
-        <button type="button" class="opt" data-q="720">720p</button>
-        <button type="button" class="opt" data-q="best">${t("native")}</button>
-        <button type="button" class="opt" data-q="audio">${t("audioOnly")}</button>
+        <button type="button" class="opt audio-choice" data-audio>Escolher formato de áudio…</button>
       </div>
       ${globalThis.NVF_EDITION !== "basic" && /Windows|Macintosh|Mac OS X/i.test(navigator.userAgent) ? `<div class="send-h">${t("sendTo")}</div><div class="send">
         <button type="button" class="pr" data-target="premiere" title="${esc(t("sendTip"))}"><b>Pr</b><span>${t("sendPr")}</span></button>
         <button type="button" class="ae" data-target="aftereffects" title="${esc(t("sendTip"))}"><b>Ae</b><span>${t("sendAe")}</span></button>
       </div>` : ""}
-      <div class="all"><button type="button" class="all-btn">${t("allPage")}</button></div>
+      ${globalThis.NVFCollection && NVFCollection.playlistUrl(location.href,true) ? '<div class="all"><button type="button" class="playlist-btn all-btn">Ver playlist deste vídeo…</button></div>' : ''}
+      <div class="all"><button type="button" class="page-btn all-btn">Escolher vídeos desta página…</button></div>
       ${globalThis.NVF_EDITION === "basic" ? "" : `<label class="compat" title="${esc(t("compatTip"))}"><input type="checkbox" data-compat ${cfg.compat_h264 === true ? "checked" : ""}><span>${t("compatShort")}</span></label>`}
       <div class="foot">
         <span class="hint">${t("dragHint")}</span>
         <button type="button" class="tgl ${on ? "" : "off"}" data-toggle>${on ? t("iconOn") : t("iconOff")}</button>
       </div>
     `;
+
+    state.panel.querySelector("[data-quality]").value = quality === "audio" ? "best" : quality;
+    state.panel.querySelector("[data-quality]").addEventListener("click", e=>e.stopPropagation());
+    state.panel.querySelector("[data-audio]").addEventListener("click",e=>{e.stopPropagation();if(!e.isTrusted)return;closePanel();hideFab();startOne("best","",true);});
+    const playlistButton=state.panel.querySelector(".playlist-btn");
+    if(playlistButton)playlistButton.addEventListener("click",e=>{e.stopPropagation();if(!e.isTrusted)return;sendMsg({type:"OPEN_COLLECTION",seed:{url:NVFCollection.playlistUrl(location.href,true)}});closePanel();});
 
     state.panel.querySelector(".change").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1111,7 +1117,7 @@
         if (!e.isTrusted) return;
         closePanel();
         hideFab();
-        startOne(b.dataset.q);
+        startOne(state.panel.querySelector("[data-quality]").value);
       });
     });
 
@@ -1121,16 +1127,17 @@
         if (!e.isTrusted) return;
         closePanel();
         hideFab();
-        startOne((state.cfg && state.cfg.default_quality) || "best", b.dataset.target);
+        startOne(state.panel.querySelector("[data-quality]").value, b.dataset.target);
       });
     });
 
-    state.panel.querySelectorAll(".all-btn").forEach((b) => b.addEventListener("click", async (e) => {
+    state.panel.querySelectorAll(".page-btn").forEach((b) => b.addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!e.isTrusted) return;
       closePanel();
       hideFab();
-      await startAll();
+      const found=scan().items;
+      await sendMsg({type:"OPEN_COLLECTION",seed:{items:found.map(it=>({url:it.url,title:it.title||"",referer:location.href})),quality:state.panel.querySelector("[data-quality]").value}});
     }));
 
     if (state.panel.querySelector("[data-compat]")) state.panel.querySelector("[data-compat]").addEventListener("change", async (e) => {
@@ -1202,7 +1209,7 @@
     return master || hls[hls.length - 1];
   }
 
-  async function startOne(quality, sendTo) {
+  async function startOne(quality, sendTo, chooseAudio) {
     if (state.busy) return;
     state.busy = true;
     const cfg = state.cfg || {};
@@ -1258,6 +1265,11 @@
       return;
     }
 
+    if (chooseAudio || quality === "audio") {
+      state.busy = false;
+      await sendMsg({type:"OPEN_COLLECTION",seed:{media:"audio",items:[{url:primary,fallbackStream:fallback,referer:page,title:document.title}]}});
+      return;
+    }
     toast(t("starting"));
 
     const res = await sendMsg({

@@ -453,7 +453,7 @@ function rawReq(port, method, p, body, headers = {}) {
     const pnlBtns = pnlNode ? (await page.send("DOM.querySelectorAll", { nodeId: pnlNode, selector: "button" })).result.nodeIds : [];
     const pnlOver = [];
     for (const id of pnlBtns) { const o = await page.send("DOM.resolveNode", { nodeId: id }); const r = await page.send("Runtime.callFunctionOn", { objectId: o.result.object.objectId, functionDeclaration: "function(){return this.offsetParent && this.scrollWidth > this.clientWidth + 1 ? this.textContent.trim() : ''}", returnByValue: true }); if (r.result.result.value) pnlOver.push(r.result.result.value); }
-    check("painel do vídeo: nenhum botão com texto vazando (" + pnlBtns.length + " botões)", pnlBtns.length >= 8 && pnlOver.length === 0, pnlOver.join(" | "));
+    check("painel do vídeo: nenhum botão com texto vazando (" + pnlBtns.length + " botões)", pnlBtns.length >= 7 && pnlOver.length === 0, pnlOver.join(" | "));
     check("painel do vídeo: botões 'Enviar p/ Premiere' e 'Enviar p/ After Effects' no painel", !!(await findNode('.send button[data-target="premiere"]')) && !!(await findNode('.send button[data-target="aftereffects"]')));
     const cmp = await findNode("input[data-compat]");
     const cmpChecked = async () => { const o = await page.send("DOM.resolveNode", { nodeId: cmp }); const r = await page.send("Runtime.callFunctionOn", { objectId: o.result.object.objectId, functionDeclaration: "function(){return this.checked}", returnByValue: true }); return r.result.result.value; };
@@ -465,10 +465,12 @@ function rawReq(port, method, p, body, headers = {}) {
     /* ============================ Vários links (página da extensão) ============================ */
     console.log("\n== Vários links: pasta padrão, outra pasta e projeto do Premiere/AE");
     await goto(`chrome-extension://${EXT_ID}/batch.html`, 2500);
-    check("vários links: a página abre com os destinos Premiere/AE (edição for Editors)", await page.eval(`document.querySelectorAll("#dest option").length === 4 && !document.getElementById("edPill").hidden`));
+    check("vários links: a página abre com os destinos Premiere/AE (edição for Editors)", await page.eval(`document.querySelectorAll('[data-c="dest"] option').length === 4`));
     check("vários links: nenhum botão com texto vazando", await page.eval(`[...document.querySelectorAll("button")].filter(b=>b.offsetParent).every(b=>b.scrollWidth<=b.clientWidth+1)`));
     const jb0 = (await jobs()).length;
-    await page.eval(`document.getElementById("links").value = "https://www.exemplo.test:${fp}/a.mp4\\nhttps://www.exemplo.test:${fp}/b.mp4\\nlixo\\nhttps://www.exemplo.test:${fp}/a.mp4"; document.getElementById("go").click()`);
+    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/a.mp4\\nhttps://www.exemplo.test:${fp}/b.mp4\\nlixo\\nhttps://www.exemplo.test:${fp}/a.mp4"; document.querySelector('[data-c="add"]').click()`);
+    await sleep(300);
+    await page.eval(`document.querySelector('[data-c="go"]').click()`);
     let jbs = [];
     for (let i = 0; i < 20 && jbs.length < 2; i++) { await sleep(300); jbs = (await jobs()).slice(0, (await jobs()).length - jb0); }
     check("vários links: 2 downloads (link repetido e texto que não é link ficam de fora)", jbs.length === 2, jbs.length + " jobs");
@@ -477,11 +479,13 @@ function rawReq(port, method, p, body, headers = {}) {
     let jcj = null;
     for (let i = 0; i < 20 && !jcj; i++) { await sleep(300); jcj = (await jobs()).find((j) => /\/c\.mp4$/.test(j.url || "")); }
     check("vários links: 'Outra pasta' salva na pasta escolhida (o app confirma a pasta)", !!jc && jc.output_dir === outro && !!jcj, JSON.stringify(jc));
-    await page.eval(`document.getElementById("dest").value = "premiere"; document.getElementById("dest").dispatchEvent(new Event("change"))`);
-    check("vários links: destino Premiere liga o H.264 e trava a caixa", await page.eval(`document.getElementById("compat").checked && document.getElementById("compat").disabled`));
-    await page.eval(`document.getElementById("links").value = "https://www.exemplo.test:${fp}/d.mp4"; document.getElementById("go").click()`);
+    await page.eval(`document.querySelector('[data-c="dest"]').value = "premiere"; document.querySelector('[data-c="dest"]').dispatchEvent(new Event("change"))`);
+    check("vários links: destino Premiere liga o H.264 e trava a caixa", await page.eval(`document.querySelector('[data-c="compat"]').checked && document.querySelector('[data-c="compat"]').disabled`));
+    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/d.mp4"; document.querySelector('[data-c="add"]').click()`);
+    await sleep(300);
+    await page.eval(`document.querySelector('[data-c="go"]').click()`);
     await sleep(1500);
-    const bm = await page.eval(`document.getElementById("msg").textContent`);
+    const bm = await page.eval(`document.querySelector('[data-c="message"]').textContent`);
     check("vários links: Premiere fechado avisa e não baixa", /Abra o Premiere/.test(bm), bm);
 
     /* ============================ TikTok (SPA) ============================ */

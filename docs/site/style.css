@@ -29,3 +29,7 @@
 @media(max-width:1100px){.hybrid-tutorial{gap:28px}.tutorial-instructions h3{font-size:27px}.asset-kind{display:none}}@media(max-width:800px){.hybrid-tutorial{grid-template-columns:1fr;gap:35px}.tutorial-web-frame{height:785px}.tutorial-instructions{padding-top:0}.tutorial-instructions h3{font-size:28px}.tutorial-label{font-size:8px}}
 
 .tutorial-app b{color:#f3f5ff!important}
+
+/* Interfaces 3.2: leitura integral e reflow, sem cortar a seleção. */
+.popup-guide{max-width:420px;margin:0 auto}.popup-guide iframe{display:block;border:1px solid var(--line);border-radius:9px;width:100%;height:720px;background:#111319}.collection-lesson{max-width:700px;margin:36px auto!important}.collection-lesson iframe{width:100%;height:1250px;border:1px solid var(--line);border-radius:9px;background:#111319}.guide .workflow{align-items:start;gap:40px}.guide .workflow>div{min-width:0}.guide .workflow ol{padding-left:20px}.guide .workflow li{margin-bottom:18px}.panel-figure iframe{height:1300px}.flow-demo iframe{height:900px}.batch-demo iframe{height:1250px}.brief-demo iframe{height:1300px}
+@media(max-width:800px){.guide .workflow{grid-template-columns:1fr}.popup-guide{width:100%}.collection-lesson{width:100%}.collection-lesson iframe{height:1450px}}

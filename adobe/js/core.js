@@ -29,7 +29,7 @@
       if (data) headers["Content-Length"] = data.length;
       let done = false;
       const finish = (v) => { if (!done) { done = true; resolve(v); } };
-      const req = http.request({ host: "127.0.0.1", port: 8765, path: p, method, headers, timeout: 20000 }, (res) => {
+      const req = http.request({ host: "127.0.0.1", port: 8765, path: p, method, headers, timeout: p === "/inspect" ? 100000 : 20000 }, (res) => {
         let buf = "";
         res.setEncoding("utf8");
         res.on("data", (c) => { buf += c; });

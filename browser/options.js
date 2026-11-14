@@ -103,7 +103,7 @@ $("diagBtn").addEventListener("click", async () => {
   const btn = $("diagBtn");
   const L = [];
   await health();
-  L.push("Noe VFX Downloader - diagnostico");
+  L.push(chrome.runtime.getManifest().name + " - diagnostico");
   L.push("extensao: v" + chrome.runtime.getManifest().version + " | " + chrome.runtime.id);
   L.push("navegador: " + navigator.userAgent);
   const d = lastHealth;

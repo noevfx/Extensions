@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Noe VFX for Editors: painel para Premiere Pro e After Effects (CEP). Fala só com o app local (127.0.0.1:8765). -->
-<ExtensionManifest Version="9.0" ExtensionBundleId="com.noevfx.downloader" ExtensionBundleVersion="3.1.1" ExtensionBundleName="Noe VFX for Editors">
+<!-- Noe VFX Downloader for Editors: painel para Premiere Pro e After Effects (CEP). Fala só com o app local (127.0.0.1:8765). -->
+<ExtensionManifest Version="9.0" ExtensionBundleId="com.noevfx.downloader" ExtensionBundleVersion="3.2.0" ExtensionBundleName="Noe VFX Downloader for Editors">
   <ExtensionList>
-    <Extension Id="com.noevfx.downloader.panel" Version="3.1.1" />
-    <Extension Id="com.noevfx.downloader.bg" Version="3.1.1" />
+    <Extension Id="com.noevfx.downloader.panel" Version="3.2.0" />
+    <Extension Id="com.noevfx.downloader.bg" Version="3.2.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -18,7 +18,7 @@
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   <DispatchInfoList>
-    <!-- painel visível: Janela > Extensões > Noe VFX for Editors -->
+    <!-- painel visível: Janela > Extensões > Noe VFX Downloader for Editors -->
     <Extension Id="com.noevfx.downloader.panel">
       <DispatchInfo>
         <Resources>
@@ -34,7 +34,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Noe VFX for Editors</Menu>
+          <Menu>Noe VFX Downloader for Editors</Menu>
           <Geometry>
             <Size><Height>520</Height><Width>320</Width></Size>
             <MinSize><Height>300</Height><Width>260</Width></MinSize>

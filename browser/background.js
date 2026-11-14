@@ -1,5 +1,5 @@
 /* ============================================================================
-   Noe VFX Downloader — Service Worker v3.1.1  (noevfx.com)
+   Noe VFX Downloader — Service Worker v3.2.0  (noevfx.com)
    - Detecção persistente (sobrevive à suspensão do service worker)
    - Detecta por extensão de arquivo E pelo tipo do conteúdo (Content-Type)
    - Badge vermelho com número branco = vídeos encontrados na aba
@@ -487,6 +487,7 @@ async function startDownload(payload, sender) {
     organizeBySite: !!cfg.organize_by_site,
     single: payload.single !== false
   };
+  if (["mp3", "m4a", "wav", "flac", "opus"].includes(payload.audio_format)) body.audio_format = payload.audio_format;
   if (payload.target === "premiere" || payload.target === "aftereffects") body.target = payload.target;   // pasta do projeto aberto, em H.264
   else if (isExtPage(sender) && typeof payload.outDir === "string" && payload.outDir) body.outDir = payload.outDir.slice(0, 1024);  // "vários links": outra pasta
   if (isExtPage(sender) && payload.compat === true) body.compat = true;
@@ -517,6 +518,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   const run = async () => {
     switch (msg.type) {
+      case "OPEN_COLLECTION": {
+        const seed = msg.seed && typeof msg.seed === "object" ? msg.seed : {};
+        const items = Array.isArray(seed.items) ? seed.items.filter(it => it && isHttp(it.url)).slice(0,500).map(it=>({url:it.url,title:String(it.title||"").slice(0,300),referer:isHttp(it.referer)?it.referer:"",fallbackStream:isHttp(it.fallbackStream)?it.fallbackStream:""})) : undefined;
+        const id = crypto.randomUUID();
+        await chrome.storage.session.set({["collection_seed_"+id]:{url:isHttp(seed.url)?seed.url:"",items,media:seed.media==="audio"?"audio":"video",quality:QUALITIES.includes(seed.quality)?seed.quality:"best"}});
+        await chrome.tabs.create({url:chrome.runtime.getURL("batch.html?seed="+id)});
+        return {ok:true};
+      }
+      case "COLLECTION_API": {
+        if (!fromExt) return {ok:false};
+        const method = msg.method === "GET" ? "GET" : "POST";
+        const path = String(msg.path || "");
+        if (!(method === "GET" ? /^\/(config|batch\?id=[a-f0-9]{16})$/ : /^\/(inspect|batch|batch\/cancel|pick-folder)$/).test(path)) return {ok:false};
+        const body = msg.body && typeof msg.body === "object" ? {...msg.body} : {};
+        if (path === "/inspect" || path === "/batch") {
+          const cfg = await getConfig();
+          const urls = path === "/inspect" ? [body.url] : (Array.isArray(body.items)?body.items.slice(0,500).map(it=>it.url):[]);
+          body.cookies = cfg.use_cookies !== false ? await cookieTxt(urls.filter(isHttp)) : "";
+          body.userAgent = navigator.userAgent;
+        }
+        try {
+          const r = await fetchJson(SERVER+path,{method,headers:HDRS,...(method==="POST"?{body:JSON.stringify(body)}:{})},path==="/inspect"?100000:20000);
+          return {ok:r.ok,status:r.status,data:r.data};
+        } catch (_) { return {ok:false,data:{error:"O app local não respondeu. Confira se está atualizado e em execução."}}; }
+      }
       case "DOM_MEDIA_FOUND": {
         if (ownTab == null) return { ok: false };
         if (msg.thumb) setThumb(ownTab, msg.thumb, msg.title);

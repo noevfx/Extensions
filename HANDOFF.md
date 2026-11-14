@@ -4,7 +4,17 @@ Para quem for continuar o projeto (pessoa ou agente). O resto da documentação:
 `docs/MANUAL-DE-USO.md` (manual com telas), `CHANGELOG.md` (histórico). Regras de versão e release:
 `D:\.IA agents\global\RELEASES.md`.
 
-## Estado (13/11/2026)
+## Estado atual — 3.2.0 local, aguardando aprovação
+
+**Decisão mais recente do Eduardo:** nomes públicos definitivos **Noe VFX Downloader** e **Noe VFX Downloader for Editors**, sem Basic/Comum. Arquivos `NoeVFX-Downloader-<versão>.zip` e `NoeVFX-Downloader-for-Editors-<versão>.zip`. Atualizador, instaladores, empacotador, notas, CI, testes e documentação acompanham. Isso SUPERA os ensaios anteriores de atualização automática: versões anteriores à 3.2.0 precisam rodar o instalador por cima uma vez; próximas versões usam o botão. IDs internos de edição, pasta instalada e bundle Adobe são preservados para reconhecer as instalações existentes. Não publicar aliases ambíguos com os nomes antigos.
+
+- Implementação e documentação da 3.2.0 prontas para teste local. Nenhum commit, push, tag ou release nesta rodada. A última release pública conferida é v3.1.0.
+- Pacotes na raiz de `dist/`: `NoeVFX-Downloader-3.2.0.zip` e `NoeVFX-Downloader-for-Editors-3.2.0.zip`; hashes em `SHA256-3.2.0.txt`. A instalação real do usuário não foi alterada.
+- Relatório da validação em `docs/VALIDACAO-3.2.0.md`. Importação física em Premiere/After Effects e testes físicos em macOS/Linux ainda dependem de validação. Não confundir demonstrações do manual com importações reais.
+- Fontes compartilhadas: `browser/collection.js` e `.css`. `tools/build.py` copia para `adobe/` e ajusta os caminhos do HTML no pacote. `tools/manual_demos.py` atualiza demonstrações isoladas a partir das interfaces. Não editar as cópias geradas da coleção em docs/site/assets.
+- Antes de publicar: aprovação do Eduardo e autorização explícita para git/release. Depois da aprovação e do fechamento de app/docs/git, iniciar o carrossel PSD pedido (referência ao final deste arquivo).
+
+## Histórico do estado em 13/11/2026
 
 - **Versão atual: 3.1.1** (`browser\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Ainda não publicada no GitHub (a publicada é a `v3.1.0`; a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
 - Pacote: `release\v3.0.21\noevfx-downloader-3.0.21.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X, Facebook e Pinterest (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
@@ -121,3 +131,38 @@ node tools/capturar-telas.js                # refaz as telas do manual em docs/i
 - README é apresentação e escolha da edição; `docs/MANUAL-DE-USO.md` é guia de tarefas; `MANUAL.md` e `COMECE-AQUI.txt` são entradas rápidas. HTML segue a mesma ordem: instalar, encontrar no navegador, receber links no editor, baixar vários, configurar e resolver.
 - Imagem + poucos passos + resultado esperado. Evitar repetir uma explicação em vários trechos; detalhes técnicos opcionais em blocos recolhíveis. Base Chromium, não exclusividade do Edge.
 - Novas imagens `docs/img/*-3.1.1.png`: renderizações dos templates atuais com dados demonstrativos. Não são capturas de importação real nos programas Adobe. Fontes das demonstrações em `docs/site/assets/*-demo.html`; popup passa a exibir os controles Adobe e vários links. Substituir referências antigas ao popup no site e no Markdown.
+
+
+## Implementação — playlists / 3.2.0 (ensaios de nomes antigos abaixo são históricos)
+
+- `/inspect`: leitura autenticada de metadados sem baixar mídia, no máximo duas leituras simultâneas e 500 itens com aviso explícito de corte. HLS/DASH são recusados como coleções. O navegador fornece cookies quando habilitado; o painel Adobe não lê a sessão do navegador.
+- `/batch`, `GET /batch?id=...`, `/batch/cancel`: fila no app local, até 500 itens e até oito jobs ativos por lista, respeitando o limite global. Projeto/pasta são fixados ao enviar; a organização por site é preservada. Fechar a interface não para a fila; reiniciar o app/PC não a restaura.
+- MP3/M4A/WAV/FLAC/Opus para pasta. Destinos Adobe aceitam MP3/M4A/WAV. A lista de arquivos finais inclui WAV. Deduplicação distingue formato e pasta. Clientes antigos de áudio continuam com M4A.
+- Cada colagem no seletor adiciona itens independentes. Links idênticos são ignorados. URL de vídeo do YouTube com `list=` continua individual até a escolha explícita da playlist. Sources e itens têm áreas limitadas para listas grandes não empurrarem os controles por milhares de linhas.
+- Popup e player usam dropdown de qualidade; áudio abre o seletor. A edição comum não mostra destinos Adobe. A fila mais recente pode ser acompanhada ao reabrir a interface no mesmo perfil/programa.
+- Documentos atualizados: README, manual Markdown, MANUAL.md, COMECE-AQUI, oito páginas HTML e demonstrações. Marca do README azul. Capturas novas em docs/img/*-3.2.0.png usam interfaces reais com dados demonstrativos, sem download/importação real no manual.
+- Validação: 69 testes Python; 10 casos de links; teste de agrupamento do popup; rodada completa com 74/74 checagens do navegador. Há intermitência conhecida no aquecimento do cenário Instagram do teste headless (algumas inicializações não registram as mensagens); registrar sem esconder. Logs locais em build/.
+- Áudio real verificado em cinco formatos por download HTTP local e ffprobe. Playlist pública real verificada em metadados (Computerphile), sem baixar toda a playlist.
+- Ensaio histórico ANTES da troca definitiva dos nomes: atualização ensaiada com o servidor real da release 3.1.0 e o HEAD anterior 3.1.1, nas duas edições: pacote aceito, configuração preservada, extensão e painel novos completos. O endpoint antigo GitHub redireciona e a 3.1.0 já aceita a URL nova. Fluxo de rede completo da futura release só pode ser confirmado depois de publicada.
+- Para teste AGORA: extrair o pacote 3.2.0 local e rodar instalador por cima, sem desinstalar. Para versões anteriores à 3.2.0: migração pelo instalador por cima uma vez, recarregar extensão instalada e reiniciar Adobe. O botão passa a reconhecer o padrão novo após migrar.
+- Backup anterior criado a partir do HEAD limpo, sem sobrescrever: _backups/v3.1.1-before-playlists/fontes-HEAD.zip.
+
+## Próxima tarefa — somente após aprovação e fechamento do app/docs/git
+
+Carrossel Instagram editável em PSD, foco for Editors, didático e bem ilustrado. A quantidade de slides fica a nosso critério. Referência de identidade, rodapé, fontes e guias de safe margin: `D:/Noe VFX/.Labs/Windows/NetMonitor/docs/design/Instagram - Carrossel/NetMonitor - Carrossel v03.psd`. Preservar margens superior e inferior. O Eduardo determinou expressamente não iniciar essa tarefa antes de concluir e aprovar a atual.
+
+- Fechamento dos nomes: 69 testes Python aprovados, mais testes Node de identidade em configurações/Sobre/menus. As notas e hashes são gerados por tools/release_notes.py; o workflow publica exatamente os dois ZIPs da versão. tools/release.py faz um único push atômico e não disputa a publicação com o workflow. Sem publicação nesta rodada.
+
+
+## Limpeza solicitada — 14/11/2026
+
+- dist contém somente os dois ZIPs 3.2.0, SHA256-3.2.0.txt e RELEASE-3.2.0.md. build.py agora arquiva pacotes de versões anteriores automaticamente, sem apagá-los, e separa compilações por versão/execução.
+- 48 itens locais movidos, sem exclusão: builds antigos, rascunhos, pacotes 3.1.1 e imagens não referenciadas. Registro em build/ORGANIZACAO-2026-11-14.json. Cópias em _Arquivo/2026-11-14-limpeza; pasta ignorada pelo Git.
+- GitHub: removidas as 10 releases anteriores à v3.0.21, após baixar e conferir seus assets, notas e metadados. Mantidas v3.0.21 (primeiro envio para a pasta do projeto Adobe) e v3.1.0 (painéis/importação). Tags e histórico preservados. A 3.2.0 continua local, sem publicação.
+- Não foram varridas nem alteradas as pastas históricas release/ e _backups/. Mapa das pastas no README e índices em docs/ e tools/.
+
+## Envio de preservação autorizado — 14/11/2026
+
+- Eduardo pediu subir imediatamente todo o estado atual: código 3.2.0, documentação, manuais e site. Este envio não cria tag nem publica release instalável: a falha real do TikTok relatada em seguida ainda está em investigação.
+- Próxima ação: investigar o erro “Este endereço não é suportado direto” no TikTok, comparar identificação do post e fallback de mídia com versões anteriores, corrigir e testar antes de fechar a release. Não considerar a correção feita só porque os testes simulados passam.
+- Carrossel PSD continua adiado até aprovação e fechamento do fluxo do app.

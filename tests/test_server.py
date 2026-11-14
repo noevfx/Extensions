@@ -390,8 +390,8 @@ class SiteRulesCase(unittest.TestCase):
         m = self.m
         sha = "ab" * 32
         rel = lambda tag, **kw: dict({"tag_name": tag, "html_url": "https://github.com/noevfx/Extensions/releases/tag/" + tag,
-            "assets": [{"name": "noevfx-downloader-%s.zip" % tag.lstrip("v"), "digest": "sha256:" + sha,
-                        "browser_download_url": "https://github.com/noevfx/Extensions/releases/download/%s/noevfx-downloader-%s.zip" % (tag, tag.lstrip("v"))}]}, **kw)
+            "assets": [{"name": "NoeVFX-Downloader-for-Editors-%s.zip" % tag.lstrip("v"), "digest": "sha256:" + sha,
+                        "browser_download_url": "https://github.com/noevfx/noevfx-downloader/releases/download/%s/NoeVFX-Downloader-for-Editors-%s.zip" % (tag, tag.lstrip("v"))}]}, **kw)
         nova = "9.9.9"
         i = m.update_info(rel("v" + nova))
         self.assertTrue(i["newer"])

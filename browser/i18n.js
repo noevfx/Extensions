@@ -53,7 +53,7 @@
       batchInfoDefault: "Goes to {0}",
       batchInfoCustom: "Goes to {0}",
       batchInfoPick: "Choose the folder first.",
-      batchInfoProject: "Goes to the _Noe VFX Downloader folder of the open project, in H.264, and into the bin of the same name (Noe VFX for Editors panel installed).",
+      batchInfoProject: "Goes to the _Noe VFX Downloader folder of the open project, in H.264, and into the bin of the same name (Noe VFX Downloader for Editors panel installed).",
       sendTo: "Send to the project",
       sendPr: "Premiere",
       sendAe: "After Effects",
@@ -279,7 +279,7 @@
       batchInfoDefault: "Vai para {0}",
       batchInfoCustom: "Vai para {0}",
       batchInfoPick: "Escolha a pasta primeiro.",
-      batchInfoProject: "Vai para a pasta _Noe VFX Downloader do projeto aberto, em H.264, e para o bin de mesmo nome (com o painel Noe VFX for Editors instalado).",
+      batchInfoProject: "Vai para a pasta _Noe VFX Downloader do projeto aberto, em H.264, e para o bin de mesmo nome (com o painel Noe VFX Downloader for Editors instalado).",
       sendTo: "Enviar para o projeto",
       sendPr: "Premiere",
       sendAe: "After Effects",
@@ -471,6 +471,9 @@
     let s = table[key];
     if (s === undefined) s = DICT.en[key];
     if (s === undefined) return key;
+    if (globalThis.NVF_EDITION !== "basic" && ["optTitle", "aboutTitle", "staleTab", "menuBest"].includes(key)) {
+      s = s.replace("Noe VFX Downloader", "Noe VFX Downloader for Editors");
+    }
     subs.forEach((v, i) => { s = s.split("{" + i + "}").join(String(v)); });
     return s;
   }
