@@ -44,7 +44,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.1.0"
+VERSION = "3.1.1"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -603,6 +603,154 @@ def compat_fix(job_id: str, out_dir: Path, since: float) -> list:
     return done
 
 
+GPU_ENCODERS = [
+    # (codificador, parâmetros, nome para o usuário): qualidade parecida com o libx264 crf 18, várias vezes mais rápido
+    ("h264_nvenc", ["-preset", "p4", "-rc", "vbr", "-cq", "19", "-b:v", "0"], "placa NVIDIA"),
+    ("h264_qsv", ["-global_quality", "20"], "Intel Quick Sync"),
+    ("h264_amf", ["-quality", "quality", "-rc", "cqp", "-qp_i", "19", "-qp_p", "19"], "placa AMD"),
+]
+CPU_ENCODER = ("libx264", ["-crf", "18", "-preset", "fast"], "processador")
+_ENC = {"v": None}
+
+
+def windows_gpu_adapters():
+    """DXGI: ordem de alto desempenho, ligada ao índice D3D11 pelo LUID (não pela marca)."""
+    if not IS_WIN:
+        return []
+    import ctypes as c
+    from ctypes import wintypes as w
+
+    class GUID(c.Structure):
+        _fields_ = [("data", c.c_ubyte * 16)]
+
+    class LUID(c.Structure):
+        _fields_ = [("low", w.DWORD), ("high", w.LONG)]
+
+    class DESC(c.Structure):
+        _fields_ = [("name", w.WCHAR * 128), ("vendor", w.UINT), ("device", w.UINT),
+                    ("subsys", w.UINT), ("revision", w.UINT), ("vram", c.c_size_t),
+                    ("system", c.c_size_t), ("shared", c.c_size_t), ("luid", LUID), ("flags", w.UINT)]
+
+    def guid(value):
+        return GUID((c.c_ubyte * 16).from_buffer_copy(uuid.UUID(value).bytes_le))
+
+    def call(obj, slot, result, types, *args):
+        table = c.cast(obj, c.POINTER(c.POINTER(c.c_void_p))).contents
+        return c.WINFUNCTYPE(result, c.c_void_p, *types)(table[slot])(obj, *args)
+
+    factory = c.c_void_p()
+    try:
+        iid = guid("c1b6694f-ff09-44a9-b03c-77900a0a1d17")  # IDXGIFactory6
+        aid = guid("29038f61-3839-4626-91fd-086879011a05")  # IDXGIAdapter1
+        create = c.WinDLL("dxgi").CreateDXGIFactory1
+        create.argtypes = [c.POINTER(GUID), c.POINTER(c.c_void_p)]
+        create.restype = w.LONG
+        if create(c.byref(iid), c.byref(factory)) < 0:
+            return []
+        indices = {}
+        for index in range(64):
+            adapter = c.c_void_p()
+            if call(factory, 12, w.LONG, [w.UINT, c.POINTER(c.c_void_p)], index, c.byref(adapter)) < 0:
+                break
+            try:
+                desc = DESC()
+                if call(adapter, 10, w.LONG, [c.POINTER(DESC)], c.byref(desc)) >= 0:
+                    indices[(desc.luid.low, desc.luid.high)] = index
+            finally:
+                call(adapter, 2, w.ULONG, [])
+        found = []
+        for rank in range(64):
+            adapter = c.c_void_p()
+            if call(factory, 29, w.LONG, [w.UINT, w.UINT, c.POINTER(GUID), c.POINTER(c.c_void_p)],
+                    rank, 2, c.byref(aid), c.byref(adapter)) < 0:  # HIGH_PERFORMANCE
+                break
+            try:
+                desc = DESC()
+                if call(adapter, 10, w.LONG, [c.POINTER(DESC)], c.byref(desc)) < 0 or desc.flags & 2:
+                    continue  # ignora adaptador de software
+                index = indices.get((desc.luid.low, desc.luid.high))
+                if index is not None:
+                    found.append({"index": index, "vendor": desc.vendor, "name": desc.name})
+            finally:
+                call(adapter, 2, w.ULONG, [])
+        return found
+    except (OSError, ValueError, AttributeError):
+        return []
+    finally:
+        if factory:
+            call(factory, 2, w.ULONG, [])
+
+
+_GPU_DEVICE_ARGS = {}
+
+
+def gpu_candidates(adapters):
+    """Mantém a prioridade DXGI e seleciona explicitamente o mesmo adaptador no FFmpeg."""
+    vendors = {0x10de: "h264_nvenc", 0x8086: "h264_qsv", 0x1002: "h264_amf"}
+    specs = {enc[0]: enc for enc in GPU_ENCODERS}
+    candidates = []
+    for adapter in adapters:
+        spec = specs.get(vendors.get(adapter["vendor"]))
+        if not spec:
+            continue
+        enc = (spec[0], list(spec[1]), "%s (GPU %d)" % (adapter["name"], adapter["index"]))
+        args = ["-init_hw_device", "d3d11va=nvf:%d" % adapter["index"]]
+        if spec[0] == "h264_qsv":
+            args += ["-init_hw_device", "qsv=nvfq@nvf", "-filter_hw_device", "nvfq"]
+        else:
+            args += ["-filter_hw_device", "nvf"]
+        _GPU_DEVICE_ARGS[(enc[0], enc[2])] = args
+        candidates.append(enc)
+    return candidates
+
+
+def encoder_device_args(enc):
+    return _GPU_DEVICE_ARGS.get((enc[0], enc[2]), []) if enc else []
+
+
+def h264_encoder(ffmpeg: str):
+    """Testa a GPU indicada como alto desempenho; se não puder selecioná-la, usa a CPU."""
+    if _ENC["v"] is None:
+        _ENC["v"] = CPU_ENCODER
+        candidates = gpu_candidates(windows_gpu_adapters()) if IS_WIN else GPU_ENCODERS
+        for enc in candidates:
+            try:
+                r = subprocess.run([ffmpeg, "-hide_banner", "-v", "error"] + encoder_device_args(enc) +
+                                   ["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=1", "-c:v", enc[0]] +
+                                   enc[1] + ["-pix_fmt", "yuv420p", "-f", "null", "-"],
+                                   capture_output=True, timeout=25, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL)
+                if r.returncode == 0:
+                    _ENC["v"] = enc
+                    break
+            except Exception:
+                pass
+    return _ENC["v"]
+
+
+_RACE = {}
+
+
+def _faster_encoder(ffmpeg: str, src: Path, duration: float, gpu):
+    """Corrida de 4 s (do meio do PRÓPRIO vídeo) entre a placa e o processador; o vencedor fica guardado para os próximos.
+    Em PCs com processador muito forte o libx264 ganha da placa no 4K; em PCs comuns a placa ganha."""
+    if "v" in _RACE:
+        return _RACE["v"]
+    times = {}
+    for enc in (gpu, CPU_ENCODER):
+        t0 = time.time()
+        try:
+            r = subprocess.run([ffmpeg, "-hide_banner", "-v", "error"] + encoder_device_args(enc) + ["-ss", str(int(duration / 2)), "-t", "4", "-i", str(src),
+                                "-an", "-c:v", enc[0]] + enc[1] + ["-pix_fmt", "yuv420p", "-f", "null", "-"],
+                               capture_output=True, timeout=120, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL)
+            if r.returncode == 0:
+                times[enc[0]] = time.time() - t0
+        except Exception:
+            pass
+    win = gpu if times.get(gpu[0], 1e9) <= times.get(CPU_ENCODER[0], 1e9) else CPU_ENCODER
+    _RACE["v"] = win
+    return win
+
+
 def _compat_one(job_id: str, p: Path, n: int, total: int, st: dict) -> Path:
     """Converte UM arquivo (chamado com COMPAT_LOCK). Devolve o arquivo final (o original, se não precisar ou não der)."""
     info = _probe_codecs(p)
@@ -612,40 +760,49 @@ def _compat_one(job_id: str, p: Path, n: int, total: int, st: dict) -> Path:
     if not (cv or ca):
         return p
     tmp = p.with_name(p.stem + ".compat.mp4")
-    cmd = [st["path"], "-y", "-v", "error", "-nostats", "-progress", "pipe:1", "-i", str(p), "-map", "0:v:0", "-map", "0:a:0?"]
-    cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"] if cv else ["-c:v", "copy"]
-    cmd += ["-c:a", "aac", "-b:a", "192k"] if ca else ["-c:a", "copy"]
-    cmd += ["-movflags", "+faststart", str(tmp)]
-    label = "convertendo para H.264" if cv else "convertendo o áudio para AAC"
-    if total > 1:
-        label += " (%d de %d)" % (n, total)
-    job_update(job_id, progress=label + "...")
-    try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
-                                creationflags=NO_WINDOW, start_new_session=not IS_WIN)
-        with JOBS_LOCK:
-            PROCS[job_id] = proc
-        for line in proc.stdout:
-            if _is_canceled(job_id):
-                kill_proc(proc)
-                break
-            m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
-            if m and info[2] > 0:
-                pct = min(99, int(int(m.group(1)) / 1e6 / info[2] * 100))
-                job_update(job_id, progress="%s %d%%" % (label, pct))
-        proc.wait(timeout=60)
-        if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0 and not _is_canceled(job_id):
-            final = p.with_suffix(".mp4")
-            if final != p:
-                p.unlink()                                  # o AV1/WebM que o próprio download criou: vira o MP4 compatível
-            os.replace(str(tmp), str(final))
-            return final
-    except Exception:
-        pass
-    try:
-        tmp.unlink()
-    except Exception:
-        pass
+    encoders = [h264_encoder(st["path"])] if cv else [None]
+    if cv and encoders[0] is not CPU_ENCODER:
+        if info[2] > 60 and _faster_encoder(st["path"], p, info[2], encoders[0]) is CPU_ENCODER:
+            encoders = [CPU_ENCODER]                       # neste PC o processador ganhou a corrida: usa ele
+        else:
+            encoders.append(CPU_ENCODER)                   # se a placa falhar no meio, refaz pelo processador
+    for enc in encoders:
+        cmd = [st["path"], "-y", "-v", "error"] + encoder_device_args(enc) + ["-nostats", "-progress", "pipe:1", "-i", str(p), "-map", "0:v:0", "-map", "0:a:0?"]
+        cmd += (["-c:v", enc[0]] + enc[1] + ["-pix_fmt", "yuv420p"]) if enc else ["-c:v", "copy"]
+        cmd += ["-c:a", "aac", "-b:a", "192k"] if ca else ["-c:a", "copy"]
+        cmd += ["-movflags", "+faststart", str(tmp)]
+        label = ("convertendo para H.264 (%s)" % enc[2]) if enc else "convertendo o áudio para AAC"
+        if total > 1:
+            label += " %d de %d" % (n, total)
+        job_update(job_id, progress=label + "...")
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
+                                    creationflags=NO_WINDOW, start_new_session=not IS_WIN)
+            with JOBS_LOCK:
+                PROCS[job_id] = proc
+            for line in proc.stdout:
+                if _is_canceled(job_id):
+                    kill_proc(proc)
+                    break
+                m = re.match(r"out_time_(?:us|ms)=(\d+)", line)
+                if m and info[2] > 0:
+                    pct = min(99, int(int(m.group(1)) / 1e6 / info[2] * 100))
+                    job_update(job_id, progress="%s %d%%" % (label, pct))
+            proc.wait(timeout=60)
+            if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0 and not _is_canceled(job_id):
+                final = p.with_suffix(".mp4")
+                if final != p:
+                    p.unlink()                              # o AV1/WebM que o próprio download criou: vira o MP4 compatível
+                os.replace(str(tmp), str(final))
+                return final
+        except Exception:
+            pass
+        try:
+            tmp.unlink()
+        except Exception:
+            pass
+        if _is_canceled(job_id):
+            break
     return p                                                # não deu para converter: fica o original (melhor que perder o vídeo)
 
 
@@ -951,8 +1108,10 @@ def kill_proc(proc):
     """Mata o yt-dlp e os filhos dele (ffmpeg)."""
     try:
         if IS_WIN:
-            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                           capture_output=True, creationflags=NO_WINDOW, timeout=15)
+            result = subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                                    capture_output=True, creationflags=NO_WINDOW, timeout=15)
+            if result.returncode != 0 and proc.poll() is None:
+                proc.kill()
         else:
             os.killpg(proc.pid, signal.SIGKILL)
     except Exception:
@@ -1075,6 +1234,7 @@ def build_cmd(url: str, fmt: str, out_tmpl: str, referer: str, ua: str,
         "--socket-timeout", "30",
         "--extractor-retries", "3",
         "--trim-filenames", "150",
+        "--no-mtime",                      # data do arquivo = hora do download (com a data do vídeo, o app não achava o arquivo para converter/importar)
         "-f", fmt,
         "-o", out_tmpl,
     ]
@@ -1148,6 +1308,9 @@ def run_ytdlp(job_id: str, url: str, fmt: str, out_tmpl: str, referer: str,
     )
     with JOBS_LOCK:
         PROCS[job_id] = proc
+        canceled = job_id in CANCELED
+    if canceled:
+        kill_proc(proc)
 
     state = {"last": time.time(), "stalled": False}
 
@@ -1870,6 +2033,7 @@ class Handler(BaseHTTPRequestHandler):
                 "default_output_dir": str(default_output_dir()),
                 "config_file": str(CONFIG_FILE),
                 "jobs": running,
+                "panel_setup": PANEL_SETUP["stage"],
             })
             return
 
@@ -2101,8 +2265,8 @@ def _updater_loop():
 # A extensão carregada em modo desenvolvedor não se atualiza sozinha. O servidor local, que já está instalado ao lado da pasta
 # "extension", consulta a última release, baixa o zip, confere o SHA-256 e troca os arquivos; a extensão então se recarrega.
 # --------------------------------------------------------------------------- #
-UPDATE_REPO = "noevfx/Extensions"
-# aceita os dois nomes do repositório: hoje "Extensions"; depois que todos estiverem na 3.1+, ele pode virar "noevfx-downloader"
+UPDATE_REPO = "noevfx/noevfx-downloader"
+# Endereço atual; aceita também URLs históricas do repositório antes da renomeação.
 UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/(?:Extensions|noevfx-downloader)/releases/download/v\d+\.\d+\.\d+/noevfx-downloader(?:-basic)?-\d+\.\d+\.\d+\.zip$")
 UPDATE_LOCK = threading.Lock()
 _UPD_CACHE = {"at": 0.0, "data": None}
@@ -2241,6 +2405,93 @@ def install_panel_files(files: dict, base=None):
         return False
 
 
+
+def panel_installed_version() -> str:
+    d = cep_panel_dir()
+    try:
+        m = re.search(r'ExtensionBundleVersion="([\d.]+)"', (d / "CSXS" / "manifest.xml").read_text(encoding="utf-8"))
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
+
+def enable_cep_panels():
+    """Liga o "modo de painéis" da Adobe (PlayerDebugMode) deste usuário: é o que a Adobe indica para painéis de terceiros."""
+    try:
+        if IS_WIN:
+            import winreg
+            for v in range(9, 21):
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Adobe\CSXS.%d" % v) as k:
+                    winreg.SetValueEx(k, "PlayerDebugMode", 0, winreg.REG_SZ, "1")
+        elif IS_MAC:
+            for v in range(9, 21):
+                subprocess.run(["defaults", "write", "com.adobe.CSXS.%d" % v, "PlayerDebugMode", "1"], capture_output=True, timeout=10, check=True)
+        return True
+    except Exception:
+        return False
+
+
+PANEL_SETUP = {"stage": ""}
+
+def ensure_panel():
+    """Edição for Editors: se o painel do Premiere/AE não está instalado (ou é mais velho que este app), baixa o pacote DESTA versão
+    da release do GitHub, confere o SHA-256 e instala só o painel. Assim quem atualizou pelo botão de uma 3.0.x (cujo atualizador não
+    conhecia o painel) também recebe o painel, sem rodar o instalador."""
+    if not (installed_layout() and installed_edition() == "editors" and cep_panel_dir()):
+        return
+    have = panel_installed_version()
+    if have and _vtuple(have) >= _vtuple(VERSION):
+        return
+    PANEL_SETUP["stage"] = "checking"
+    import zipfile
+    zp = None
+    try:
+        req = UrlRequest("https://api.github.com/repos/%s/releases/tags/v%s" % (UPDATE_REPO, VERSION),
+                         headers={"User-Agent": "NoeVFX-Downloader", "Accept": "application/vnd.github+json"})
+        with url_open(req, timeout=20) as r:
+            rel = json.load(r)
+        name = "noevfx-downloader-%s.zip" % VERSION
+        asset = next((x for x in rel.get("assets") or [] if x.get("name") == name), None)
+        url = str((asset or {}).get("browser_download_url") or "")
+        sha = str((asset or {}).get("digest") or "").lower().replace("sha256:", "")
+        if not UPDATE_ASSET_RE.match(url) or not re.match(r"^[0-9a-f]{64}$", sha):
+            PANEL_SETUP["stage"] = "error"
+            return
+        PANEL_SETUP["stage"] = "downloading"
+        fd, tmp = tempfile.mkstemp(prefix="nvf_painel_", suffix=".zip", dir=str(TMP))
+        os.close(fd)
+        zp = Path(tmp)
+        h = hashlib.sha256()
+        with url_open(UrlRequest(url, headers={"User-Agent": "NoeVFX-Downloader"}), timeout=60) as r, open(zp, "wb") as f:
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                h.update(chunk)
+                f.write(chunk)
+        PANEL_SETUP["stage"] = "verifying"
+        if h.hexdigest() != sha:
+            PANEL_SETUP["stage"] = "error"
+            return
+        PANEL_SETUP["stage"] = "installing"
+        plat = "windows" if IS_WIN else "mac"
+        prefix = "noevfx-downloader/%s/adobe/" % plat
+        with zipfile.ZipFile(zp) as z:
+            files = {n[len(prefix):]: z.read(n) for n in z.namelist() if n.startswith(prefix) and not n.endswith("/")}
+        if install_panel_files(files):
+            PANEL_SETUP["stage"] = "done" if enable_cep_panels() else "error"
+        else:
+            PANEL_SETUP["stage"] = "error"
+    except Exception:
+        PANEL_SETUP["stage"] = "error"
+    finally:
+        if zp:
+            try:
+                zp.unlink()
+            except Exception:
+                pass
+
+
 def _read_installed_version(root: Path) -> str:
     try:
         return str(json.loads((root / "extension" / "manifest.json").read_text(encoding="utf-8")).get("version") or VERSION)
@@ -2329,6 +2580,7 @@ def main():
         return 1
     HTTPD = httpd
     panel_token()                       # o painel do Premiere/AE lê esta chave do disco
+    threading.Thread(target=ensure_panel, daemon=True).start()      # painel para quem atualizou de uma 3.0.x
     sweep_temp()
     threading.Thread(target=supports_impersonate, daemon=True).start()   # aquece em segundo plano
     threading.Thread(target=ffmpeg_state, daemon=True).start()

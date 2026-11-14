@@ -6,6 +6,33 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.1.1] — 2026-11-13
+
+### Corrigido
+- Cancelamento: se o encerramento em árvore do Windows falhar, tenta encerrar o processo diretamente; respeita cancelamento recebido antes do registro do processo.
+- Instaladores mostram a instalação/ativação do painel Adobe; o popup informa as etapas e falhas da instalação automática. Desinstaladores avisam se o painel não foi removido; a extensão continua sendo removida manualmente em cada navegador/perfil.
+- **Conversão para H.264 não acontecia em vídeos do YouTube** (e outros sites que informam a data de publicação): o yt-dlp gravava no
+  arquivo a data do vídeo (anos atrás) e o app, que procura "os arquivos criados neste download" pela data, não achava o arquivo. Um 4K60
+  de 18 min enviado ao Premiere ficou em VP9. Agora o arquivo fica com a data do download (`--no-mtime`).
+- **Quem atualiza pelo botão a partir de uma 3.0.x recebe o painel do Premiere/AE:** o atualizador das 3.0.x não conhecia o painel. Agora a
+  própria 3.1.1, ao ligar, vê que o painel falta (ou está velho), baixa o pacote desta versão do GitHub, confere o SHA-256, instala só o
+  painel e liga o modo de painéis da Adobe. Basta clicar em "Atualizar agora" e depois abrir o Premiere/After Effects.
+
+### Novo
+- Repositório independente `noevfx/noevfx-downloader`, com atualização apontando ao novo endereço e migração das instalações antigas por redistribuição do pacote.
+- Apresentação e manual HTML em oito páginas, publicados via GitHub Pages, com os fluxos navegador → projeto e links recebidos → painel Adobe, exemplos de interfaces, instalação e diagnóstico.
+- **GPU de alto desempenho no Windows:** identifica adaptadores pela ordem DXGI, associa cada um ao índice D3D11 pelo identificador LUID e seleciona explicitamente o dispositivo no FFmpeg. Funciona na lógica de seleção com placas da mesma marca; mostra o modelo no progresso. Se a identificação não estiver disponível, usa a CPU para evitar escolher um dispositivo sem identificação.
+- **Conversão pela placa de vídeo quando compensa:** o app testa NVIDIA (NVENC), Intel (Quick Sync) e AMD (AMF), nessa ordem, e o
+  processador por último. Antes de converter um vídeo longo (mais de 1 min), faz uma corrida de 4 s com a placa e com o processador no
+  próprio vídeo e usa o mais rápido. Medido no PC do Eduardo (RTX 4090 + processador forte): 30 s de 4K60 VP9 em 25 s na placa (ajuste de
+  qualidade alta) e 10,8 s no processador, então lá o processador ganha; em PCs com processador comum a placa costuma ganhar. Se a placa
+  falhar no meio, refaz pelo processador. O progresso mostra qual está convertendo.
+
+### Como foi testado
+- 43 testes do servidor (inclui "o arquivo fica com a data do download") e a corrida medida no vídeo 4K real do Eduardo.
+
+---
+
 ## [3.1.0] — 2026-11-13
 
 ### Novo

@@ -74,7 +74,7 @@ def main():
         "--generate-notes",
     ], check=False)
 
-    print("\nPronto: https://github.com/noevfx/Extensions/releases/tag/%s" % tag)
+    print("\nPronto: https://github.com/noevfx/noevfx-downloader/releases/tag/%s" % tag)
 
 
 if __name__ == "__main__":

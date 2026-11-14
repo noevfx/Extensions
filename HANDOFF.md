@@ -6,7 +6,7 @@ Para quem for continuar o projeto (pessoa ou agente). O resto da documentação:
 
 ## Estado (13/11/2026)
 
-- **Versão atual: 3.1.0** (`browser\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Ainda não publicada no GitHub (a publicada é a `v3.0.20`; a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
+- **Versão atual: 3.1.1** (`browser\manifest.json` é a fonte da versão; `server\server.py` tem `VERSION` igual). Ainda não publicada no GitHub (a publicada é a `v3.1.0`; a `v3.0.13`, só do Pinterest, ficou local e entrou na 3.0.14).
 - Pacote: `release\v3.0.21\noevfx-downloader-3.0.21.zip` (+ `SHA256.txt`). Esta versão cobre Instagram, TikTok, G1/Globo, Vimeo, X, Facebook e Pinterest (um item por vídeo, miniatura própria, download pela página do post). As versões `v3.0.6` a `v3.0.11` ficaram só locais (passos até chegar aqui); `v3.0.2` a `v3.0.4` têm falhas já corrigidas.
 - **Testes de sites** (`tests/e2e_sites.js`, 74 checagens com sites simulados em HTTPS; `tests/real_site.js` e `tests/dl_url.js` para site real). Ainda não visto em conta logada: feed do Facebook (em ajuste). Pinterest real visto sem login (pin aberto e feed); X confirmado pelo Eduardo. Limites: lives (cancelar perde o parcial), vídeos com DRM, Mac/Linux sem máquina real.
 - **GitHub:** as releases **`v3.0.5`, `v3.0.12`, `v3.0.14`, `v3.0.15`, `v3.0.16`, `v3.0.17`, `v3.0.19` e `v3.0.20`** (Latest) estão publicadas (cada uma com o seu zip); o SHA-256 do asset está nas notas e em `release\v3.0.5\SHA256.txt`. A `v3.0.1` ficou com um aviso nas notas: tem um bug (leitura da extensão recusada com 403), **não distribuir**.
@@ -92,3 +92,26 @@ node tools/capturar-telas.js                # refaz as telas do manual em docs/i
   exige Mac. `update_apply_package` também troca o painel (`install_panel_files`, troca inteira).
 - **Armadilha de teste:** copiar arquivos de dentro do Claude para `AppData` cai na pasta virtual do app do Claude (MSIX). Para implantar
   no PC do Eduardo, use um .bat aberto pelo `explorer.exe` (ex.: `build\implantar-teste.bat`).
+- **3.1.1:** `--no-mtime` no yt-dlp (sem isso a data do arquivo era a do vídeo e `_videos_since` não achava o arquivo: sem H.264 e sem importar). `h264_encoder` testa NVENC/QSV/AMF e cai no libx264; `_faster_encoder` faz corrida de 4 s no próprio vídeo (>60 s) e guarda o vencedor na sessão. `ensure_panel` (thread na partida): edição editors sem painel ou com painel mais velho que o `VERSION` -> baixa o zip desta versão da release, confere o `digest`, instala `adobe/` e liga `PlayerDebugMode` (`enable_cep_panels`). A versão do painel (`adobe/CSXS/manifest.xml`) acompanha a do app.
+
+## Continuação local — 3.1.1 (Codex)
+
+- Mantida 3.1.1 por ordem do Eduardo, ainda local; pacotes de teste substituídos diretamente em `dist/`, sem pasta alternativa. Nenhum commit/push nesta sessão.
+- Instaladores informam instalação e ativação Adobe; `PANEL_SETUP` em `/health` e popup mostram etapas/falha do `ensure_panel`. Desinstalador confere falha de remoção do painel; remoção em cada navegador/perfil segue manual.
+- Cancelamento Windows: fallback quando `taskkill` retorna erro e checagem de cancelamento logo após registrar o processo. Falha apareceu duas vezes na suíte e passou após correção.
+- Conversão real VP9/Opus -> H.264/AAC e fallback GPU inválida -> CPU verificados em arquivos temporários. NVIDIA e AMD disponíveis; Intel QSV recusado neste PC. CPU ganhou a corrida em amostra sintética 1080p. Não é medição de qualidade visual nem de desempenho em todos os vídeos.
+- Seleção GPU atualizada: no Windows `windows_gpu_adapters()` usa IDXGIFactory6/EnumAdapterByGpuPreference(HIGH_PERFORMANCE); associa ao EnumAdapters1 pelo LUID e `gpu_candidates()` fixa dispositivo D3D11 (QSV derivado do mesmo D3D11). Prioridade não depende da marca. Se DXGI indisponível, CPU; se GPU falha, tenta próximas candidatas e depois CPU. Fora do Windows mantém o caminho anterior. A corrida ainda guarda um vencedor para toda a sessão, sem separar resolução/codec; não afirmar escolha ótima em todo vídeo.
+- Instalação/desinstalação completas no perfil real aguardam validação do Eduardo; atualização automática de 3.0.x depende de release publicada.
+- Resultado final desta rodada: suíte original 43/43 após correção, teste adicional do fallback de encerramento aprovado, cancelamento real repetido aprovado e navegador 74/74 (cópia diagnóstica do teste com registro de exceções). Primeira rodada do Instagram falhou; segunda passou sem alterar o código do navegador.
+
+- Validação GPU explícita: 46 testes aprovados. RTX 4090 e Radeon integrada reais aceitam o índice selecionado; conversão real VP9/Opus -> H264/AAC usou RTX 4090 e mostrou modelo no progresso. Duas GPUs da mesma marca (incluindo nomes iguais e índices invertidos) cobertas em teste simulado; duas Intel reais ainda não verificadas. Identificação DXGI ~10 ms neste PC, teste de disponibilidade ~257 ms (medição única, não garantia de tempo).
+
+## Novo fluxo público — repositório independente
+
+- Renomeação autorizada pelo Eduardo nesta sessão: `noevfx/noevfx-downloader`; origin atualizado em SSH. Ele redistribuirá os arquivos para os usuários antigos. Migração pelo instalador, sem promessa de atualização pelo botão das versões antigas. `UPDATE_REPO` usa o novo nome; validação de assets mantém ambos.
+- `docs/site/`: apresentação e manual HTML completo em oito páginas. Inclui interfaces atuais em demonstrações isoladas, sem chamadas ao app real; dados/ações de exemplo identificados. Capítulos de instalação, Edge, Adobe, formatos/GPU, configurações, atualização/desinstalação e ajuda. GitHub Pages via `.github/workflows/manual-pages.yml`.
+- Protótipo local aprovado continua em `docs/preview-branding/` (ignorado no Git). Publicação usa apenas `docs/site/`. Nada de mover a pasta `extension` instalada: isso quebraria os perfis dos navegadores.
+- Este envio publica código/documentação, sem criar tag ou release 3.1.1. Os ZIPs locais em `dist/` devem conter os novos endereços; a release 3.1.1 ainda precisa do fechamento e teste de atualização automática publicado.
+
+- Ajustes visuais aprovados em direção: manual usa abertura azul, logo negativo, navegação horizontal e seções abertas como a apresentação (sem sidebar). Capítulo Adobe ilustra também navegador → menu → resultado no projeto, com demonstração interativa isolada. Apresentação identifica Chromium (Chrome/Edge/Brave/Opera/Vivaldi) e destaca for Editors em azul com integração visível.
+- CI: extração dos pacotes agora seleciona somente o ZIP for Editors, evitando passar os dois ZIPs ao unzip/Expand-Archive. O problema histórico do teste e2e antigo ainda exige conferir os runners; não afirmar CI inteira aprovada só por testes locais.

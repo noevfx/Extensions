@@ -1,3 +1,7 @@
+> **[Abrir o manual visual por capítulos](https://noevfx.github.io/noevfx-downloader/instalar.html)** · [Apresentação do produto](https://noevfx.github.io/noevfx-downloader/)
+>
+> Esta edição em Markdown acompanha o guia HTML. O manual descreve a 3.1.1 em validação; confira a versão publicada nas releases.
+
 # Noe VFX Downloader — Manual de uso (com telas)
 
 Salva os vídeos que **você já consegue assistir** no navegador, na qualidade que o player oferece.
@@ -26,7 +30,7 @@ computador: sem conta, sem anúncios e sem telemetria.
 
 ## 1. Como funciona
 
-São **duas peças** que conversam entre si, as duas no seu computador:
+A edição comum tem **duas peças** locais; a edição for Editors acrescenta os painéis do Premiere/After Effects para enviar do navegador ao projeto e importar links recebidos. Você pode começar pela pesquisa na web ou por uma lista do cliente/roteiro:
 
 ```mermaid
 flowchart LR
@@ -45,7 +49,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.1.0.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.1.1.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -220,7 +224,7 @@ Os arquivos têm o nome `Título do vídeo [id].mp4` e ficam na sua pasta padrã
 
 ### Painel "Noe VFX for Editors" (Premiere e After Effects)
 
-Só na edição **for Editors** (Windows e macOS). O instalador coloca o painel; abra (ou feche e abra) o Premiere/After Effects e use
+Só na edição **for Editors** (Windows e macOS). O instalador mostra as etapas de instalação do painel. Ao atualizar de uma versão antiga, abra a extensão no navegador para acompanhar a instalação automática; se falhar, rode o instalador for Editors. O instalador coloca o painel; abra (ou feche e abra) o Premiere/After Effects e use
 **Janela > Extensões > Noe VFX for Editors**.
 
 - Mostra o projeto aberto e a pasta de destino. Cole **um ou vários links** (um por linha), escolha a qualidade e clique em
@@ -245,14 +249,13 @@ for Editors, o projeto do Premiere/After Effects) e, se quiser, o H.264. Links r
 - Projeto solto na pasta do trabalho (`Comercial Teste\filme.aep`): a pasta é criada ali mesmo.
 - O app confere antes de baixar e **não baixa** se algo não estiver certo: programa fechado ("abra o Premiere"), aberto sem projeto,
   projeto sem salvar ("salve o projeto"), mais de um projeto aberto ou arquivo não encontrado. Nunca cai na pasta padrão em silêncio.
-- Não precisa instalar nada no Premiere/After Effects: o app lê o caminho do projeto na janela do programa (e, quando o caminho
-  aparece abreviado, completa pelos arquivos recentes do Windows). O arquivo não é importado para dentro do projeto: fica na pasta,
-  pronto para arrastar.
+- Na edição for Editors, o painel Adobe instalado importa o arquivo no bin `_Noe VFX Downloader` do projeto. Feche e abra o Premiere ou After Effects após instalar o painel.
+
+No Windows, a GPU é escolhida pela preferência de alto desempenho do sistema e selecionada explicitamente no conversor, mesmo com duas placas da mesma marca. O progresso mostra o modelo usado. Se não conseguir identificar/usar uma GPU compatível, o app usa o processador. A detecção é guardada durante a sessão; a comparação com a CPU continua valendo.
 
 ### Converter para H.264 (Premiere e outros editores)
 
-Muitos sites hoje entregam o vídeo em **AV1** ou **VP9** (o YouTube, por exemplo, só tem 4K nesses formatos), e o **Premiere não abre
-AV1**. A caixa **"Converter para H.264 (Premiere)"** resolve isso. Ela é **opcional e vem desligada por padrão**: ligue só quando o seu editor
+Muitos sites hoje entregam o vídeo em **AV1** ou **VP9** (resoluções altas podem estar disponíveis apenas nesses codecs), e a compatibilidade com o editor varia com a versão e o hardware. A caixa **"Converter para H.264 (Premiere)"** resolve isso. Ela é **opcional e vem desligada por padrão**: ligue só quando o seu editor
 não abrir o arquivo. Ela está em três lugares, e é a mesma opção: no **popup** da extensão (abaixo dos botões de qualidade), no **painel do ícone dentro do vídeo** e nas **Configurações**.
 
 - A resolução é **sempre a melhor** que o vídeo tiver (ou a que você escolheu: 1080p, 720p). O codec nunca derruba a resolução.
@@ -307,14 +310,14 @@ mostra versões, o que está instalado e os últimos downloads (sem links comple
 
 ## 9. Atualizar e desinstalar
 
-**Atualizar pelo botão (a partir da 3.0.14):** a extensão roda em modo desenvolvedor e o navegador não a atualiza sozinho,
+**Atualizar pelo botão (a partir da 3.0.14; a migração para o novo repositório deve ser feita pelo instalador):** a extensão roda em modo desenvolvedor e o navegador não a atualiza sozinho,
 então o próprio app local faz isso. Ao abrir o popup ele confere a última release no GitHub; se houver versão nova, aparece uma
 faixa azul com **Atualizar agora**. Para conferir na hora, clique na **versão no rodapé do popup** ou em **Verificar atualizações**
 nas Configurações. Ao confirmar, o app baixa o pacote, **confere o SHA-256**, guarda uma cópia da versão atual em
 `_backups` (na pasta instalada), troca os arquivos, reinicia o servidor e a extensão se recarrega. Se houver download em andamento,
 ele pede para esperar terminar.
 
-**Abas já abertas:** o navegador não troca o código do ícone e do painel do vídeo nas abas que estavam abertas na hora da atualização: dê **F5** nelas. A partir da 3.1.0 a aba antiga esconde o ícone e mostra "Atualize esta página (F5)".
+**Abas já abertas:** o navegador não troca o código do ícone e do painel do vídeo nas abas que estavam abertas na hora da atualização: dê **F5** nelas. A partir da 3.1.1 a aba antiga esconde o ícone e mostra "Atualize esta página (F5)".
 
 **Mais de um perfil do navegador:** o app local é um só. Depois de atualizar por um perfil, o popup dos outros mostra "O app já está na X, mas esta extensão ainda é a Y" com o botão **Recarregar extensão**; um clique e o perfil fica igual ao app.
 
@@ -324,7 +327,7 @@ extensão. Suas configurações e a pasta escolhida são mantidas. O **yt-dlp se
 toda semana).
 
 **Desinstalar:** rode `DESINSTALAR_NOEVFX.bat` (Windows) ou `bash desinstalar-noevfx.sh` (Mac/Linux) e,
-no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagados.
+confira os avisos: o aplicativo e o painel Adobe do usuário atual são removidos. Depois, abra a página de extensões em cada navegador e perfil e clique em **Remover**. Os vídeos baixados **não** são apagados.
 
 ---
 
@@ -342,4 +345,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.1.0 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.1.1 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

@@ -27,3 +27,6 @@ desktop.ini
 /release/
 server/panel_token.txt
 panel_token.txt
+
+# Protótipo local e capturas de aprovação; site público em docs/site/
+/docs/preview-branding/

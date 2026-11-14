@@ -90,6 +90,13 @@ async function checkHealth() {
   const r = await send({ type: "HEALTH" });
   serverOnline = !!(r && r.ok);
   srvVersion = (r && r.data && r.data.version) || "";
+  const panelStage = r && r.data && r.data.panel_setup;
+  const panelNotice = $("panelSetup");
+  if (panelNotice) {
+    const known = ["checking", "downloading", "verifying", "installing", "done", "error"];
+    panelNotice.classList.toggle("show", known.includes(panelStage));
+    if (known.includes(panelStage)) panelNotice.textContent = t("panel_" + panelStage);
+  }
   srv.textContent = serverOnline ? t("online") : t("offline");
   srv.classList.toggle("on", serverOnline);
   srv.classList.toggle("off", !serverOnline);
@@ -480,6 +487,8 @@ async function boot() {
     const r = await send({ type: "GET_TAB_STREAMS", tabId: currentTab.id });
     if (r && r.streams && r.streams.length) applyStreams(r.streams);
   }, 800);
+
+  setInterval(() => { if (!document.hidden) checkHealth(); }, 2500);
 
   // atualização automática enquanto o popup está aberto: a página troca de vídeo, o player carrega depois, etc.
   let urlEdited = false;

@@ -316,6 +316,34 @@ class SiteRulesCase(unittest.TestCase):
     def cmd(self, url):
         return self.m.build_cmd(url, "best", "out.%(ext)s", "", "", "", [], False, True, False)[0]
 
+    def test_gpu_mesma_marca_preserva_ordem_e_indice_dxgi(self):
+        for vendor, codec in [(0x1002, "h264_amf"), (0x8086, "h264_qsv"), (0x10de, "h264_nvenc")]:
+            adapters = [{"index": 2, "vendor": vendor, "name": "GPU igual"},
+                        {"index": 0, "vendor": vendor, "name": "GPU igual"}]
+            encoders = self.m.gpu_candidates(adapters)
+            self.assertEqual([e[0] for e in encoders], [codec, codec])
+            self.assertIn("d3d11va=nvf:2", self.m.encoder_device_args(encoders[0]))
+            self.assertIn("d3d11va=nvf:0", self.m.encoder_device_args(encoders[1]))
+            if vendor == 0x8086:
+                self.assertIn("qsv=nvfq@nvf", self.m.encoder_device_args(encoders[0]))
+        self.assertEqual(self.m.encoder_device_args(self.m.CPU_ENCODER), [])
+
+    def test_gpu_windows_sem_identificacao_recua_para_cpu(self):
+        from unittest.mock import patch
+        with patch.dict(self.m._ENC, {"v": None}), patch.object(self.m, "IS_WIN", True), \
+             patch.object(self.m, "windows_gpu_adapters", return_value=[]), \
+             patch.object(self.m.subprocess, "run") as run:
+            self.assertIs(self.m.h264_encoder("ffmpeg"), self.m.CPU_ENCODER)
+            run.assert_not_called()
+
+    def test_cancelamento_windows_falha_taskkill_encerra_processo(self):
+        from unittest.mock import Mock, patch
+        proc = Mock()
+        proc.poll.return_value = None
+        with patch.object(self.m, "IS_WIN", True), patch.object(self.m.subprocess, "run", return_value=Mock(returncode=1)):
+            self.m.kill_proc(proc)
+        proc.kill.assert_called_once()
+
     def test_vimeo_page_vira_player_com_referer(self):
         self.assertEqual(self.m.normalize_target("https://vimeo.com/22439234", ""),
                          ("https://player.vimeo.com/video/22439234", "https://vimeo.com/"))
@@ -573,6 +601,10 @@ class SiteRulesCase(unittest.TestCase):
             self.assertFalse(m.install_panel_files({"index.html": b"x"}, alvo))  # sem manifesto: não mexe
             self.assertFalse(m.install_panel_files({"CSXS/manifest.xml": b"x", "../fora.txt": b"x"}, alvo))
             self.assertFalse((Path(d) / "CEP" / "fora.txt").exists())
+
+    def test_arquivo_fica_com_a_data_do_download(self):
+        # sem isto o yt-dlp grava a data de publicação (YouTube: anos atrás) e o app não acha o arquivo para converter para H.264
+        self.assertIn("--no-mtime", self.cmd("https://www.youtube.com/watch?v=jNQXAC9IVRw"))
 
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):

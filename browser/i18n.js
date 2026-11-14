@@ -9,6 +9,12 @@
     en: {
       /* popup */
       checking: "checking…",
+      panel_checking: "Painel Adobe: verificando pacote...",
+      panel_downloading: "Painel Adobe: baixando...",
+      panel_verifying: "Painel Adobe: conferindo pacote...",
+      panel_installing: "Painel Adobe: instalando...",
+      panel_done: "Painel Adobe instalado. Reinicie o Premiere ou After Effects.",
+      panel_error: "Não foi possível instalar o painel Adobe. Rode novamente o instalador for Editors.",
       online: "Online",
       offline: "Offline",
       setupMsg: "Set the default folder to save your videos.",
@@ -229,6 +235,12 @@
 
     pt: {
       checking: "verificando…",
+      panel_checking: "Adobe panel: checking package...",
+      panel_downloading: "Adobe panel: downloading...",
+      panel_verifying: "Adobe panel: verifying package...",
+      panel_installing: "Adobe panel: installing...",
+      panel_done: "Adobe panel installed. Restart Premiere or After Effects.",
+      panel_error: "Could not install the Adobe panel. Run the for Editors installer again.",
       online: "Online",
       offline: "Offline",
       setupMsg: "Defina a pasta padrão para salvar os vídeos.",

@@ -1,3 +1,9 @@
+> **Do navegador ao projeto.** Extensão para navegadores Chromium: Chrome, Edge, Brave, Opera e Vivaldi. Encontre uma referência no vídeo da página e envie ao Premiere/After Effects. Recebeu uma lista do cliente ou do roteiro? Cole os links no painel e acompanhe o download e a importação.
+>
+> **[Abrir apresentação e manual ilustrado](https://noevfx.github.io/noevfx-downloader/)** · [Instalar](https://noevfx.github.io/noevfx-downloader/instalar.html) · [Fluxo no navegador](https://noevfx.github.io/noevfx-downloader/navegador.html) · [Premiere e After Effects](https://noevfx.github.io/noevfx-downloader/manual.html)
+>
+> O código e o manual já descrevem a **3.1.1 em validação**. Confira a versão disponível na página de releases antes de baixar. O repositório foi renomeado de `Extensions` para `noevfx-downloader`; quem usa uma versão antiga deve receber o pacote novo e rodar o instalador para migrar.
+
 <p align="center">
   <img src="browser/icons/logo.svg" width="96" alt="Noe VFX">
 </p>
@@ -11,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.1.0-0066FF">
+  <img alt="versão" src="https://img.shields.io/badge/vers%C3%A3o-3.1.1-0066FF">
   <img alt="sistemas" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-171a24">
   <img alt="navegadores" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera%20%C2%B7%20Vivaldi-171a24">
   <img alt="telemetria" src="https://img.shields.io/badge/telemetria-zero-171a24">
@@ -61,12 +67,12 @@ mesmo computador: instalar uma substitui a outra.
 ## Baixar
 
 **For Editors (extensão + aplicativo local + painel do Premiere/AE + instaladores):**
-[`noevfx-downloader-3.1.0.zip`](https://github.com/noevfx/Extensions/releases/download/v3.1.0/noevfx-downloader-3.1.0.zip)
+[Pacote for Editors na página de releases](https://github.com/noevfx/noevfx-downloader/releases)
 
 **Comum (extensão + aplicativo local + instaladores):**
-[`noevfx-downloader-basic-3.1.0.zip`](https://github.com/noevfx/Extensions/releases/download/v3.1.0/noevfx-downloader-basic-3.1.0.zip)
+[Pacote comum (basic) na página de releases](https://github.com/noevfx/noevfx-downloader/releases)
 
-  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/Extensions/releases))</sub>
+  <sub>(a versão está no nome do arquivo e no `VERSION.txt` dentro dele; o SHA-256 está nas notas de cada [release](https://github.com/noevfx/noevfx-downloader/releases))</sub>
 
 | Sistema | Pasta no zip | Instalador |
 |---|---|---|
@@ -116,7 +122,7 @@ navegador foi validado só no Windows. Se algum item vier sem miniatura ou com o
 - **Vários links de uma vez**: botão **Vários links** no popup abre uma página para colar uma lista, escolher a qualidade e o destino (pasta padrão, outra pasta ou, na edição for Editors, o projeto do Premiere/After Effects).
 - **Painel Noe VFX for Editors** (edição for Editors, Windows e macOS): dentro do Premiere e do After Effects (Janela > Extensões), cola um ou vários links, baixa em H.264 na pasta do projeto e **importa no bin `_Noe VFX Downloader`**. Uma parte escondida do painel também importa o que você manda pelo navegador.
 - **Enviar para o Premiere / After Effects** (edição for Editors): salva na pasta `_Noe VFX Downloader` do trabalho cujo projeto está aberto no programa, já em H.264. Sem programa aberto ou com projeto sem salvar, avisa e não baixa.
-- **Converter para H.264 (Premiere)**: caixa **opcional, desligada por padrão**, no popup, no painel do ícone e nas Configurações. Ligue quando o seu editor não abrir o arquivo (o Premiere não abre AV1): baixa a melhor resolução e, se o site só tiver AV1/VP9 (ex.: 4K do YouTube), converte para H.264 + AAC depois do download.
+- **Converter para H.264 (Premiere)**: caixa **opcional, desligada por padrão**, no popup, no painel do ícone e nas Configurações. Ligue quando o seu editor não abrir o arquivo (o Premiere não abre AV1): baixa a melhor resolução e, se o site só tiver AV1/VP9 (ex.: 4K do YouTube), converte para H.264 + AAC depois do download, pela placa de vídeo (NVIDIA, Intel ou AMD) ou pelo processador, o que for mais rápido no seu PC.
 - **Salvar um ou todos**, com **fila**, progresso, **cancelar** e aviso de vídeo já em download.
 - **Pasta padrão** escolhida por você (perguntada no primeiro uso). Sem escolher, vai para a pasta **Vídeos** do seu usuário, em `NoeVFX` (no Mac, `Filmes`). Opção de **subpasta por site**.
 - **Contador no ícone** da extensão: quantos vídeos existem na aba.
@@ -156,7 +162,7 @@ navegador foi validado só no Windows. Se algum item vier sem miniatura ou com o
 - **Zero telemetria**: nada seu é coletado nem enviado. A extensão fala só com o aplicativo local.
 - Conexões do aplicativo além do site do vídeo: **GitHub**, para atualizar o yt-dlp e conferir a última versão do app (a consulta não leva
   dado pessoal), e a instalação baixa yt-dlp, FFmpeg, Deno e Python das fontes oficiais, com checagem de integridade.
-- A atualização do app **só baixa de `github.com/noevfx/Extensions`**, **confere o SHA-256**, valida a versão dentro do pacote e guarda uma cópia
+- A atualização do app **só baixa de `github.com/noevfx/noevfx-downloader`**, **confere o SHA-256**, valida a versão dentro do pacote e guarda uma cópia
   da versão anterior; nunca atualiza a pasta de desenvolvimento.
 - Cookies vão para um arquivo temporário, usado só pelo yt-dlp, e são apagados no fim.
 - Permissões da extensão: `webRequest` e `<all_urls>` (ver a mídia da aba), `cookies` (conteúdo com login), `storage` e `contextMenus`.
@@ -240,9 +246,11 @@ O instalador dos três sistemas é testado automaticamente a cada versão
 > navegador guarda o caminho e a extensão quebra quando você apaga a pasta.
 > Carregue sempre da pasta **instalada**.
 
+No Windows, a GPU é escolhida pela preferência de alto desempenho do sistema e selecionada explicitamente no conversor, mesmo com duas placas da mesma marca. O progresso mostra o modelo usado. Se não conseguir identificar/usar uma GPU compatível, o app usa o processador. A detecção é guardada durante a sessão; a comparação com a CPU continua valendo.
+
 ### Desinstalar
 
-Rode `DESINSTALAR_NOEVFX.bat` (Windows) ou `bash desinstalar-noevfx.sh` (macOS/Linux) e, no navegador, **Remova** a extensão.
+Rode `DESINSTALAR_NOEVFX.bat` (Windows) ou `bash desinstalar-noevfx.sh` (macOS/Linux). O desinstalador remove o aplicativo e o painel Adobe do usuário atual e avisa se não conseguir. Depois, em cada navegador e perfil onde instalou, abra a página de extensões e clique em **Remover** no Noe VFX Downloader. Os vídeos baixados são preservados.
 Os vídeos baixados **não** são apagados.
 
 ---
@@ -282,7 +290,7 @@ A extensão roda em modo desenvolvedor, então o navegador **não a atualiza soz
   Não atualiza com download em andamento.
 - **Pelo instalador (sempre funciona):** rode o instalador do zip novo e, em `chrome://extensions` (ou `edge://extensions`), clique em **Recarregar**.
 
-**Abas já abertas:** o navegador não troca o código do ícone e do painel nas abas que estavam abertas na hora da atualização. A partir da 3.1.0 a aba antiga avisa "atualize esta página (F5)" e esconde o ícone; antes disso, dê F5 nas abas com vídeo.
+**Abas já abertas:** o navegador não troca o código do ícone e do painel nas abas que estavam abertas na hora da atualização. A partir da 3.1.1 a aba antiga avisa "atualize esta página (F5)" e esconde o ícone; antes disso, dê F5 nas abas com vídeo.
 
 **Mais de um perfil do navegador?** O app local é um só: depois de atualizar por um perfil, o popup dos outros mostra "O app já está na X, mas esta extensão ainda é a Y" com o botão **Recarregar extensão**. Um clique e pronto.
 
@@ -321,7 +329,7 @@ macOS `~/Library/Logs/NoeVFXDownloader.log`
 
 | Teste | O que cobre | Como rodar |
 |---|---|---|
-| `tests/test_server.py` | regras do servidor (42 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
+| `tests/test_server.py` | regras do servidor (43 testes): segurança, comandos do yt-dlp, Vimeo, Instagram/X/Pinterest, fragmentos e DRM, atualização | `python -m unittest tests.test_server` |
 | `tests/e2e_sites.js` | extensão num navegador de verdade, com mouse e sites simulados em HTTPS (Instagram, X, Facebook, Pinterest, TikTok, G1, página com `blob:`, shadow DOM, botão de atualizar e de recarregar, checkbox H.264, aviso de aba antiga, enviar para Premiere/AE, vários links): 74 checagens | `node tests/e2e_sites.js` |
 | `tests/popup_group.js` | agrupamento da lista do popup | `node tests/popup_group.js` |
 | `tests/real_site.js <url>` | uma página real com a extensão, o servidor, o yt-dlp e o ffprobe | `node tests/real_site.js <url> [segundos]` |

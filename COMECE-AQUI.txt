@@ -1,4 +1,4 @@
-Noe VFX Downloader 3.1.0 — noevfx.com
+Noe VFX Downloader 3.1.1 — noevfx.com
 =====================================
 
 Qual versão é? Está no nome do ZIP (noevfx-downloader-X.Y.Z.zip) e no arquivo VERSION.txt.
@@ -61,4 +61,11 @@ SE ALGO DER ERRADO
 ------------------------------------------------------------------
 Manual completo: MANUAL.md
 Desinstalar: DESINSTALAR_NOEVFX.bat  /  desinstalar-noevfx.sh
+O desinstalador remove o app e o painel Adobe do usuário atual. Depois,
+remova a extensão na página de extensões de cada navegador e perfil.
+Os vídeos baixados são preservados.
 ------------------------------------------------------------------
+
+Manual visual completo: https://noevfx.github.io/noevfx-downloader/instalar.html
+Repositorio: https://github.com/noevfx/noevfx-downloader
+Migracao do repositorio antigo: rode o instalador do novo pacote e recarregue a extensao instalada.

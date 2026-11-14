@@ -47,12 +47,18 @@ fi
 
 printf "[3/4] Removendo arquivos...\n"
 rm -rf "$DEST"
-rm -rf "$HOME/Library/Application Support/Adobe/CEP/extensions/com.noevfx.downloader" 2>/dev/null
+if [ "$OS" = "Darwin" ]; then
+  printf "  Removendo painel do Premiere e After Effects...\n"
+  PANEL_DIR="$HOME/Library/Application Support/Adobe/CEP/extensions/com.noevfx.downloader"
+  rm -rf "$PANEL_DIR" 2>/dev/null
+  if [ -e "$PANEL_DIR" ]; then printf "  AVISO: nao consegui remover o painel Adobe. Feche os programas Adobe e tente novamente.\n"; fi
+fi
+if [ -e "$DEST" ]; then printf "  AVISO: nao consegui remover todos os arquivos do aplicativo.\n"; fi
 
 printf "[4/4] Pronto.\n\n"
 printf "==========================================================\n"
-printf "  DESINSTALADO COM SUCESSO\n\n"
-printf "  Falta 1 passo manual no navegador:\n"
+printf "  ETAPAS DE REMOCAO CONCLUIDAS - confira os avisos acima\n\n"
+printf "  Falta remover a extensao em cada navegador e perfil:\n"
 printf "    - Abra chrome://extensions\n"
 printf "    - Clique em \"Remover\" no cartão do Noe VFX Downloader\n"
 printf "==========================================================\n\n"

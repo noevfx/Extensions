@@ -11,6 +11,7 @@ echo.
 echo  Isto vai remover:
 echo    - a inicializacao automatica do servidor
 echo    - os arquivos instalados em %%LOCALAPPDATA%%\NoeVFXDownloader
+echo    - o painel do Premiere e After Effects deste usuario
 echo.
 echo  Os VIDEOS ja baixados NAO serao apagados.
 echo.
@@ -33,7 +34,11 @@ del /F /Q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NoeVFXDownloa
 
 echo  [3/4] Removendo arquivos...
 rmdir /S /Q "%LOCALAPPDATA%\NoeVFXDownloader" >nul 2>nul
+echo  Removendo painel do Premiere e After Effects...
 rmdir /S /Q "%APPDATA%\Adobe\CEP\extensions\com.noevfx.downloader" >nul 2>nul
+if exist "%APPDATA%\Adobe\CEP\extensions\com.noevfx.downloader" (
+    echo  [AVISO] Nao consegui remover o painel Adobe. Feche os programas Adobe e tente novamente.
+)
 if exist "%LOCALAPPDATA%\NoeVFXDownloader" (
     echo  [AVISO] Nao consegui apagar tudo: algum arquivo esta em uso.
     echo          Reinicie o Windows e rode este desinstalador de novo.
@@ -48,9 +53,9 @@ echo  [4/4] Pronto.
 echo.
 color 0A
 echo  ==========================================================
-echo   DESINSTALADO COM SUCESSO
+echo   ETAPAS DE REMOCAO CONCLUIDAS - confira os avisos acima
 echo.
-echo   Falta 1 passo manual no navegador:
+echo   Falta remover a extensao em cada navegador e perfil:
 echo     - Abra edge://extensions  ou  chrome://extensions
 echo     - Clique em "Remover" no cartao do Noe VFX Downloader
 echo  ==========================================================

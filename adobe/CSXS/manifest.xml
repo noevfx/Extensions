@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Noe VFX for Editors: painel para Premiere Pro e After Effects (CEP). Fala só com o app local (127.0.0.1:8765). -->
-<ExtensionManifest Version="9.0" ExtensionBundleId="com.noevfx.downloader" ExtensionBundleVersion="3.1.0" ExtensionBundleName="Noe VFX for Editors">
+<ExtensionManifest Version="9.0" ExtensionBundleId="com.noevfx.downloader" ExtensionBundleVersion="3.1.1" ExtensionBundleName="Noe VFX for Editors">
   <ExtensionList>
-    <Extension Id="com.noevfx.downloader.panel" Version="3.1.0" />
-    <Extension Id="com.noevfx.downloader.bg" Version="3.1.0" />
+    <Extension Id="com.noevfx.downloader.panel" Version="3.1.1" />
+    <Extension Id="com.noevfx.downloader.bg" Version="3.1.1" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
