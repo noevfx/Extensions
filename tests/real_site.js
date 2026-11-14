@@ -46,7 +46,7 @@ function rawReq(port, method, p, body, headers = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "nvf_real_"));
   const sp = await freePort(), dbg = await freePort();
   const extDir = path.join(tmp, "ext"), srvDir = path.join(tmp, "srv"), dl = path.join(tmp, "dl");
-  fs.cpSync(path.join(ROOT, "extension"), extDir, { recursive: true });
+  fs.cpSync(path.join(ROOT, "browser"), extDir, { recursive: true });
   fs.mkdirSync(srvDir); fs.copyFileSync(path.join(ROOT, "server", "server.py"), path.join(srvDir, "server.py"));
   // usa o yt-dlp/ffmpeg já instalados (a cópia do servidor procura em ./bin ao lado do server.py)
   const instBin = path.join(process.env.LOCALAPPDATA || "", "NoeVFXDownloader", "server", "bin");

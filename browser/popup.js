@@ -557,8 +557,12 @@ document.querySelectorAll("button[data-q]").forEach((btn) => {
   });
 });
 
-// "Enviar para o Premiere / After Effects": só no Windows (é onde o app sabe ler o projeto aberto)
-if (/Windows/i.test(navigator.userAgent)) $("sendRow").hidden = false;
+// edição "for Editors": envio para o Premiere/After Effects (Windows e Mac) e conversão H.264; a edição comum não mostra nada disso
+const EDITORS = globalThis.NVF_EDITION !== "basic";
+if (EDITORS && /Windows|Macintosh|Mac OS X/i.test(navigator.userAgent)) $("sendRow").hidden = false;
+if (!EDITORS) { const cr = $("compatRow"); if (cr) cr.hidden = true; }
+if (EDITORS) $("edPill").hidden = false;
+$("batchBtn").addEventListener("click", () => { chrome.tabs.create({ url: chrome.runtime.getURL("batch.html") }); window.close(); });
 document.querySelectorAll("button[data-target]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const target = (urlInput.value || (currentTab && currentTab.url) || "").trim();

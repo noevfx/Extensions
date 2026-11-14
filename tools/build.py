@@ -40,19 +40,32 @@ def copy_tree(src: Path, dst: Path):
             out.write_bytes(data)
 
 
-def main():
-    if WORK.exists():
-        shutil.rmtree(WORK)
-    DIST.mkdir(parents=True, exist_ok=True)
+EDITIONS = {
+    # pacote de editores: nome de zip de sempre (quem já usa recebe a atualização sem perder nada) + painel do Premiere/AE
+    "editors": {"zip": "noevfx-downloader-%s.zip", "name": "Noe VFX Downloader for Editors", "panel": True},
+    "basic": {"zip": "noevfx-downloader-basic-%s.zip", "name": "Noe VFX Downloader", "panel": False},
+}
+PANEL_DIR = ROOT / "adobe"                 # painel do Premiere/AE; o instalador liga o modo de painéis da Adobe (PlayerDebugMode)
 
-    # a versão vem do manifest da extensão (fonte única) e entra no NOME do zip e num VERSION.txt dentro dele
-    version = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))["version"]
 
-    pkg = WORK / PKG_NAME
+def set_edition(ext_dir: Path, edition: str, name: str):
+    (ext_dir / "edition.js").write_text(
+        "// Edição do pacote (gerado pelo build).\nglobalThis.NVF_EDITION = %s;\n" % json.dumps(edition), encoding="utf-8")
+    for msgs in ext_dir.glob("_locales/*/messages.json"):
+        d = json.loads(msgs.read_text(encoding="utf-8"))
+        d["extName"]["message"] = name
+        msgs.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    man = ext_dir / "manifest.json"
+    m = json.loads(man.read_text(encoding="utf-8"))
+    m.setdefault("action", {})["default_title"] = name
+    man.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def build_edition(edition: str, version: str) -> Path:
+    spec = EDITIONS[edition]
+    pkg = WORK / edition / PKG_NAME
     pkg.mkdir(parents=True)
-    (pkg / "VERSION.txt").write_text("Noe VFX Downloader %s\n" % version, encoding="utf-8")
-
-    # docs comuns
+    (pkg / "VERSION.txt").write_text("%s %s\n" % (spec["name"], version), encoding="utf-8")
     for f in ("COMECE-AQUI.txt", "MANUAL.md", "README.md"):
         src = ROOT / f
         if src.exists():
@@ -63,28 +76,25 @@ def main():
         "mac": ("installers/mac", ["INSTALAR-MAC.command", "instalar-noevfx.sh", "desinstalar-noevfx.sh"]),
         "linux": ("installers/linux", ["instalar-noevfx.sh", "desinstalar-noevfx.sh"]),
     }
-
     for plat, (inst_dir, files) in platforms.items():
         dest = pkg / plat
         (dest / "extension").mkdir(parents=True)
         (dest / "server").mkdir(parents=True)
-        copy_tree(ROOT / "extension", dest / "extension")
+        copy_tree(ROOT / "browser", dest / "extension")
+        set_edition(dest / "extension", edition, spec["name"])
         shutil.copy2(ROOT / "server" / "server.py", dest / "server" / "server.py")
         shutil.copy2(ROOT / "installers" / "common" / "guia-extensao.html", dest / "guia-extensao.html")
+        if spec["panel"] and plat in ("windows", "mac"):            # Linux não tem Premiere/After Effects
+            shutil.copytree(PANEL_DIR, dest / "adobe")
         for f in files:
             src = ROOT / inst_dir / f
             data = src.read_bytes()
             data = crlf(data) if f.endswith((".bat", ".ps1")) else data.replace(b"\r\n", b"\n")
             (dest / f).write_bytes(data)
 
-    zip_path = DIST / ("noevfx-downloader-%s.zip" % version)
-    # só o zip da versão atual fica na dist (zips de versões antigas e o nome antigo, sem versão, saem)
-    for old in DIST.glob("noevfx-downloader*.zip"):
-        if old != zip_path:
-            old.unlink()
+    zip_path = DIST / (spec["zip"] % version)
     if zip_path.exists():
         zip_path.unlink()
-
     count = 0
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for root, dirs, files in os.walk(pkg):
@@ -98,14 +108,25 @@ def main():
                 zi.compress_type = zipfile.ZIP_DEFLATED
                 z.writestr(zi, full.read_bytes())
                 count += 1
-
     with zipfile.ZipFile(zip_path) as z:
         assert z.testzip() is None
+    print("%-8s %s  (%d arquivos, %.1f KB)" % (edition, zip_path.name, count, zip_path.stat().st_size / 1024))
+    return zip_path
 
+
+def main():
+    if WORK.exists():
+        shutil.rmtree(WORK)
+    DIST.mkdir(parents=True, exist_ok=True)
+    # a versão vem do manifest da extensão (fonte única) e entra no NOME dos zips e num VERSION.txt dentro deles
+    version = json.loads((ROOT / "browser" / "manifest.json").read_text(encoding="utf-8"))["version"]
+    keep = {EDITIONS[e]["zip"] % version for e in EDITIONS}
+    for old in DIST.glob("noevfx-downloader*.zip"):             # só os zips da versão atual ficam na dist
+        if old.name not in keep:
+            old.unlink()
     print("versao:", version)
-    print("pacote:", zip_path)
-    print("arquivos:", count)
-    print("tamanho:", round(zip_path.stat().st_size / 1024, 1), "KB")
+    for e in EDITIONS:
+        build_edition(e, version)
 
 
 if __name__ == "__main__":

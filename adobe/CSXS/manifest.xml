@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Noe VFX for Editors: painel para Premiere Pro e After Effects (CEP). Fala só com o app local (127.0.0.1:8765). -->
+<ExtensionManifest Version="9.0" ExtensionBundleId="com.noevfx.downloader" ExtensionBundleVersion="3.1.0" ExtensionBundleName="Noe VFX for Editors">
+  <ExtensionList>
+    <Extension Id="com.noevfx.downloader.panel" Version="3.1.0" />
+    <Extension Id="com.noevfx.downloader.bg" Version="3.1.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[14.0,99.9]" />
+      <Host Name="AEFT" Version="[17.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="9.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <!-- painel visível: Janela > Extensões > Noe VFX for Editors -->
+    <Extension Id="com.noevfx.downloader.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/host.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--mixed-context</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Noe VFX for Editors</Menu>
+          <Geometry>
+            <Size><Height>520</Height><Width>320</Width></Size>
+            <MinSize><Height>300</Height><Width>260</Width></MinSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <!-- parte escondida: liga junto com o programa, avisa o projeto ativo e importa no bin (mesmo com o painel fechado) -->
+    <Extension Id="com.noevfx.downloader.bg">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./bg.html</MainPath>
+          <ScriptPath>./jsx/host.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--mixed-context</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>false</AutoVisible>
+          <StartOn>
+            <Event>applicationActivate</Event>
+            <Event>com.adobe.csxs.events.ApplicationActivate</Event>
+          </StartOn>
+        </Lifecycle>
+        <UI>
+          <Type>Custom</Type>
+          <Geometry>
+            <Size><Height>1</Height><Width>1</Width></Size>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

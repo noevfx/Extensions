@@ -54,7 +54,7 @@ function rawReq(port, method, p, body, headers = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "nvf_e2e_"));
   const sp = await freePort(), fp = await freePort(), dbg = await freePort();
   const extDir = path.join(tmp, "ext"), srvDir = path.join(tmp, "srv"), dl = path.join(tmp, "dl");
-  fs.cpSync(path.join(ROOT, "extension"), extDir, { recursive: true });
+  fs.cpSync(path.join(ROOT, "browser"), extDir, { recursive: true });
   fs.mkdirSync(srvDir); fs.copyFileSync(path.join(ROOT, "server", "server.py"), path.join(srvDir, "server.py"));
   const bg = path.join(extDir, "background.js");
   fs.writeFileSync(bg, fs.readFileSync(bg, "utf8").replace("http://127.0.0.1:8765", "http://127.0.0.1:" + sp));

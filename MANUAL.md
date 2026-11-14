@@ -1,4 +1,4 @@
-# Noe VFX Downloader 3.0.21 — Manual rápido
+# Noe VFX Downloader 3.1.0 — Manual rápido
 
 **Site:** https://noevfx.com · **Navegadores:** Chrome, Edge, Brave, Opera, Vivaldi · **Sistemas:** Windows, macOS, Linux
 
@@ -28,6 +28,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 - Passe o mouse sobre o vídeo → **ícone azul** → escolha a qualidade.
 - Ou clique na extensão (popup): lista tudo que a página carrega; **Baixar** em cada vídeo ou **Baixar todos**.
 - Ou botão direito → *Baixar vídeo na qualidade nativa*.
+- **Edição for Editors**: painel **Noe VFX for Editors** dentro do Premiere/After Effects (Janela > Extensões): cole um ou vários links e eles entram no bin `_Noe VFX Downloader` do projeto. No navegador, **Vários links** (popup) baixa uma lista de uma vez.
 - **Enviar p/ Premiere / After Effects** (Windows): salva na pasta `_Noe VFX Downloader` do trabalho do projeto aberto (um nível acima da pasta `Premiere`/`AE`), já em H.264. Precisa do programa aberto com o projeto salvo.
 - **Premiere não abre o arquivo (AV1)?** Ligue a caixa **Converter para H.264 (Premiere)** (popup, painel do ícone ou Configurações; vem desligada) baixa a melhor resolução e converte para H.264 quando o site só tem AV1/VP9.
 - No primeiro uso a extensão pergunta a **pasta** onde salvar (muda depois na engrenagem ⚙). Se não escolher, vai para `Vídeos\NoeVFX` do seu usuário (macOS: `Filmes/NoeVFX`).
@@ -60,7 +61,7 @@ Pasta instalada: Windows `%LOCALAPPDATA%\NoeVFXDownloader` · Mac/Linux `~/.loca
 | Botão de atualizar não acha nada | a extensão está carregada da pasta extraída do zip: remova e carregue a pasta **instalada** |
 | Qualquer outra coisa | Configurações → **Copiar diagnóstico** e mande para quem te passou o app |
 
-**Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Depois de atualizar, dê **F5** nas abas que já estavam abertas (a partir da 3.0.21 a própria aba avisa). Com mais de um perfil do navegador, os outros perfis mostram o botão **Recarregar extensão** no popup. Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.
+**Atualizar:** clique na **versão no rodapé do popup** (ou em *Verificar atualizações* nas Configurações); se houver versão nova, **Atualizar agora** baixa, confere o SHA-256 e troca tudo sozinho (a partir da 3.0.14). Depois de atualizar, dê **F5** nas abas que já estavam abertas (a partir da 3.1.0 a própria aba avisa). Com mais de um perfil do navegador, os outros perfis mostram o botão **Recarregar extensão** no popup. Pelo instalador também vale: rode o do ZIP novo e clique em **Recarregar** na extensão.
 **Desinstalar:** `DESINSTALAR_NOEVFX.bat` / `bash desinstalar-noevfx.sh`; depois **Remover** a extensão.
 
 Use apenas com conteúdo que você tem o direito de salvar. O app **não** contorna DRM, login, assinatura

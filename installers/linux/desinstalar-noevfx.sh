@@ -47,6 +47,7 @@ fi
 
 printf "[3/4] Removendo arquivos...\n"
 rm -rf "$DEST"
+rm -rf "$HOME/Library/Application Support/Adobe/CEP/extensions/com.noevfx.downloader" 2>/dev/null
 
 printf "[4/4] Pronto.\n\n"
 printf "==========================================================\n"

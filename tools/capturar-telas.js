@@ -40,7 +40,7 @@ class Cdp {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "nvf_telas_"));
   const sp = await freePort(), fp = await freePort(), dbg = await freePort();
   const extDir = path.join(tmp, "ext"), srvDir = path.join(tmp, "srv"), dl = path.join(tmp, "a", "Downloads", "NoeVFX");
-  fs.cpSync(path.join(ROOT, "extension"), extDir, { recursive: true });
+  fs.cpSync(path.join(ROOT, "browser"), extDir, { recursive: true });
   for (const f of ["background.js", "options.js"]) { const p = path.join(extDir, f); fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("http://127.0.0.1:8765", "http://127.0.0.1:" + sp)); }
   fs.mkdirSync(srvDir); fs.copyFileSync(path.join(ROOT, "server", "server.py"), path.join(srvDir, "server.py"));
 

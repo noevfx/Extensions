@@ -23,6 +23,7 @@ Sem dependências externas: só a biblioteca padrão do Python (3.9+).
 """
 
 import hashlib
+import hmac
 import json
 import os
 import platform
@@ -43,7 +44,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.0.21"
+VERSION = "3.1.0"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 BRAND = "NOÉ VFX (noevfx.com)"
 HOST = "127.0.0.1"
@@ -730,6 +731,20 @@ def _adobe_window_titles(exes: set) -> list:
     return out
 
 
+# O Windows mostra alguns nomes de pasta traduzidos ("C:\Usuários\x\Área de Trabalho\..."), mas no disco eles são em inglês.
+_LOCALIZED_DIRS = {"usuários": "Users", "usuarios": "Users", "área de trabalho": "Desktop", "area de trabalho": "Desktop",
+                   "documentos": "Documents", "imagens": "Pictures", "vídeos": "Videos", "videos": "Videos", "músicas": "Music",
+                   "musicas": "Music", "transferências": "Downloads", "escritorio": "Desktop", "escritório": "Desktop",
+                   "benutzer": "Users", "bureau": "Desktop", "utilisateurs": "Users", "documents": "Documents"}
+
+
+def _delocalize(path: str) -> str:
+    parts = path.replace("/", "\\").split("\\")
+    fixed = [_LOCALIZED_DIRS.get(p.lower(), p) for p in parts]
+    cand = "\\".join(fixed)
+    return cand if cand != path and os.path.isfile(cand) else ""
+
+
 def _recent_project_paths(ext: str) -> list:
     """Caminhos completos guardados pelo Windows nos atalhos de arquivos recentes (mais novos primeiro)."""
     if not IS_WIN:
@@ -771,12 +786,101 @@ def _search_project(prefix: str, suffix: str, budget: float = 4.0) -> list:
     return hits
 
 
+# --------------------------------------------------------------------------- #
+# Painel "Noe VFX for Editors" dentro do Premiere / After Effects (CEP).
+# - chave própria: o painel lê panel_token.txt (criado aqui, só legível pelo usuário) e manda no cabeçalho X-NoeVFX-Panel;
+#   nenhum site consegue isso (não lê arquivo local e não passa pelo teste de Host/CORS).
+# - "hello": a cada poucos segundos o painel diz qual é o PROJETO ATIVO (no Premiere, o ativo no painel Project). Isso vale
+#   mais que o título da janela.
+# - importação: downloads com destino Premiere/AE ficam numa fila; o painel importa no bin _Noe VFX Downloader e confirma.
+# --------------------------------------------------------------------------- #
+PANEL_TOKEN_FILE = BASE / "panel_token.txt"
+ADOBE_HELLO = {}                # app -> {"project", "state", "at", "version"}
+HELLO_FRESH = 12.0              # segundos: depois disso o painel é considerado fechado
+_TOKEN = {"v": ""}
+
+
+def panel_token() -> str:
+    if _TOKEN["v"]:
+        return _TOKEN["v"]
+    try:
+        t = PANEL_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if re.match(r"^[0-9a-f]{48}$", t):
+            _TOKEN["v"] = t
+            return t
+    except Exception:
+        pass
+    import secrets
+    t = secrets.token_hex(24)
+    try:
+        PANEL_TOKEN_FILE.write_text(t, encoding="utf-8")
+        try:
+            os.chmod(str(PANEL_TOKEN_FILE), 0o600)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    _TOKEN["v"] = t
+    return t
+
+
+def adobe_hello(app: str, project: str, state: str, version: str = ""):
+    if app in ADOBE_APPS:
+        ADOBE_HELLO[app] = {"project": str(project or "")[:1024], "state": str(state or "")[:20],
+                            "version": str(version or "")[:40], "at": time.time()}
+
+
+def _hello(app: str):
+    h = ADOBE_HELLO.get(app)
+    return h if h and time.time() - h["at"] < HELLO_FRESH else None
+
+
+def _job_final_files(job: dict) -> list:
+    """Arquivos de vídeo que o download deixou (o .webm convertido vira .mp4; pedaços f137/f140 já foram apagados)."""
+    out = []
+    for f in job.get("all_files") or []:
+        p = Path(f)
+        for c in (p, p.with_suffix(".mp4")):
+            if c.is_file() and c.suffix.lower() in VIDEO_EXTS and not re.search(r"\.(temp|compat|part|ytdl)\.", c.name, re.I):
+                s = str(c)
+                if s not in out:
+                    out.append(s)
+                break
+    return out
+
+
+def pending_imports(app: str) -> list:
+    now = time.time()
+    with JOBS_LOCK:
+        # "claim": a parte escondida e o painel aberto pedem a fila ao mesmo tempo; quem pegou primeiro importa (60 s)
+        jobs = [j for j in JOBS.values() if j.get("import_app") == app and j.get("status") == "done"
+                and not j.get("imported") and now - (j.get("finished") or now) < 3600 and now - j.get("import_claim", 0) > 60]
+        for j in jobs:
+            j["import_claim"] = now
+        jobs = [dict(j) for j in jobs]
+    out = []
+    for j in jobs:
+        files = _job_final_files(j)
+        if files:
+            out.append({"job_id": j["id"], "project": j.get("project", ""), "files": files, "title": j.get("title", "")})
+        else:
+            job_update(j["id"], imported=True, import_error="nenhum arquivo para importar")
+    return out
+
+
 def find_adobe_project(app: str) -> dict:
     """{status, message, project, dest}. status: ok | not_running | no_project | unsaved | not_found | ambiguous | unsupported."""
     info = ADOBE_APPS.get(app)
     if not info:
         return {"status": "unsupported", "message": "Programa desconhecido."}
     nm = info["name"]
+    h = _hello(app)
+    if h:
+        if h["project"] and os.path.isfile(h["project"]):
+            return {"status": "ok", "message": "", "project": h["project"], "dest": str(project_dest(h["project"])), "via": "painel"}
+        if h["state"] == "unsaved":
+            return {"status": "unsaved", "message": "Salve o projeto do %s dentro da pasta do trabalho e tente de novo." % nm}
+        return {"status": "no_project", "message": "O %s está aberto, mas sem projeto. Abra o projeto do trabalho e tente de novo." % nm}
     if not IS_WIN and not os.environ.get("NOEVFX_ADOBE_TITLES_FILE"):
         return {"status": "unsupported", "message": "Enviar para o %s por enquanto só funciona no Windows." % nm}
     titles = _adobe_window_titles(info["exes"])
@@ -791,8 +895,16 @@ def find_adobe_project(app: str) -> dict:
             continue
         prefix, suffix = p
         if suffix is None:
-            if os.path.isfile(prefix):
-                found.add(os.path.normcase(os.path.abspath(prefix)) + "|" + prefix)
+            real = prefix if os.path.isfile(prefix) else _delocalize(prefix)
+            if not real:
+                # caminho do título não existe como está (ex.: nomes traduzidos): procura pelo nome nos arquivos recentes
+                if "recent" not in cache:
+                    cache["recent"] = _recent_project_paths(info["ext"])
+                name = prefix.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+                same = [r for r in cache["recent"] if r.replace("/", "\\").rsplit("\\", 1)[-1].lower() == name and os.path.isfile(r)]
+                real = same[0] if len(set(os.path.normcase(x) for x in same)) == 1 else ""
+            if real:
+                found.add(os.path.normcase(os.path.abspath(real)) + "|" + real)
             continue
         if "recent" not in cache:
             cache["recent"] = _recent_project_paths(info["ext"])
@@ -827,6 +939,11 @@ def job_update(job_id: str, **kw):
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if job:
+            f = kw.get("file")
+            if f:
+                lst = job.setdefault("all_files", [])
+                if f not in lst:
+                    lst.append(f)
             job.update(kw)
 
 
@@ -1365,7 +1482,7 @@ def new_job(req: dict):
         _prune_jobs_locked()
         active = [j for j in JOBS.values() if j["status"] in ACTIVE]
         for j in active:
-            if j.get("url") == req["url"] and j.get("quality") == quality:
+            if j.get("url") == req["url"] and j.get("quality") == quality and j.get("import_app", "") == req.get("import_app", ""):
                 return j["id"], True
         if len(active) >= MAX_ACTIVE:
             raise QueueFull()
@@ -1378,6 +1495,8 @@ def new_job(req: dict):
             "quality": quality,
             "title": req.get("title", ""),
             "created": time.time(),
+            "import_app": req.get("import_app", ""),
+            "project": req.get("project", ""),
         }
     EXECUTOR.submit(run_job, job_id, req)
     return job_id, False
@@ -1645,6 +1764,9 @@ class Handler(BaseHTTPRequestHandler):
         Escrever ou executar qualquer coisa (POST) continua exigindo o ID da extensão."""
         if not self._host_ok():            # barra DNS rebinding
             return None
+        tok = self.headers.get("X-NoeVFX-Panel", "")
+        if tok:
+            return "ext" if hmac.compare_digest(tok.encode(), panel_token().encode()) else None
         if self.headers.get("Origin"):
             return "ext" if self._origin_id() in allowed_ext_ids() else None
         if self.command == "GET" and self.headers.get("X-NoeVFX-Client", "") == "1":
@@ -1755,6 +1877,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, load_cfg())
             return
 
+        if parsed.path == "/adobe/imports":
+            if level != "ext":
+                self._json(403, {"error": "forbidden"})
+                return
+            self._json(200, {"imports": pending_imports((qs.get("app") or [""])[0])})
+            return
+
         if parsed.path == "/adobe/project":
             self._json(200, find_adobe_project((qs.get("app") or [""])[0]))
             return
@@ -1818,6 +1947,21 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, cfg)
             return
 
+        if path == "/adobe/hello":
+            adobe_hello(str(body.get("app") or ""), str(body.get("project") or ""), str(body.get("state") or ""),
+                        str(body.get("version") or ""))
+            self._json(200, {"ok": True, "version": VERSION})
+            return
+
+        if path == "/adobe/imported":
+            jid = str(body.get("job_id") or "")
+            with JOBS_LOCK:
+                ok = jid in JOBS
+            if ok:
+                job_update(jid, imported=True, import_error=str(body.get("error") or "")[:300])
+            self._json(200 if ok else 404, {"ok": ok})
+            return
+
         if path == "/update/apply":
             try:
                 self._json(200, update_apply())
@@ -1863,14 +2007,25 @@ class Handler(BaseHTTPRequestHandler):
                 "single": body.get("single") is not False,
             }
             if proj:
-                req.update(project_dir=proj["dest"], force_compat=True, organizeBySite=False)
+                req.update(project_dir=proj["dest"], force_compat=True, organizeBySite=False, import_app=target,
+                           project=proj["project"])
+            else:
+                od = body.get("outDir")
+                if isinstance(od, str) and od.strip():
+                    od_path = Path(od.strip()).expanduser()
+                    if not od_path.is_absolute():
+                        self._json(400, {"error": "pasta inválida"})
+                        return
+                    req.update(project_dir=str(od_path), organizeBySite=False)
+                if body.get("compat") is True:
+                    req["force_compat"] = True
             try:
                 job_id, dup = new_job(req)
             except QueueFull:
                 self._json(429, {"error": "fila cheia (%d downloads)" % MAX_ACTIVE})
                 return
             self._json(200, {"job_id": job_id, "duplicate": dup,
-                             "output_dir": proj["dest"] if proj else load_cfg().get("output_dir", ""),
+                             "output_dir": proj["dest"] if proj else (req.get("project_dir") or load_cfg().get("output_dir", "")),
                              "project": proj["project"] if proj else ""})
             return
 
@@ -1947,7 +2102,8 @@ def _updater_loop():
 # "extension", consulta a última release, baixa o zip, confere o SHA-256 e troca os arquivos; a extensão então se recarrega.
 # --------------------------------------------------------------------------- #
 UPDATE_REPO = "noevfx/Extensions"
-UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/Extensions/releases/download/v\d+\.\d+\.\d+/noevfx-downloader-\d+\.\d+\.\d+\.zip$")
+# aceita os dois nomes do repositório: hoje "Extensions"; depois que todos estiverem na 3.1+, ele pode virar "noevfx-downloader"
+UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/(?:Extensions|noevfx-downloader)/releases/download/v\d+\.\d+\.\d+/noevfx-downloader(?:-basic)?-\d+\.\d+\.\d+\.zip$")
 UPDATE_LOCK = threading.Lock()
 _UPD_CACHE = {"at": 0.0, "data": None}
 UPDATE_MAX_BYTES = 80 * 1024 * 1024
@@ -1956,6 +2112,15 @@ HTTPD = None
 
 def _vtuple(v: str):
     return tuple(int(x) for x in (re.findall(r"\d+", str(v or ""))[:3] + ["0", "0", "0"])[:3])
+
+
+def installed_edition() -> str:
+    """"basic" ou "editors" (a extensão instalada diz qual pacote é; sem o arquivo = instalação antiga = editores)."""
+    try:
+        txt = (BASE.parent / "extension" / "edition.js").read_text(encoding="utf-8")
+        return "basic" if '"basic"' in txt else "editors"
+    except Exception:
+        return "editors"
 
 
 def installed_layout() -> bool:
@@ -1974,7 +2139,7 @@ def update_info(rel: dict) -> dict:
         out["reason"] = "release sem versão válida"
         return out
     out["newer"] = _vtuple(tag) > _vtuple(VERSION)
-    name = "noevfx-downloader-%s.zip" % tag
+    name = ("noevfx-downloader-basic-%s.zip" if installed_edition() == "basic" else "noevfx-downloader-%s.zip") % tag
     asset = next((a for a in (rel.get("assets") or []) if a.get("name") == name), None)
     sha = ""
     if asset:
@@ -2039,7 +2204,41 @@ def update_apply_package(zip_path: Path, latest: str, root: Path, plat: str) -> 
             tmp = dest.with_name(dest.name + ".novo")
             tmp.write_bytes(z.read(member))
             os.replace(str(tmp), str(dest))
-    return {"backup": str(bk), "files": len(want)}
+        panel = {n[len(prefix + "adobe/"):]: n for n in names if n.startswith(prefix + "adobe/")}
+        panel_ok = install_panel_files({k: z.read(v) for k, v in panel.items()}) if panel else None
+    return {"backup": str(bk), "files": len(want), "panel": panel_ok}
+
+
+def cep_panel_dir():
+    """Pasta do painel do Premiere/After Effects (só Windows e macOS)."""
+    if IS_WIN:
+        return Path(os.environ.get("APPDATA", "")) / "Adobe" / "CEP" / "extensions" / "com.noevfx.downloader"
+    if IS_MAC:
+        return Path.home() / "Library" / "Application Support" / "Adobe" / "CEP" / "extensions" / "com.noevfx.downloader"
+    return None
+
+
+def install_panel_files(files: dict, base=None):
+    """Troca o painel inteiro (arquivos novos numa pasta ao lado e depois a troca), para nunca ficar meio velho e meio novo."""
+    dest = base or cep_panel_dir()
+    if not dest or not files or "CSXS/manifest.xml" not in files:
+        return False
+    if any(r.startswith("/") or ".." in r.replace("\\", "/").split("/") or ":" in r for r in files):
+        return False
+    tmp = dest.with_name(dest.name + ".novo")
+    try:
+        if tmp.exists():
+            shutil.rmtree(tmp)
+        for rel, data in files.items():
+            f = tmp / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(data)
+        if dest.exists():
+            shutil.rmtree(dest)
+        os.replace(str(tmp), str(dest))
+        return True
+    except Exception:
+        return False
 
 
 def _read_installed_version(root: Path) -> str:
@@ -2129,6 +2328,7 @@ def main():
         print("[NOÉ VFX] Porta %d ocupada (%s). Já deve haver um servidor rodando." % (PORT, exc), flush=True)
         return 1
     HTTPD = httpd
+    panel_token()                       # o painel do Premiere/AE lê esta chave do disco
     sweep_temp()
     threading.Thread(target=supports_impersonate, daemon=True).start()   # aquece em segundo plano
     threading.Thread(target=ffmpeg_state, daemon=True).start()

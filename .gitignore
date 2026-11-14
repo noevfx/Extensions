@@ -25,3 +25,5 @@ desktop.ini
 # pacotes gerados: ficam nas Releases do GitHub (e no Drive), nao no git
 /dist/
 /release/
+server/panel_token.txt
+panel_token.txt

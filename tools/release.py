@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MANIFEST = ROOT / "extension" / "manifest.json"
+MANIFEST = ROOT / "browser" / "manifest.json"
 
 
 def run(cmd, check=True):

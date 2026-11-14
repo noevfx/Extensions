@@ -1,5 +1,5 @@
 # =============================================================================
-#  Noe VFX Downloader 3.0.21 - Instalador (Windows)                 noevfx.com
+#  Noe VFX Downloader 3.1.0 - Instalador (Windows)                 noevfx.com
 #
 #  Instala TUDO sozinho, sem administrador e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -35,7 +35,7 @@ function Say($m)  { Write-Host ('   ' + $m) }
 
 Write-Host ''
 Write-Host '============================================================'
-Write-Host '        Noe VFX Downloader  v3.0.21  -  INSTALADOR'
+Write-Host '        Noe VFX Downloader  v3.1.0  -  INSTALADOR'
 Write-Host '                 https://noevfx.com'
 Write-Host '============================================================'
 Write-Host ''
@@ -89,6 +89,23 @@ try {
     Copy-Item -Path (Join-Path $Base 'extension\*') -Destination (Join-Path $Target 'extension') -Recurse -Force -ErrorAction Stop
     Copy-Item -Path (Join-Path $Base 'server\*') -Destination (Join-Path $Target 'server') -Recurse -Force -ErrorAction Stop
     Ok ('Copiado para ' + $Target)
+    # edição "for Editors": painel do Premiere/After Effects (assinado: o Premiere/AE carregam sem mudar ajuste nenhum)
+    $PanelDir = Join-Path $env:APPDATA 'Adobe\CEP\extensions\com.noevfx.downloader'
+    if (Test-Path (Join-Path $Base 'adobe\CSXS\manifest.xml')) {
+        if (Test-Path $PanelDir) { Remove-Item $PanelDir -Recurse -Force -ErrorAction SilentlyContinue }
+        New-Item -ItemType Directory -Force -Path $PanelDir | Out-Null
+        Copy-Item -Path (Join-Path $Base 'adobe\*') -Destination $PanelDir -Recurse -Force -ErrorAction Stop
+        # o Premiere/AE so carregam paineis de terceiros com o 'modo de paineis' ligado (e o que a propria Adobe indica;
+        # vale so para os paineis CEP deste usuario, nao mexe em mais nada do Windows)
+        foreach ($v in 9..20) {
+            $k = "HKCU:\Software\Adobe\CSXS.$v"
+            if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }
+            New-ItemProperty -Path $k -Name 'PlayerDebugMode' -Value '1' -PropertyType String -Force | Out-Null
+        }
+        Ok 'Painel do Premiere e do After Effects instalado (Janela > Extensoes > Noe VFX for Editors)'
+    } elseif (Test-Path $PanelDir) {
+        Remove-Item $PanelDir -Recurse -Force -ErrorAction SilentlyContinue      # edição comum: sem painel
+    }
 } catch {
     Err ('Nao consegui copiar os arquivos: ' + $_.Exception.Message + ' (rode como o mesmo usuario que abriu o zip, sem administrador)')
     exit 1

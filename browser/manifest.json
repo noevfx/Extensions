@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "3.0.21",
+  "version": "3.1.0",
   "minimum_chrome_version": "116",
   "description": "__MSG_extDesc__",
   "default_locale": "en",
@@ -23,7 +23,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Noe VFX Downloader",
+    "default_title": "Noe VFX Downloader for Editors",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -37,7 +37,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["i18n.js", "content.js"],
+      "js": ["edition.js", "i18n.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_start",
       "all_frames": true

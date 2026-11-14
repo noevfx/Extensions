@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["main", "ci/**"]
-    paths: ["server/**", "extension/**", "installers/**", "tests/**", "tools/**", ".github/workflows/test.yml"]
+    paths: ["server/**", "browser/**", "installers/**", "tests/**", "tools/**", ".github/workflows/test.yml"]
 
 jobs:
   instalador:

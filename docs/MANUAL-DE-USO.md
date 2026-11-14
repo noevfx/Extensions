@@ -45,7 +45,7 @@ flowchart LR
 O instalador faz **tudo sozinho** (Python, yt-dlp, FFmpeg e Deno), **sem senha de administrador** e sem
 nada instalado antes. Leva de 1 a 5 minutos e precisa de internet.
 
-O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.0.21.zip`): a versão
+O arquivo se chama **`noevfx-downloader-<versão>.zip`** (por exemplo `noevfx-downloader-3.1.0.zip`): a versão
 vai no nome e também no `VERSION.txt` dentro do pacote, para você saber sempre qual é.
 
 | Sistema | Como |
@@ -218,6 +218,23 @@ com as opções de qualidade. (O YouTube precisa do **Deno**, que o instalador j
 
 Os arquivos têm o nome `Título do vídeo [id].mp4` e ficam na sua pasta padrão.
 
+### Painel "Noe VFX for Editors" (Premiere e After Effects)
+
+Só na edição **for Editors** (Windows e macOS). O instalador coloca o painel; abra (ou feche e abra) o Premiere/After Effects e use
+**Janela > Extensões > Noe VFX for Editors**.
+
+- Mostra o projeto aberto e a pasta de destino. Cole **um ou vários links** (um por linha), escolha a qualidade e clique em
+  **Baixar e importar**: cada vídeo é baixado em H.264 na pasta `_Noe VFX Downloader` do trabalho e **entra no bin `_Noe VFX Downloader`**
+  do projeto (o bin é criado se não existir).
+- Sem projeto salvo, o painel avisa e não baixa.
+- O painel tem uma parte escondida que liga junto com o programa: ela também importa no bin o que você manda pelo navegador
+  ("Enviar para o projeto" e "Vários links"), mesmo com o painel fechado.
+
+### Vários links de uma vez (navegador)
+
+No popup, **Vários links** abre uma página: cole a lista, escolha a **qualidade**, o **destino** (pasta padrão, outra pasta ou, na edição
+for Editors, o projeto do Premiere/After Effects) e, se quiser, o H.264. Links repetidos e textos que não são link ficam de fora.
+
 ### Enviar para o Premiere / After Effects
 
 **Enviar para o Premiere / After Effects** (Windows): botões no popup e no painel do ícone do vídeo. O vídeo vai para a pasta
@@ -297,7 +314,7 @@ nas Configurações. Ao confirmar, o app baixa o pacote, **confere o SHA-256**, 
 `_backups` (na pasta instalada), troca os arquivos, reinicia o servidor e a extensão se recarrega. Se houver download em andamento,
 ele pede para esperar terminar.
 
-**Abas já abertas:** o navegador não troca o código do ícone e do painel do vídeo nas abas que estavam abertas na hora da atualização: dê **F5** nelas. A partir da 3.0.21 a aba antiga esconde o ícone e mostra "Atualize esta página (F5)".
+**Abas já abertas:** o navegador não troca o código do ícone e do painel do vídeo nas abas que estavam abertas na hora da atualização: dê **F5** nelas. A partir da 3.1.0 a aba antiga esconde o ícone e mostra "Atualize esta página (F5)".
 
 **Mais de um perfil do navegador:** o app local é um só. Depois de atualizar por um perfil, o popup dos outros mostra "O app já está na X, mas esta extensão ainda é a Y" com o botão **Recarregar extensão**; um clique e o perfil fica igual ao app.
 
@@ -325,4 +342,4 @@ no navegador, **Remover** a extensão. Os vídeos baixados **não** são apagado
 ---
 
 <sub>As telas deste manual são geradas automaticamente com o app real: `node tools/capturar-telas.js`.
-Versão do manual: 3.0.21 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>
+Versão do manual: 3.1.0 · [noevfx.com](https://noevfx.com) · labs@noevfx.com</sub>

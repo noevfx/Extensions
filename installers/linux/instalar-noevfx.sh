@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Noe VFX Downloader 3.0.21 - Instalador (macOS e Linux)          noevfx.com
+#  Noe VFX Downloader 3.1.0 - Instalador (macOS e Linux)          noevfx.com
 #
 #  Instala TUDO sozinho, sem sudo e sem pedir nada ao usuario:
 #    - Python (usa o do sistema se for 3.9+; senao baixa um portatil)
@@ -75,7 +75,7 @@ case "$OS-$ARCH" in
 esac
 
 printf "\n\033[1m============================================================\033[0m\n"
-printf "        Noe VFX Downloader  v3.0.21  -  INSTALADOR\n"
+printf "        Noe VFX Downloader  v3.1.0  -  INSTALADOR\n"
 printf "                 https://noevfx.com\n"
 printf "\033[1m============================================================\033[0m\n\n"
 printf "Sistema:        %s (%s)\n" "$OS" "$ARCH"
@@ -107,6 +107,18 @@ mkdir -p "$DEST/extension" "$DEST/server"
 if cp -R "$BASE/extension/." "$DEST/extension/" && cp -R "$BASE/server/." "$DEST/server/"; then
   chmod -R u+rwX "$DEST" 2>/dev/null
   ok "Copiado para $DEST"
+  # edição "for Editors" no macOS: painel do Premiere/After Effects (Linux não tem os programas da Adobe)
+  PANEL_DIR="$HOME/Library/Application Support/Adobe/CEP/extensions/com.noevfx.downloader"
+  if [ "$(uname -s)" = "Darwin" ] && [ -f "$BASE/adobe/CSXS/manifest.xml" ]; then
+    rm -rf "$PANEL_DIR"; mkdir -p "$PANEL_DIR"
+    if cp -R "$BASE/adobe/." "$PANEL_DIR/"; then
+      # "modo de painéis" da Adobe (só painéis CEP deste usuário), como a própria Adobe indica
+      for v in 9 10 11 12 13 14 15 16 17 18 19 20; do defaults write "com.adobe.CSXS.$v" PlayerDebugMode 1 >/dev/null 2>&1; done
+      ok "Painel do Premiere e do After Effects instalado (Janela > Extensoes > Noe VFX for Editors)"
+    fi
+  elif [ "$(uname -s)" = "Darwin" ] && [ -d "$PANEL_DIR" ]; then
+    rm -rf "$PANEL_DIR"
+  fi
 else
   err "Nao consegui copiar os arquivos para $DEST"; exit 1
 fi

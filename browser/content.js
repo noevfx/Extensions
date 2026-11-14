@@ -70,15 +70,20 @@
       color:#9fc0ff; border:1px dashed rgba(0,102,255,.45);
     }
     .panel .all button:hover { background: rgba(0,102,255,.16); }
-    .panel .send { display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px; }
+    .panel .send-h { margin-top:9px; font-size:9.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#8d98ae; }
+    .panel .send { display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:5px; }
     .panel .send button {
-      all: unset; cursor:pointer; text-align:center; padding:7px 4px; border-radius:9px; font-size:11px; font-weight:700;
-      color:#e6ebf5; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); white-space:nowrap;
+      all: unset; box-sizing:border-box; min-width:0; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+      padding:7px 6px; border-radius:9px; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden;
     }
-    .panel .send button:hover { border-color:#0066ff; background: rgba(0,102,255,.16); }
-    .panel .send b { font-size:9.5px; font-weight:800; padding:1px 4px; border-radius:4px; margin-right:3px; }
-    .panel .send b.pr { background:#2a1450; color:#c4a6ff; }
-    .panel .send b.ae { background:#1b1450; color:#a6a6ff; }
+    .panel .send button span { overflow:hidden; text-overflow:ellipsis; }
+    .panel .send b { flex-shrink:0; font-size:9.5px; font-weight:800; line-height:1; padding:3px 4px; border-radius:4px; }
+    .panel .send button.pr { background:#2a1248; color:#e3ccff; border:1px solid #7b3fe0; }
+    .panel .send button.pr b { background:#9a5cff; color:#1a0833; }
+    .panel .send button.pr:hover { background:#3b1a66; border-color:#a678ff; }
+    .panel .send button.ae { background:#16194d; color:#d3d6ff; border:1px solid #4b55e0; }
+    .panel .send button.ae b { background:#7d86ff; color:#0c0e33; }
+    .panel .send button.ae:hover { background:#21266b; border-color:#8a92ff; }
     .panel .compat {
       display:flex; align-items:center; gap:7px; margin-top:9px; font-size:10.5px; color:#b3bdd1; cursor:pointer; user-select:none;
     }
@@ -1081,12 +1086,12 @@
         <button type="button" class="opt" data-q="best">${t("native")}</button>
         <button type="button" class="opt" data-q="audio">${t("audioOnly")}</button>
       </div>
-      ${/Windows/i.test(navigator.userAgent) ? `<div class="send">
-        <button type="button" data-target="premiere" title="${esc(t("sendTip"))}"><b class="pr">Pr</b>${t("sendPr")}</button>
-        <button type="button" data-target="aftereffects" title="${esc(t("sendTip"))}"><b class="ae">Ae</b>${t("sendAe")}</button>
+      ${globalThis.NVF_EDITION !== "basic" && /Windows|Macintosh|Mac OS X/i.test(navigator.userAgent) ? `<div class="send-h">${t("sendTo")}</div><div class="send">
+        <button type="button" class="pr" data-target="premiere" title="${esc(t("sendTip"))}"><b>Pr</b><span>${t("sendPr")}</span></button>
+        <button type="button" class="ae" data-target="aftereffects" title="${esc(t("sendTip"))}"><b>Ae</b><span>${t("sendAe")}</span></button>
       </div>` : ""}
       <div class="all"><button type="button" class="all-btn">${t("allPage")}</button></div>
-      <label class="compat" title="${esc(t("compatTip"))}"><input type="checkbox" data-compat ${cfg.compat_h264 === true ? "checked" : ""}><span>${t("compatShort")}</span></label>
+      ${globalThis.NVF_EDITION === "basic" ? "" : `<label class="compat" title="${esc(t("compatTip"))}"><input type="checkbox" data-compat ${cfg.compat_h264 === true ? "checked" : ""}><span>${t("compatShort")}</span></label>`}
       <div class="foot">
         <span class="hint">${t("dragHint")}</span>
         <button type="button" class="tgl ${on ? "" : "off"}" data-toggle>${on ? t("iconOn") : t("iconOff")}</button>
@@ -1128,14 +1133,14 @@
       await startAll();
     }));
 
-    state.panel.querySelector("[data-compat]").addEventListener("change", async (e) => {
+    if (state.panel.querySelector("[data-compat]")) state.panel.querySelector("[data-compat]").addEventListener("change", async (e) => {
       e.stopPropagation();
       if (!e.isTrusted) return;
       const r = await sendMsg({ type: "SAVE_CONFIG", patch: { compat_h264: e.target.checked } });
       if (r && r.ok && r.config) state.cfg = r.config;
       else e.target.checked = !e.target.checked;
     });
-    state.panel.querySelector("[data-compat]").addEventListener("click", (e) => e.stopPropagation());
+    if (state.panel.querySelector("[data-compat]")) state.panel.querySelector("[data-compat]").addEventListener("click", (e) => e.stopPropagation());
 
     state.panel.querySelector("[data-toggle]").addEventListener("click", async (e) => {
       e.stopPropagation();

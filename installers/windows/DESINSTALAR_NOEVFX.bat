@@ -33,6 +33,7 @@ del /F /Q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\NoeVFXDownloa
 
 echo  [3/4] Removendo arquivos...
 rmdir /S /Q "%LOCALAPPDATA%\NoeVFXDownloader" >nul 2>nul
+rmdir /S /Q "%APPDATA%\Adobe\CEP\extensions\com.noevfx.downloader" >nul 2>nul
 if exist "%LOCALAPPDATA%\NoeVFXDownloader" (
     echo  [AVISO] Nao consegui apagar tudo: algum arquivo esta em uso.
     echo          Reinicie o Windows e rode este desinstalador de novo.

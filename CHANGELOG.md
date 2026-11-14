@@ -6,6 +6,42 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.1.0] — 2026-11-13
+
+### Novo
+- **Duas edições do mesmo código:** **Noe VFX Downloader for Editors** (`noevfx-downloader-<v>.zip`, continuação das 3.0.x: quem já usa
+  recebe esta pelo botão de atualizar) e **Noe VFX Downloader** comum (`noevfx-downloader-basic-<v>.zip`, sem nada de Premiere/AE nem H.264).
+  Pastas iguais nas duas; o popup da edição for Editors mostra a etiqueta **EDITORS**. Cada edição se atualiza para o próprio pacote.
+- **Painel "Noe VFX for Editors" no Premiere e no After Effects** (CEP, Windows e macOS), instalado pelo próprio instalador:
+  - cola **um ou vários links**, escolhe a qualidade e baixa em H.264 na pasta `_Noe VFX Downloader` do projeto;
+  - cria o **bin `_Noe VFX Downloader`** no projeto (Premiere e After Effects) e **importa** os vídeos nele; no Premiere, no projeto certo
+    mesmo com vários abertos;
+  - uma parte escondida liga junto com o programa, avisa o app do **projeto ativo** (mais certo que o título da janela) e importa também
+    o que for enviado pelo navegador ("Enviar para o projeto" e "Vários links").
+- **Vários links no navegador:** botão **Vários links** no popup abre uma página para colar uma lista, escolher a qualidade, o destino
+  (pasta padrão, outra pasta, projeto do Premiere ou do After Effects) e o H.264.
+- Botões **Premiere / After Effects** redesenhados (cores próprias, sem texto vazando), com o título "Enviar para o projeto".
+
+### Segurança
+- O painel fala com o app local por uma **chave da própria máquina** (`panel_token.txt`, gerada pelo app); sem ela, nenhum pedido passa.
+- O botão de atualizar também troca o painel (inteiro, sem deixar arquivos antigos) e aceita os dois nomes do repositório
+  (`noevfx/Extensions` hoje; `noevfx/noevfx-downloader` no futuro).
+
+### Corrigido
+- Caminho com nomes traduzidos no título da janela (`C:\Usuários\...\Área de Trabalho`): o app acha o caminho real.
+- A resposta de um download para "outra pasta" informava a pasta padrão.
+
+### Como foi testado
+- No PC do Eduardo, Premiere e After Effects abertos: o painel informou o projeto ativo de cada um, os downloads foram salvos em
+  `_Noe VFX Downloader` em H.264 e **importados no bin** (confirmado na tela pelo Eduardo).
+- 42 testes do servidor (chave do painel, projeto ativo, fila de importação, instalação do painel, nomes traduzidos) e 74 checagens no
+  navegador (vários links, botões sem texto vazando, envio com e sem programa aberto).
+- O instalador coloca o painel e liga o modo de painéis da Adobe no Windows e no macOS. No macOS o painel não foi visto rodando (sem Mac).
+- **Mudança de plano:** o painel iria assinado, mas a própria Adobe tem um problema conhecido com painéis assinados (abrem em branco) e
+  pede para assinar no Mac o pacote do Mac. Ficou o "modo de painéis" que ela mesma indica (o mesmo do CompCAM).
+
+---
+
 ## [3.0.21] — 2026-11-13
 
 ### Novo

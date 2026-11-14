@@ -507,6 +507,73 @@ class SiteRulesCase(unittest.TestCase):
                 else:
                     os.environ["NOEVFX_ADOBE_TITLES_FILE"] = old
 
+    def test_painel_projeto_ativo_e_fila_de_importacao(self):
+        import tempfile
+        m = self.m
+        with tempfile.TemporaryDirectory() as d:
+            proj = Path(d) / "Trabalho" / "AE" / "filme.aep"
+            proj.parent.mkdir(parents=True)
+            proj.write_text("x", encoding="utf-8")
+            m.ADOBE_HELLO.clear()
+            m.adobe_hello("aftereffects", str(proj), "ok")                   # o painel diz qual é o projeto ATIVO
+            r = m.find_adobe_project("aftereffects")
+            self.assertEqual((r["status"], r.get("via")), ("ok", "painel"))
+            self.assertEqual(Path(r["dest"]), Path(d) / "Trabalho" / "_Noe VFX Downloader")
+            m.adobe_hello("aftereffects", "", "unsaved")
+            self.assertEqual(m.find_adobe_project("aftereffects")["status"], "unsaved")
+            m.ADOBE_HELLO["aftereffects"]["at"] -= 60                          # painel parou de avisar: volta para o título da janela
+            self.assertNotEqual(m.find_adobe_project("aftereffects").get("via"), "painel")
+            # fila: só jobs prontos do programa certo; cada um sai uma vez (claim) até ser confirmado
+            vid = Path(d) / "Trabalho" / "_Noe VFX Downloader" / "v.mp4"
+            vid.parent.mkdir()
+            vid.write_text("x", encoding="utf-8")
+            m.JOBS["ja"] = {"id": "ja", "status": "done", "import_app": "aftereffects", "project": str(proj), "finished": time.time(),
+                            "all_files": [str(vid.with_suffix(".webm"))]}           # o .webm virou .mp4 na conversão
+            m.JOBS["jb"] = {"id": "jb", "status": "done", "import_app": "premiere", "finished": time.time(), "all_files": [str(vid)]}
+            m.JOBS["jc"] = {"id": "jc", "status": "downloading", "import_app": "aftereffects", "all_files": []}
+            q = m.pending_imports("aftereffects")
+            self.assertEqual([(x["job_id"], x["files"]) for x in q], [("ja", [str(vid)])])
+            self.assertEqual(m.pending_imports("aftereffects"), [])                # já entregue a quem pediu primeiro
+            m.JOBS["ja"]["import_claim"] -= 120
+            self.assertEqual(len(m.pending_imports("aftereffects")), 1)            # ninguém confirmou em 60 s: entrega de novo
+            m.job_update("ja", imported=True)
+            m.JOBS["ja"]["import_claim"] -= 120
+            self.assertEqual(m.pending_imports("aftereffects"), [])
+            for k in ("ja", "jb", "jc"):
+                m.JOBS.pop(k, None)
+        tok = m.panel_token()
+        self.assertRegex(tok, r"^[0-9a-f]{48}$")
+        self.assertEqual(m.panel_token(), tok)
+
+    def test_titulo_com_pasta_traduzida(self):
+        import tempfile
+        m = self.m
+        with tempfile.TemporaryDirectory() as d:
+            real = Path(d) / "Documents" / "Job" / "Premiere" / "corte.prproj"
+            real.parent.mkdir(parents=True)
+            real.write_text("x", encoding="utf-8")
+            mostrado = str(real).replace("Documents", "Documentos")          # como o Windows em português mostra no título
+            self.assertEqual(m._delocalize(mostrado), str(real))
+            self.assertEqual(m._delocalize(str(real)), "")                     # já é o caminho real: nada a traduzir
+        self.assertTrue(m.UPDATE_ASSET_RE.match("https://github.com/noevfx/Extensions/releases/download/v3.1.0/noevfx-downloader-3.1.0.zip"))
+        self.assertTrue(m.UPDATE_ASSET_RE.match("https://github.com/noevfx/noevfx-downloader/releases/download/v3.1.0/noevfx-downloader-basic-3.1.0.zip"))
+        self.assertFalse(m.UPDATE_ASSET_RE.match("https://github.com/outro/Extensions/releases/download/v3.1.0/noevfx-downloader-3.1.0.zip"))
+
+    def test_painel_entra_inteiro_e_seguro(self):
+        import tempfile
+        m = self.m
+        with tempfile.TemporaryDirectory() as d:
+            alvo = Path(d) / "CEP" / "com.noevfx.downloader"
+            alvo.mkdir(parents=True)
+            (alvo / "velho.js").write_text("v", encoding="utf-8")
+            ok = m.install_panel_files({"CSXS/manifest.xml": b"<x/>", "index.html": b"oi", "js/core.js": b"c"}, alvo)
+            self.assertTrue(ok)
+            self.assertTrue((alvo / "js" / "core.js").exists())
+            self.assertFalse((alvo / "velho.js").exists())                     # não sobra arquivo do painel antigo
+            self.assertFalse(m.install_panel_files({"index.html": b"x"}, alvo))  # sem manifesto: não mexe
+            self.assertFalse(m.install_panel_files({"CSXS/manifest.xml": b"x", "../fora.txt": b"x"}, alvo))
+            self.assertFalse((Path(d) / "CEP" / "fora.txt").exists())
+
     def test_tweet_baixa_todos_os_videos(self):
         for u in ("https://x.com/fulano/status/1234567890123456789", "https://twitter.com/fulano/status/1234567890123456789"):
             c = self.cmd(u)
