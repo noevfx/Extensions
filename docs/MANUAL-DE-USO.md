@@ -29,6 +29,8 @@ A extensão é para **Chromium**: Chrome, Edge, Brave, Opera, Vivaldi e compatí
 
 O envio Adobe usa a qualidade escolhida nesse menu. O projeto precisa estar salvo e o componente instalado/ativo. Você pode arrastar o ícone para outra posição no player.
 
+**No feed do TikTok:** deixe o vídeo desejado tocar e use o botão azul sobre ele. Não precisa abrir nem copiar um link individual: a extensão identifica o vídeo no próprio player.
+
 [Experimente o menu sobre o vídeo →](https://noevfx.github.io/noevfx-downloader/navegador.html#player)
 
 ## 3. Prefiro o popup da extensão
@@ -73,6 +75,12 @@ Playlists que exigem login dependem do acesso permitido e da sessão do navegado
 [Passo a passo interativo de playlists →](https://noevfx.github.io/noevfx-downloader/navegador.html#playlists)
 
 ## 6. Dentro do Premiere ou After Effects
+
+**Cabe no seu espaço de trabalho.** O painel abre no **modo compacto**: cole os links, escolha vídeo/áudio e confirme. **Conferir seleção** expande os itens; ao ler uma playlist, a lista abre automaticamente. O botão de baixar continua perto dos controles, sem exigir rolar até o fim da lista.
+
+Use **Modo completo** para ver todos os detalhes. **Modo compacto** recolhe de novo. A troca preserva os links, os itens marcados, a qualidade e o formato; sua preferência fica salva em cada programa.
+
+![Painel Adobe no modo compacto](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-compacto-3.2.0.png)
 
 ![Painel Adobe atual com seleção e importação](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-3.2.0.png)
 

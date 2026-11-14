@@ -27,17 +27,19 @@
     let revision = 0, polling = false, wasAdobe = false;
     const $ = id => root.querySelector('[data-c="' + id + '"]');
     root.classList.add("collection");
+    if (forced) root.classList.add("c-adobe");
     root.innerHTML = `
+      <div data-c="viewBar" class="c-view-bar" ${forced ? "" : "hidden"}><span data-c="viewLabel">Modo compacto</span><button type="button" data-c="viewToggle" class="c-secondary">Modo completo</button></div>
       <div class="c-intro"><h2>Escolha o que baixar.</h2><p>Um vídeo, vários links ou uma playlist. Você decide o que vem.</p></div>
       <label class="c-label">Cole os links aqui<textarea data-c="links" rows="2" spellcheck="false" placeholder="Cole um link ou a lista inteira do seu documento"></textarea></label>
       <div class="c-input-actions"><span data-c="sourceCount" class="c-muted">Cada link colado vira um item separado.</span><button type="button" data-c="add" class="c-secondary">Adicionar links</button></div>
-      <div data-c="sources" class="c-sources"></div>
       <div class="c-settings"><div><span class="c-label">Baixar como</span><div class="c-segment" role="group" aria-label="Tipo de mídia"><button type="button" data-c="video" aria-pressed="true">Vídeo</button><button type="button" data-c="audio" aria-pressed="false">Só áudio</button></div></div>
       <label class="c-label"><span data-c="formatLabel">Qualidade do vídeo</span><select data-c="format"></select></label></div>
       <div data-c="audioHint" class="c-muted" hidden>MP3 é uma escolha prática para música. WAV e FLAC não recuperam qualidade perdida no original.</div>
+      <details data-c="review" class="c-review" open><summary data-c="reviewLabel">Conferir seleção</summary><div class="c-review-body"><div data-c="sources" class="c-sources"></div>
       <div class="c-selection-head"><b data-c="heading">Sua seleção</b><span data-c="count" class="c-muted" aria-live="polite">Nenhum item</span></div>
       <div class="c-selection-tools"><label><input type="checkbox" data-c="all"> Selecionar todos</label><button type="button" data-c="clear" class="c-link">Limpar seleção</button></div>
-      <div data-c="entries" class="c-entries"></div>
+      <div data-c="entries" class="c-entries"></div></div></details>
       <div data-c="destination"><label class="c-label">Enviar para<select data-c="dest"><option value="default">Minha pasta de downloads</option><option value="custom">Escolher outra pasta…</option>${options.editors ? '<option value="premiere">Premiere Pro · projeto aberto</option><option value="aftereffects">After Effects · projeto aberto</option>' : ""}</select></label></div>
       <div class="c-muted" data-c="destInfo"></div><button data-c="pick" class="c-secondary" type="button" hidden>Escolher pasta…</button>
       <label data-c="compatRow" class="c-muted"><input data-c="compat" type="checkbox"> Preparar vídeo em H.264 quando necessário</label>
@@ -45,6 +47,17 @@
       <button type="button" class="c-go" data-c="go" disabled>Adicione os links para continuar</button>
       <div class="c-run-head"><b>Andamento</b><button type="button" class="c-link" data-c="cancel" hidden>Cancelar lista</button></div><div data-c="progress" class="c-progress"></div>`;
     let media = options.media === "audio" ? "audio" : "video", customDir = "";
+    let compact = !!forced && options.viewMode !== "full";
+    function viewMode(value, save) {
+      compact = !!forced && value === "compact";
+      root.classList.toggle("c-compact", compact);
+      $("viewLabel").textContent = compact ? "Modo compacto" : "Modo completo";
+      $("viewToggle").textContent = compact ? "Modo completo" : "Modo compacto";
+      $("review").open = !compact || entries.some(it => it.collectionSource);
+      if (save && options.saveViewMode) options.saveViewMode(compact ? "compact" : "full");
+      if (options.onViewMode) options.onViewMode(compact ? "compact" : "full");
+      summary();
+    }
     if (forced) $("destination").hidden = true;
     $("compatRow").hidden = !options.editors;
     const target = () => forced || $("dest").value;
@@ -69,6 +82,9 @@
       $("count").textContent = selected.length + " de " + entries.length + " selecionados";
       $("all").checked = available.length > 0 && selected.length === available.length;
       $("all").indeterminate = selected.length > 0 && selected.length < available.length;
+      $("reviewLabel").textContent = "Conferir seleção · " + selected.length + " de " + entries.length;
+      $("review").hidden = compact && !entries.length && !sources.length;
+      root.classList.toggle("c-has-progress", !!$("progress").children.length);
       $("go").disabled = busy || submitting || !selected.length;
       const count = selected.length, audio = media === "audio", importing = /^(premiere|aftereffects)$/.test(target());
       const format = $("format").value;
@@ -86,6 +102,7 @@
     async function inspect(url) {
       if (busy) { message("Aguarde a leitura atual terminar."); return; }
       busy = true; const current = revision; summary(); message("Lendo títulos e itens da playlist. Nenhum download foi iniciado.");
+      $("review").hidden = false; $("review").open = true;
       try {
         const r = await api("POST", "/inspect", {url, referer:url});
         if (current !== revision) return;
@@ -101,7 +118,7 @@
       finally { busy = false; render(); }
     }
     async function add(text) {
-      const urls = extractLinks(text); $("links").value = ""; message("");
+      const urls = extractLinks(text); $("links").value = ""; $("add").disabled = true; message("");
       const fresh = urls.filter(url => !sources.includes(url));
       if (!urls.length) { message("Cole um endereço completo começando com http:// ou https://.",true); return; }
       if (sources.length + fresh.length > 500) { message("Adicione no máximo 500 links por lista.",true); return; }
@@ -136,10 +153,14 @@
         const state = it.status === "pending" ? "Aguardando vaga na fila" : it.status === "queued" ? "Na fila" : it.status === "canceled" ? "Cancelado" : it.status === "error" ? it.error || "Falha no download" : it.status === "done" ? it.import_error ? "Baixado, mas não importou: "+it.import_error : it.import_app ? it.imported ? "Importado no projeto" : "Baixado · aguardando importação no editor" : "Concluído" : it.progress || "Baixando…";
         return '<div class="c-result '+(it.status === "error" || it.import_error ? 'c-error' : '')+'"><b>'+esc(it.title || it.url)+'</b><span>'+esc(state)+'</span></div>';
       }).join("");
+      summary();
       if (r.data.finished && !(r.data.items || []).some(it=>it.status==="done" && it.import_app && !it.imported)) batch="";
       } finally { polling = false; }
     }
     $("links").addEventListener("paste", event => { const text = event.clipboardData && event.clipboardData.getData("text"); if (text && extractLinks(text).length) { event.preventDefault(); add(text); } });
+    $("add").disabled = true;
+    $("links").addEventListener("input", () => { $("add").disabled = !$("links").value.trim(); });
+    $("viewToggle").addEventListener("click", () => viewMode(compact ? "full" : "compact", true));
     $("links").addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); add(event.target.value); } });
     $("add").addEventListener("click",()=>add($("links").value));
     $("sources").addEventListener("click",event=>{const remove=event.target.closest('[data-remove]'),read=event.target.closest('[data-playlist]');if(remove){revision++;const url=sources.splice(Number(remove.dataset.remove),1)[0];entries=entries.filter(it=>it.url!==url&&it.collectionSource!==playlistUrl(url,true));render();}if(read)inspect(playlistUrl(sources[Number(read.dataset.playlist)],true));});
@@ -164,7 +185,7 @@
     if(options.items){entries=options.items.map(it=>Object.assign({available:true,selected:true},it));render();}
     if(options.url)add(options.url);
     api("GET","/config").then(r=>{if(!r.ok){message(r.data&&r.data.error||"O app local não respondeu. Confira se está atualizado e em execução.",true);return;}config=r.data||{};$("compat").checked=config.compat_h264===true;destination();});
-    formats();render();
+    formats();render();viewMode(compact ? "compact" : "full", false);
     const timer=setInterval(poll,2000);
     return {add,inspect,destroy:()=>clearInterval(timer),getEntries:()=>entries,getBatch:()=>last};
   }

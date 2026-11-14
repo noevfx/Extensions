@@ -7,7 +7,7 @@
 
 **Para navegadores Chromium:** Chrome, Edge, Brave, Opera e Vivaldi. Painéis Adobe na edição **for Editors**, para Windows e macOS. O Noe VFX Downloader também funciona no Linux.
 
-> **Versão:** o código e o manual já descrevem a 3.2.0 em validação. Confira a versão disponível em [Releases](https://github.com/noevfx/noevfx-downloader/releases). O repositório agora se chama `noevfx-downloader`; os pacotes agora se chamam NoeVFX-Downloader e NoeVFX-Downloader-for-Editors. Para migrar de qualquer versão anterior à 3.2.0, rode o instalador novo por cima uma vez.
+> **Versão:** 3.2.0. Baixe os pacotes oficiais em [Releases](https://github.com/noevfx/noevfx-downloader/releases). O repositório agora se chama `noevfx-downloader`; os pacotes agora se chamam NoeVFX-Downloader e NoeVFX-Downloader-for-Editors. Para migrar de qualquer versão anterior à 3.2.0, rode o instalador novo por cima uma vez.
 
 ## Você encontra. O projeto recebe.
 
@@ -21,6 +21,8 @@
 </table>
 
 <sub>Renderizações das interfaces atuais, com dados de exemplo. Clique nas imagens para abrir o guia do fluxo correspondente.</sub>
+
+**Painel do seu tamanho:** Premiere e After Effects abrem no modo compacto. Expanda a seleção quando precisar ou alterne para **Modo completo**. Links, formatos e itens marcados continuam como você deixou; a preferência fica salva.
 
 ### “Vi esse vídeo e quero usar como referência.”
 

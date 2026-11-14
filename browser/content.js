@@ -470,14 +470,28 @@
   function ttPostUrl(v) {
     const toUrl = (m) => `https://www.tiktok.com/${m[1]}/video/${m[2]}`;
     try {
-      let m = location.pathname.match(TT_RE);
-      if (m) return toUrl(m);
+      // O feed/Explorar mantém a URL genérica e usa blob:. O ID fica no
+      // próprio player; nunca pegar o primeiro link de outro cartão do feed.
+      let card = null;
       for (let el = v, d = 0; el && el !== document.body && d < 12; el = el.parentElement, d++) {
-        for (const a of el.querySelectorAll('a[href*="/video/"]')) {
-          m = new URL(a.getAttribute("href"), location.href).pathname.match(TT_RE);
-          if (m) return toUrl(m);
-        }
+        const id = (el.id || "").match(/^xgwrapper-\d+-(\d{10,})$/);
+        const dataId = el.getAttribute("data-video-id") || el.getAttribute("data-item-id") || "";
+        if (id || /^\d{10,}$/.test(dataId)) return `https://www.tiktok.com/embed/${id ? id[1] : dataId}`;
+        if (el.matches('article,[data-e2e="recommend-list-item-container"],[data-e2e="explore-hero-preview"],[data-hero-slot]')) { card = el; break; }
       }
+      for (let el = v, d = 0; el && el !== document.body && d < 12; el = el.parentElement, d++) {
+        if (el.querySelectorAll("video").length > 1) break;
+        const urls = new Set();
+        for (const a of el.querySelectorAll('a[href*="/video/"]')) {
+          const u = new URL(a.getAttribute("href"), location.href);
+          const m = /(^|\.)tiktok\.com$/.test(u.hostname) && u.pathname.match(TT_RE);
+          if (m) urls.add(toUrl(m));
+        }
+        if (urls.size === 1) return [...urls][0];
+        if (urls.size > 1 || el === card) break;
+      }
+      const m = location.pathname.match(TT_RE);
+      if (m) return toUrl(m);
     } catch (_) {}
     return "";
   }
@@ -1222,7 +1236,10 @@
     let fallback = "";
     const manyVideos = vids > 1;
     const igUrl = state.video ? (isIG() ? igPostUrl(state.video) : isTT() ? ttPostUrl(state.video) : isX() ? xTweetUrl(state.video) : isFB() ? fbVideoUrl(state.video) : isPin() ? pinFeedUrl(state.video) : "") : "";
-    if (igUrl) primary = igUrl;
+    if (igUrl) {
+      primary = igUrl;
+      if (isTT() && /^https?:/i.test(direct)) fallback = direct;
+    }
     else if (direct && /^https?:/i.test(direct) && !isYT()) {
       if (manyVideos) { primary = direct; fallback = page; }
       else { fallback = direct; }
@@ -1241,6 +1258,11 @@
       if (alt && alt !== page) fallback = alt;
     }
 
+    if (isTT() && !igUrl && !/^https?:/i.test(direct)) {
+      state.busy = false;
+      toast(/^pt/i.test(navigator.language) ? "TikTok: não consegui identificar este vídeo. Abra o vídeo pelo título ou pelo botão Compartilhar e tente de novo." : "TikTok: could not identify this video. Open it using its title or Share button and try again.", "err", 7000);
+      return;
+    }
     if (isIG() && !igUrl && !/^https:\/\/www\.instagram\.com\/(p|reel|reels|tv|stories)\//.test(primary)) {
       state.busy = false;
       toast(/^pt/i.test(navigator.language) ? "Instagram: não achei o link deste post. Clique na data do post (abre o post) e baixe de lá." : "Instagram: could not find this post's link. Click the post date to open it, then download from there.", "err", 7000);

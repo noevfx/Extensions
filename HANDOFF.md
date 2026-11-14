@@ -166,3 +166,21 @@ Carrossel Instagram editável em PSD, foco for Editors, didático e bem ilustrad
 - Eduardo pediu subir imediatamente todo o estado atual: código 3.2.0, documentação, manuais e site. Este envio não cria tag nem publica release instalável: a falha real do TikTok relatada em seguida ainda está em investigação.
 - Próxima ação: investigar o erro “Este endereço não é suportado direto” no TikTok, comparar identificação do post e fallback de mídia com versões anteriores, corrigir e testar antes de fechar a release. Não considerar a correção feita só porque os testes simulados passam.
 - Carrossel PSD continua adiado até aprovação e fechamento do fluxo do app.
+
+## TikTok e painel compacto — 14/11/2026
+
+- Falha TikTok confirmada no job instalado: URL enviada era somente https://www.tiktok.com/. Inspeção do site real mostrou ID no xgwrapper com vídeo blob e endereço genérico. content.js prioriza o ID do próprio player (URL embed aceita pelo yt-dlp), evita links vizinhos e mantém mídia direta do próprio vídeo como fallback quando disponível. O usuário confirmou que deseja baixar no feed sem abrir link individual.
+- Download real por servidor isolado: 1920x1080, 461,9s, 74.136.715 bytes, HEVC + MP3 conferidos com ffprobe. Sem importação/conversão Adobe nesse ensaio.
+- Painel aprovado pelo usuário: compacto por padrão, completo alternável, preferência local por programa. Revisão de seleção recolhível, playlist abre automaticamente, botão de confirmar antes da lista expandida no compacto. Mantém itens, marcações e formato ao alternar. Não muda o destino fixo nem o backend de importação.
+- Rodada final atual: 83/83 no navegador; teste focado --panel-only 6/6; 5 testes de distribuição e casos Node aprovados. Uma tentativa anterior parou na intermitência conhecida do aquecimento Instagram; a rodada final completou. Não foi validado visualmente dentro dos hosts Adobe nesta rodada.
+- Conferência visual do HTML real a 340 e 280 px, sem transbordamento horizontal; CTA visível ao expandir playlist. Demonstrações, imagens, manual Markdown, HTML e README atualizados.
+- Mesma 3.2.0 ainda sem release instalável publicada. ZIPs de dist e hashes reconstruídos. Sete arquivos da instalação local (extensão e CEP) copiados com backup em build/antes-painel-compacto-*. Para ativar: usuário precisa recarregar extensão e F5 no TikTok, e reiniciar o Adobe após salvar o trabalho. Navegação automática a edge://extensions foi bloqueada pela política do navegador; não tentar contornar.
+- GitHub preserva o commit 6170aaa do envio anterior. Estas correções posteriores ainda estão locais, sem commit/push. Carrossel PSD continua adiado até fechar/aprovar o app.
+
+## Fechamento autorizado — 14/11/2026
+
+- Eduardo aprovou o resultado e autorizou subir tudo e finalizar. Publicação v3.2.0 com os dois produtos, TikTok corrigido, modos compacto/completo Adobe e documentação final.
+- Validação final: 83/83 checagens do navegador, 6/6 no ensaio focado do painel, 69 testes Python da implementação e 5 testes de distribuição após os ajustes finais. Download real do TikTok e cinco formatos de áudio conferidos. Limitações físicas de Adobe/macOS/Linux permanecem documentadas.
+- Migração de versões anteriores à 3.2.0: instalador novo por cima uma vez; recarregar extensão e reiniciar Adobe após salvar. Não precisa desinstalar. Para a cópia 3.2.0 já atualizada localmente nesta sessão, basta recarregar as interfaces.
+- Publicação pelo workflow release.yml, tag v3.2.0 e main no mesmo push atômico. Não reconstruir nem substituir assets após a publicação; eventual correção futura exige PATCH novo.
+- Carrossel PSD permanece tarefa separada, ainda não iniciado.

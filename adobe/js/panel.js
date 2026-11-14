@@ -12,6 +12,9 @@
   }
   NVFCollection.mount(document.getElementById("collection"),{
     api:NVF.api,editors:true,target:NVF.APP,
+    viewMode:localStorage.getItem("nvf_panel_view_"+NVF.APP)||"compact",
+    saveViewMode:mode=>localStorage.setItem("nvf_panel_view_"+NVF.APP,mode),
+    onViewMode:mode=>document.body.classList.toggle("panel-compact",mode==="compact"),
     batchId:localStorage.getItem("nvf_batch_"+NVF.APP)||"",
     saveBatch:id=>localStorage.setItem("nvf_batch_"+NVF.APP,id)
   });

@@ -18,6 +18,7 @@ const net = require("net");
 
 const ROOT = path.resolve(__dirname, "..");
 const EXT_ID = "hdmfifeopbmjcfjbjpkfjinejneohlji";
+const PANEL_ONLY = process.argv.includes("--panel-only");
 const BROWSER = process.env.BROWSER || [
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
@@ -294,6 +295,7 @@ function rawReq(port, method, p, body, headers = {}) {
       await sleep(1200);
     };
 
+    if (!PANEL_ONLY) {
     /* ============================ Instagram (feed) ============================ */
     console.log("\n== Feed estilo Instagram (vídeo coberto por camadas, blob:, pedaços no CDN)");
     await goto(`https://www.instagram.com:${fp}/`, 2000);      // aquecimento: a 1ª página depois de abrir o navegador às vezes perde o content script
@@ -468,7 +470,7 @@ function rawReq(port, method, p, body, headers = {}) {
     check("vários links: a página abre com os destinos Premiere/AE (edição for Editors)", await page.eval(`document.querySelectorAll('[data-c="dest"] option').length === 4`));
     check("vários links: nenhum botão com texto vazando", await page.eval(`[...document.querySelectorAll("button")].filter(b=>b.offsetParent).every(b=>b.scrollWidth<=b.clientWidth+1)`));
     const jb0 = (await jobs()).length;
-    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/a.mp4\\nhttps://www.exemplo.test:${fp}/b.mp4\\nlixo\\nhttps://www.exemplo.test:${fp}/a.mp4"; document.querySelector('[data-c="add"]').click()`);
+    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/a.mp4\\nhttps://www.exemplo.test:${fp}/b.mp4\\nlixo\\nhttps://www.exemplo.test:${fp}/a.mp4"; document.querySelector('[data-c="links"]').dispatchEvent(new Event("input")); document.querySelector('[data-c="add"]').click()`);
     await sleep(300);
     await page.eval(`document.querySelector('[data-c="go"]').click()`);
     let jbs = [];
@@ -481,13 +483,43 @@ function rawReq(port, method, p, body, headers = {}) {
     check("vários links: 'Outra pasta' salva na pasta escolhida (o app confirma a pasta)", !!jc && jc.output_dir === outro && !!jcj, JSON.stringify(jc));
     await page.eval(`document.querySelector('[data-c="dest"]').value = "premiere"; document.querySelector('[data-c="dest"]').dispatchEvent(new Event("change"))`);
     check("vários links: destino Premiere liga o H.264 e trava a caixa", await page.eval(`document.querySelector('[data-c="compat"]').checked && document.querySelector('[data-c="compat"]').disabled`));
-    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/d.mp4"; document.querySelector('[data-c="add"]').click()`);
+    await page.eval(`document.querySelector('[data-c="links"]').value = "https://www.exemplo.test:${fp}/d.mp4"; document.querySelector('[data-c="links"]').dispatchEvent(new Event("input")); document.querySelector('[data-c="add"]').click()`);
     await sleep(300);
     await page.eval(`document.querySelector('[data-c="go"]').click()`);
     await sleep(1500);
     const bm = await page.eval(`document.querySelector('[data-c="message"]').textContent`);
     check("vários links: Premiere fechado avisa e não baixa", /Abra o Premiere/.test(bm), bm);
 
+    }
+    if (PANEL_ONLY) await goto(`chrome-extension://${EXT_ID}/batch.html`, 1000);
+    /* ============================ Adobe compacto/completo ================= */
+    const modes = await page.eval(`(async()=>{
+      const root=document.createElement("div");document.body.append(root);
+      let saved="",sent=null;
+      const api=async(method,path,body)=>path==="/config"?{ok:true,data:{}}:path==="/inspect"?{ok:true,data:{title:"Playlist",items:[{url:"https://example.com/a",title:"A",available:true},{url:"",title:"Privado",available:false}]}}:path==="/batch"?{ok:false,data:{error:"Teste"}}:{ok:false};
+      const panel=NVFCollection.mount(root,{api,target:"premiere",editors:true,saveViewMode:v=>saved=v});
+      const q=k=>root.querySelector('[data-c="'+k+'"]');
+      await panel.add("https://example.com/1 https://example.com/2");
+      const initial=root.classList.contains("c-compact")&&!q("review").open;
+      q("audio").click();q("format").value="wav";q("format").dispatchEvent(new Event("change"));
+      q("entries").querySelector("input").click();
+      q("viewToggle").click();
+      const full=!root.classList.contains("c-compact")&&q("review").open&&saved==="full";
+      q("viewToggle").click();
+      const preserved=panel.getEntries().length===2&&panel.getEntries().filter(i=>i.selected).length===1&&q("format").value==="wav"&&saved==="compact";
+      await panel.inspect("https://youtube.com/playlist?list=test");
+      const playlist=q("review").open&&q("entries").querySelectorAll("input:disabled").length===1;
+      q("clear").click();const clear=panel.getEntries().every(i=>!i.selected);
+      q("all").click();const select=panel.getEntries().filter(i=>i.selected).length===3;
+      panel.destroy();root.remove();return {initial,full,preserved,playlist,clear,select};
+    })()`);
+    check("painel Adobe inicia compacto e recolhe a revisão de links avulsos", modes.initial);
+    check("modo completo abre a revisão e comunica a preferência salva", modes.full);
+    check("troca de modo preserva links, seleção individual e WAV", modes.preserved);
+    check("playlist expande a revisão e mantém indisponíveis bloqueados", modes.playlist);
+    check("selecionar todos alterna sem marcar itens indisponíveis", modes.clear && modes.select);
+
+    if (!PANEL_ONLY) {
     /* ============================ TikTok (SPA) ============================ */
     console.log("\n== Site de página única estilo TikTok (troca de vídeo sem recarregar)");
     await goto(`https://www.tiktok.com:${fp}/`);
@@ -508,6 +540,22 @@ function rawReq(port, method, p, body, headers = {}) {
     check("miniatura do 2º vídeo é DIFERENTE da do 1º (não ficou presa na 1ª página)", !!b && !!b.th && b.th !== hashA);
     check("título acompanha a página", !!b && /Segundo/.test(b.title || ""), b && b.title);
     check("depois da troca o vídeo antigo NÃO é mais publicado", !rec2.filter((m) => m.type === "DOM_MEDIA_FOUND").some((m) => m.items.some((i) => /1111111111/.test(i.url))));
+
+    // Feed real: endereço genérico + blob:, ID no xgwrapper, links de outros
+    // vídeos fora do cartão. O teste anterior só cobria a URL /@.../video/ID.
+    await clearRec();
+    await page.eval(`(()=>{history.pushState({},"","/");const v=document.querySelector("video");v.parentElement.id="xgwrapper-1-7701155815406750994";v.parentElement.setAttribute("data-e2e","explore-hero-preview");const a=document.createElement("a");a.href="https://www.tiktok.com/@vizinho/video/9999999999999999999";document.body.append(a)})()`);
+    const feed = await waitItems(m => m.has("https://www.tiktok.com/embed/7701155815406750994"));
+    check("TikTok no feed genérico: ID do player vira endereço baixável", feed.has("https://www.tiktok.com/embed/7701155815406750994"));
+    await hover(160,135);
+    const ttJob = await clickFabMain();
+    const ttDownload = (await rec()).filter(m => m.type === "DOWNLOAD").pop();
+    check("botão do TikTok envia o vídeo do player, sem pegar a home ou o vizinho", !!ttDownload && ttDownload.url === "https://www.tiktok.com/embed/7701155815406750994");
+    check("servidor recebe o vídeo correto do feed TikTok", !!ttJob && ttJob.url === "https://www.tiktok.com/embed/7701155815406750994");
+    await clearRec();
+    await page.eval('document.querySelector("video").parentElement.id="xgwrapper-1-7701155815406750995"');
+    const nextFeed = await waitItems(m => m.has("https://www.tiktok.com/embed/7701155815406750995"));
+    check("player reciclado no feed acompanha o novo ID sem mudar a URL", nextFeed.has("https://www.tiktok.com/embed/7701155815406750995"));
 
     /* ============================ G1 (vários players) ============================ */
     console.log("\n== Matéria com vários players (G1): vídeo vertical estreito dentro de moldura larga");
@@ -567,6 +615,7 @@ function rawReq(port, method, p, body, headers = {}) {
     info("aviso", toastInfo);
     check("a aba antiga mostra 'atualize esta página (F5)' depois de a extensão ser recarregada", /^block\|/.test(toastInfo) && /F5/.test(toastInfo), toastInfo);
     check("o ícone some na aba antiga (não clica em algo que já não funciona)", !(await fabVisible()));
+    }
   } catch (e) {
     console.log("  ERRO  " + (e && e.stack || e)); results.push(false);
   } finally { await cleanup(); }

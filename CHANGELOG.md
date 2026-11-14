@@ -6,7 +6,10 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
-## [3.2.0] — 2026-11-14 (local, aguardando aprovação/publicação)
+## [3.2.0] — 2026-11-14
+
+- TikTok: identifica o vídeo pelo próprio player no feed/Explorar, mesmo com endereço genérico e vídeo em blob. Evita enviar a página inicial ou um link de vídeo vizinho; acompanha o ID quando o player é reutilizado.
+- Premiere e After Effects: modo compacto por padrão, alternância para completo com preferência salva por programa, revisão expansível e abertura automática da playlist. Links, seleção e formatos são preservados ao alternar; andamento vazio fica oculto.
 
 - Padrão definitivo de produtos: **Noe VFX Downloader** e **Noe VFX Downloader for Editors**. ZIPs `NoeVFX-Downloader-3.2.0.zip` e `NoeVFX-Downloader-for-Editors-3.2.0.zip`, instaladores, atualizador, testes, geração de release e materiais alinhados. A mudança exige uma migração pelo instalador por cima para versões anteriores; depois, o botão reconhece os nomes novos.
 
