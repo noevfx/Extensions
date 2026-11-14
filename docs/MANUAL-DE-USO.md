@@ -53,7 +53,7 @@ Cole uma lista com um endereço por linha **ou vá colando um link após o outro
 
 Se você digitou em vez de colar, use **Adicionar links** ou Enter. Os endereços precisam começar com `http://` ou `https://`. Confira o contador e os itens identificados. O × remove uma origem antes do download; as caixas marcam quais itens baixar.
 
-![Seleção de links com tipo de mídia e destino](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/varios-links-3.2.1.png)
+![Seleção de links com tipo de mídia e destino](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/varios-links-corrigido.png)
 
 ## 5. Playlist inteira ou só alguns itens
 
@@ -64,7 +64,7 @@ Se você digitou em vez de colar, use **Adicionar links** ou Enter. Os endereço
 5. Escolha o destino e confira o botão: por exemplo, **Baixar 3 áudios em MP3**.
 6. Confirme para enviar a seleção ao app local.
 
-![Playlist com formato MP3 e itens selecionáveis](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/playlist-audio-3.2.1.png)
+![Playlist com formato MP3 e itens selecionáveis](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/playlist-audio-corrigido.png)
 
 **Vídeo + playlist:** um link de vídeo do YouTube com `list=` começa como vídeo individual. Use **Ver playlist** se quiser abrir o conjunto. Uma playlist de vídeos também é diferente dos manifestos `.m3u8`/`.mpd` usados internamente por um player.
 
