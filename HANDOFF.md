@@ -115,3 +115,9 @@ node tools/capturar-telas.js                # refaz as telas do manual em docs/i
 
 - Ajustes visuais aprovados em direção: manual usa abertura azul, logo negativo, navegação horizontal e seções abertas como a apresentação (sem sidebar). Capítulo Adobe ilustra também navegador → menu → resultado no projeto, com demonstração interativa isolada. Apresentação identifica Chromium (Chrome/Edge/Brave/Opera/Vivaldi) e destaca for Editors em azul com integração visível.
 - CI: extração dos pacotes agora seleciona somente o ZIP for Editors, evitando passar os dois ZIPs ao unzip/Expand-Archive. O problema histórico do teste e2e antigo ainda exige conferir os runners; não afirmar CI inteira aprovada só por testes locais.
+
+## Padrão editorial — páginas voltadas ao usuário
+
+- README é apresentação e escolha da edição; `docs/MANUAL-DE-USO.md` é guia de tarefas; `MANUAL.md` e `COMECE-AQUI.txt` são entradas rápidas. HTML segue a mesma ordem: instalar, encontrar no navegador, receber links no editor, baixar vários, configurar e resolver.
+- Imagem + poucos passos + resultado esperado. Evitar repetir uma explicação em vários trechos; detalhes técnicos opcionais em blocos recolhíveis. Base Chromium, não exclusividade do Edge.
+- Novas imagens `docs/img/*-3.1.1.png`: renderizações dos templates atuais com dados demonstrativos. Não são capturas de importação real nos programas Adobe. Fontes das demonstrações em `docs/site/assets/*-demo.html`; popup passa a exibir os controles Adobe e vários links. Substituir referências antigas ao popup no site e no Markdown.

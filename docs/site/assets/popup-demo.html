@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Noe VFX Downloader</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg: #0f1117;
+      --surface: #171a24;
+      --surface-hover: #202534;
+      --border: #262b3d;
+      --text: #f3f4f8;
+      --muted: #9499ad;
+      --accent: #0066FF;
+      --accent-hover: #0052cc;
+      --danger: #E01B24;
+      --ok: #10b981;
+    }
+    :root[data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0066FF;
+      --accent-hover: #0052cc;
+      --danger: #E01B24;
+      --ok: #059669;
+    }
+    * { box-sizing: border-box; }
+    button, input, select { font-family: inherit; }      /* botões herdam a fonte do app (antes caíam em Arial) */
+    body {
+      width: 388px;
+      overflow-x: hidden;
+      max-height: 596px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 12px;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background .15s ease, color .15s ease;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .brand-title { font-size: 14px; font-weight: 700; letter-spacing: .02em; line-height: 1.1; }
+    .brand-sub { font-size: 10px; color: var(--muted); text-decoration: none; display: block; margin-top: 2px; }
+    .brand-sub:hover { color: var(--accent); }
+    .hdr-right { display: flex; align-items: center; gap: 5px; }
+    .icon-btn {
+      width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      cursor: pointer; transition: background .12s ease, border-color .12s ease;
+    }
+    .icon-btn:hover { background: var(--surface-hover); border-color: var(--accent); }
+    .icon-btn.on { color: var(--accent); border-color: rgba(0,102,255,.45); background: rgba(0,102,255,.1); }
+    .icon-btn.off { color: var(--muted); opacity: .65; }
+    .icon-btn.spin svg { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge {
+      font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 99px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    }
+    .badge.on { background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.35); color: #34d399; }
+    .badge.off { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.35); color: #f87171; }
+
+    .dest {
+      display: flex; align-items: center; gap: 7px; padding: 6px 9px; margin-bottom: 8px;
+      border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 10.5px;
+    }
+    .dest .lbl { color: var(--muted); flex-shrink: 0; }
+    .dest .path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: 600; }
+    .dest button {
+      border: none; background: transparent; color: var(--accent); font-size: 10.5px; font-weight: 700;
+      cursor: pointer; padding: 0; flex-shrink: 0;
+    }
+    .dest button:hover { text-decoration: underline; }
+
+    .setup {
+      display: none; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px;
+      border-radius: 8px; border: 1px dashed rgba(0,102,255,.5); background: rgba(0,102,255,.08);
+      font-size: 11px; color: var(--text);
+    }
+    .setup.show { display: flex; }
+    .setup button {
+      margin-left: auto; border: none; background: var(--accent); color: #fff; font-size: 10.5px;
+      font-weight: 700; padding: 5px 9px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+    }
+
+    input[type="url"] {
+      width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 12px; outline: none;
+    }
+    input[type="url"]:focus { border-color: var(--accent); }
+
+    /* um botão principal + 3 opções iguais lado a lado */
+    .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+    button.act {
+      padding: 9px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+      color: var(--text); font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background .12s ease, border-color .12s ease;
+    }
+    button.act:hover { background: var(--surface-hover); border-color: var(--accent); }
+    button.act.primary {
+      grid-column: span 3; background: var(--accent); border-color: var(--accent);
+      color: #fff; font-weight: 700; font-size: 13px; padding: 11px 10px;
+      box-shadow: 0 2px 10px rgba(0,102,255,.28);
+    }
+    button.act.primary:hover { background: var(--accent-hover); }
+
+    .sec-head { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 6px; gap: 8px; }
+    .sec-title {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .count-pill {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+      padding: 0 5px; border-radius: 99px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 800;
+      letter-spacing: 0; text-transform: none;
+    }
+    .mini-btn {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 10.5px;
+      font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; display: inline-flex;
+      align-items: center; gap: 4px;
+    }
+    .mini-btn:hover { border-color: var(--accent); background: var(--surface-hover); }
+    .mini-btn.all { border-color: rgba(0,102,255,.5); color: var(--accent); }
+
+    .streams {
+      max-height: 270px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+      padding-right: 2px;
+    }
+    .streams::-webkit-scrollbar { width: 7px; }
+    .streams::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9px; }
+    .stream-item {
+      display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border); font-size: 11px;
+    }
+    .stream-item:hover { border-color: rgba(0,102,255,.45); }
+    .thumb {
+      width: 62px; height: 36px; border-radius: 5px; object-fit: cover; flex-shrink: 0;
+      background: linear-gradient(135deg, #1d2436, #2b3550); border: 1px solid rgba(255,255,255,.06);
+    }
+    .thumb-ph {
+      width: 62px; height: 36px; border-radius: 5px; flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 15px; color: #8fb4ff; padding-left: 2px;
+      background: linear-gradient(135deg, #122a52, #0066FF33); border: 1px solid rgba(0,102,255,.35);
+    }
+    .stream-meta { overflow: hidden; flex: 1; min-width: 0; }
+    .stream-name {
+      font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .stream-sub { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 9.5px; }
+    .stream-tag {
+      color: var(--accent); font-weight: 800; background: rgba(0,102,255,.12); border-radius: 4px;
+      padding: 1px 4px; flex-shrink: 0; letter-spacing: .02em;
+    }
+    .stream-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stream-btn {
+      padding: 5px 9px; font-size: 10.5px; font-weight: 700; background: var(--accent); color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+    }
+    .stream-btn:hover { background: var(--accent-hover); }
+    .empty { font-size: 11px; color: var(--muted); padding: 8px 2px; line-height: 1.5; }
+
+    footer {
+      margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted);
+      gap: 8px;
+    }
+    footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    footer a:hover { text-decoration: underline; }
+    #status { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    [hidden] { display: none !important; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .bar { height: 3px; margin-top: 8px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+    .send-h { margin-top: 10px; font-size: 10px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+    .send { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 5px; }
+    button.send-btn {
+      min-width: 0; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 8px; border-radius: 8px;
+      font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; transition: background .12s ease, border-color .12s ease;
+    }
+    button.send-btn span { overflow: hidden; text-overflow: ellipsis; }
+    button.send-btn b { flex-shrink: 0; font-size: 10px; font-weight: 800; line-height: 1; padding: 3px 4px; border-radius: 4px; }
+    button.send-btn.pr { background: #2a1248; color: #e3ccff; border: 1px solid #7b3fe0; }
+    button.send-btn.pr b { background: #9a5cff; color: #1a0833; }
+    button.send-btn.pr:hover { background: #3b1a66; border-color: #a678ff; }
+    button.send-btn.ae { background: #16194d; color: #d3d6ff; border: 1px solid #4b55e0; }
+    button.send-btn.ae b { background: #7d86ff; color: #0c0e33; }
+    button.send-btn.ae:hover { background: #21266b; border-color: #8a92ff; }
+    .compat {
+      display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11px; color: var(--muted);
+      cursor: pointer; user-select: none;
+    }
+    .compat { align-items: flex-start; line-height: 1.35; }
+    .compat b { color: var(--text); font-weight: 600; }
+    .compat small { font-size: 10px; color: var(--muted); }
+    .compat input { accent-color: var(--accent); width: 14px; height: 14px; margin: 2px 0 0; cursor: pointer; flex-shrink: 0; }
+    .compat:hover { color: var(--text); }
+    .ed-pill { display: inline-block; vertical-align: 2px; margin-left: 4px; font-size: 8.5px; font-weight: 800; letter-spacing: .6px; padding: 1px 6px; border-radius: 99px; background: rgba(0,102,255,.18); color: #7fb0ff; border: 1px solid rgba(0,102,255,.45); }
+    .ver { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+    .ver-btn { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+    .ver-btn:hover { color: var(--accent); text-decoration: underline; }
+    .upd {
+      margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.4;
+      padding: 6px 8px; border: 1px solid rgba(0,102,255,.5); border-radius: 8px; background: var(--surface);
+    }
+    .upd span { flex: 1; min-width: 0; }
+    .mail { font-size: 10px; color: var(--muted); text-decoration: none; flex-shrink: 0; }
+    .mail:hover { color: var(--accent); }
+  body{max-height:none} .thumb-ph{background:linear-gradient(130deg,#013fff,#38345b)} </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 722.36 722.36" width="28" height="28">
+        <rect fill="#0066FF" width="722.36" height="722.36" rx="102.3" ry="102.3"/>
+        <path fill="#FFFFFF" d="M550.64,561.37H168.59c-4.19,0-7.59-3.4-7.59-7.59V171.73l389.63,389.63ZM553.77,161H171.72l389.63,389.63V168.58c0-4.17-3.39-7.59-7.59-7.59Z"/>
+      </svg>
+      <div>
+        <div class="brand-title">Noe VFX <span class="ed-pill" id="edPill">EDITORS</span></div>
+        <a class="brand-sub" href="https://noevfx.com" target="_blank" rel="noreferrer">noevfx.com</a>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span id="srv" class="badge">...</span>
+      <button id="fabBtn" class="icon-btn on" type="button" data-i18n-title="tipIcon">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>
+        </svg>
+      </button>
+      <button id="refreshBtn" class="icon-btn" type="button" data-i18n-title="tipRefresh">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 3v6h-6"/>
+        </svg>
+      </button>
+      <button id="themeBtn" class="icon-btn" type="button" data-i18n-title="tipTheme">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </button>
+      <button id="settingsBtn" class="icon-btn" type="button" data-i18n-title="tipSettings">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0c.2.61.77 1.02 1.42 1.03H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="setup" class="setup">
+    <span data-i18n="setupMsg"></span>
+    <button id="setupBtn" type="button" data-i18n="setupBtn"></button>
+  </div>
+
+  <div id="panelSetup" class="setup" role="status" aria-live="polite"></div>
+
+  <div class="dest">
+    <span class="lbl" data-i18n="saveTo"></span>
+    <span id="destPath" class="path" title=""></span>
+    <button id="openFolderBtn" type="button" data-i18n="open"></button>
+    <button id="changeFolderBtn" type="button" data-i18n="change"></button>
+  </div>
+
+  <input id="urlInput" type="url" data-i18n-ph="urlPh" />
+
+  <div class="actions">
+    <button class="act primary" data-q="best" data-i18n="best"></button>
+    <button class="act" data-q="1080" data-i18n="q1080"></button>
+    <button class="act" data-q="720" data-i18n="q720"></button>
+    <button class="act" data-q="audio" data-i18n="audioOnly"></button>
+  </div>
+  <div id="sendRow">
+    <div class="send-h" data-i18n="sendTo"></div>
+    <div class="send">
+      <button class="send-btn pr" type="button" data-target="premiere" data-i18n-title="sendTip"><b>Pr</b><span data-i18n="sendPr"></span></button>
+      <button class="send-btn ae" type="button" data-target="aftereffects" data-i18n-title="sendTip"><b>Ae</b><span data-i18n="sendAe"></span></button>
+    </div>
+  </div>
+  <label class="compat" id="compatRow" data-i18n-title="compatTip">
+    <input type="checkbox" id="compatBox" />
+    <span><b data-i18n="compatShort"></b><br><small data-i18n="compatHint"></small></span>
+  </label>
+
+  <div class="sec-head">
+    <div class="sec-title"><span data-i18n="detected"></span> <span id="countPill" class="count-pill">0</span></div>
+    <span style="flex:1"></span>
+    <button id="batchBtn" class="mini-btn" type="button" data-i18n-title="batchTip"><span data-i18n="batchBtn"></span></button>
+    <button id="allBtn" class="mini-btn all" type="button">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v10m0 0l-3.5-3.5M12 13l3.5-3.5M4 19h16"/></svg>
+      <span data-i18n="downloadAll"></span>
+    </button>
+  </div>
+  <div id="streams" class="streams">
+    <div class="empty" data-i18n="empty"></div>
+  </div>
+
+  <div id="updRow" class="upd" hidden role="status" aria-live="polite">
+    <span id="updMsg"></span>
+    <button id="updBtn" class="mini-btn all" type="button" hidden></button>
+  </div>
+
+  <div id="barWrap" class="bar" hidden><i id="bar"></i></div>
+  <footer>
+    <div id="status" data-i18n="ready" role="status" aria-live="polite"></div>
+    <button id="cancelBtn" class="mini-btn" type="button" hidden data-i18n="cancel" data-i18n-title="cancelTip"></button>
+    <button id="ver" class="ver ver-btn" type="button" data-i18n-title="updTip">v3.1.1</button>
+    <a class="mail" href="mailto:labs@noevfx.com" title="labs@noevfx.com">labs@noevfx.com</a>
+  </footer>
+
+
+
+<script>const dict={"checking":"verificando…","panel_checking":"Adobe panel: checking package...","panel_downloading":"Adobe panel: downloading...","panel_verifying":"Adobe panel: verifying package...","panel_installing":"Adobe panel: installing...","panel_done":"Adobe panel installed. Restart Premiere or After Effects.","panel_error":"Could not install the Adobe panel. Run the for Editors installer again.","online":"Online","offline":"Offline","setupMsg":"Defina a pasta padrão para salvar os vídeos.","setupBtn":"Configurar","saveTo":"Salvar em","open":"abrir","change":"trocar","urlPh":"URL da página ou do vídeo","best":"Qualidade Nativa (Máxima)","q1080":"1080p Full HD","q720":"720p HD","audio":"Somente Áudio (M4A Original)","detected":"Vídeos detectados","downloadAll":"Baixar todos","empty":"Nenhum stream capturado ainda. Dê play no vídeo e clique em ⟳.","download":"Baixar","ready":"Pronto.","batchBtn":"Vários links","batchTip":"Cole vários links e baixe todos de uma vez","batchTitle":"Baixar vários links","batchLinks":"Links (um por linha)","batchQuality":"Qualidade","batchDest":"Salvar em","batchDestDefault":"Pasta padrão","batchDestCustom":"Outra pasta...","batchDestPr":"Projeto do Premiere (bin)","batchDestAe":"Projeto do After Effects (bin)","batchPick":"Escolher pasta","batchCompatHint":"O Premiere e o AE não abrem AV1. Fica sempre ligado ao enviar para o projeto.","batchGo":"Baixar tudo","batchNoLinks":"Cole pelo menos um link (http/https), um por linha.","batchQueued":"Na fila","batchImporting":"Baixado. Importando no projeto...","batchImported":"Importado no bin _Noe VFX Downloader","batchDone":"Salvo em {0}","batchInfoDefault":"Vai para {0}","batchInfoCustom":"Vai para {0}","batchInfoPick":"Escolha a pasta primeiro.","batchInfoProject":"Vai para a pasta _Noe VFX Downloader do projeto aberto, em H.264, e para o bin de mesmo nome (com o painel Noe VFX for Editors instalado).","sendTo":"Enviar para o projeto","sendPr":"Premiere","sendAe":"After Effects","sendTip":"Salva na pasta _Noe VFX Downloader do projeto aberto no programa (um nível acima da pasta Premiere/AE), já em H.264. O programa precisa estar aberto com o projeto salvo.","sentProject":"Enviando para a pasta do projeto: {0} (H.264)","staleTab":"O Noe VFX Downloader foi atualizado. Atualize esta página (F5) para continuar baixando por aqui.","pinVideo":"Vídeo do Pinterest","compatShort":"Converter para H.264 (Premiere)","compatHint":"Desligado por padrão. O Premiere não abre AV1: ligue para receber H.264 + AAC (pode demorar mais).","compatTip":"Salva MP4 com vídeo H.264 e áudio AAC, que abrem no Premiere e em outros editores. Se o vídeo só existir em AV1/VP9, é convertido depois do download.","compatOnMsg":"H.264 ligado: os arquivos vão abrir no Premiere (a conversão pode demorar).","compatOffMsg":"Conversão para H.264 desligada: o arquivo fica como o site entrega.","compatT":"Converter para H.264 para o Premiere e outros editores (opcional)","compatD":"Salva MP4 com vídeo H.264 e áudio AAC, que abrem no Premiere, After Effects, DaVinci e outros. Muitos sites hoje entregam AV1 ou VP9, que o Premiere não abre: com isto ligado, o app escolhe H.264 e, se o vídeo só existir em AV1/VP9, converte depois do download (demora um pouco). Vem DESLIGADO por padrão: deixe assim para manter o arquivo exatamente como o site entrega (o mais rápido) e ligue só quando o seu editor não abrir o arquivo (o 4K do YouTube só existe em AV1/VP9, então é convertido).","updReload":"Recarregar extensão","updReloadMsg":"O app já está na {0}, mas esta extensão ainda é a {1} (acontece com mais de um perfil do navegador). Recarregue a extensão.","updTip":"Verificar atualizações","updTitle":"Atualizações","updDesc":"A extensão roda em modo desenvolvedor, então o navegador não a atualiza. Este botão pergunta ao GitHub qual é a última versão, confere o SHA-256 e troca os arquivos instalados.","updCheck":"Verificar atualizações","updChecking":"Verificando...","updLatest":"Você está na versão mais recente ({0}).","updNew":"Nova versão {0} disponível.","updApply":"Atualizar agora","updConfirm":"Atualizar para a versão {0}? O servidor local reinicia e a extensão recarrega (downloads em andamento bloqueiam a atualização).","updApplying":"Baixando e instalando...","updRestarting":"Reiniciando o servidor...","updFail":"Não consegui verificar atualizações. O servidor local está online?","offlineHint":"Servidor local offline — rode o instalador (windows/mac/linux)","tipRefresh":"Atualizar detecção (Shift+clique recarrega a página)","tipTheme":"Alternar tema claro/escuro","tipSettings":"Configurações (pasta padrão)","tipIcon":"Ícone sobre os vídeos","iconEnabled":"Ícone nos vídeos: ativado (clique para desligar)","iconDisabled":"Ícone nos vídeos: desativado (clique para ligar)","starting":"Iniciando download...","savedIn":"Salvo em {0}","downloading":"Baixando {0}","extracting":"Extraindo vídeo...","merging":"Unindo A/V (ffmpeg)...","errX":"Erro: {0}","queue":"Na fila...","lost":"Conexão perdida com o servidor local.","openPage":"Abra uma página com vídeo.","startFail":"Não foi possível iniciar.","enqueueFail":"Falha ao enfileirar. Servidor offline?","queuedN":"{0} download(s) na fila.","nothing":"Nada para baixar nesta aba.","iconOnMsg":"Ícone ativado sobre os vídeos.","iconOffMsg":"Ícone desativado. A detecção continua funcionando.","saveFailMsg":"Não consegui salvar (servidor local offline?).","openFolderFail":"Não consegui abrir a pasta (servidor offline?).","folderLabel":"Vídeos/NoeVFX","saveVideo":"Salvar vídeo","downloadDefault":"Baixar na pasta padrão","saveHere":"Salvar aqui","native":"Nativa","audioOnly":"Só áudio","allPage":"Baixar todos os vídeos desta página","dragHint":"Arraste o ícone para mover","iconOn":"ÍCONE ON","iconOff":"ÍCONE OFF","serverOffline":"Servidor local offline — rode o instalador","forbiddenMsg":"O app local recusou esta extensão — rode o instalador de novo","forbiddenShort":"Rode o instalador de novo","outdatedMsg":"App local desatualizado — rode o instalador de novo","dupNote":"Este vídeo já está sendo baixado","canceledMsg":"Download cancelado","cancel":"Cancelar","cancelTip":"Cancelar o download atual","cancelFail":"Não consegui cancelar","diag":"Copiar diagnóstico","diagTip":"Copia um relatório curto do estado do app para colar na conversa quando algo falhar","diagCopied":"Copiado! Cole na conversa","ffWarn":"sem FFmpeg: salvo em arquivo único (qualidade pode ser menor)","ffmpegMissing":"FFmpeg não está funcionando — a qualidade pode ser menor. Rode o instalador de novo","cannotStart":"Não foi possível iniciar","queuedWait":"Na fila: aguardando vaga...","downloadingP":"Baixando {0}","downloading0":"Baixando...","mergingShort":"Unindo vídeo + áudio...","savedInShort":"Salvo em {0}","errShort":"Erro: {0}","queueFail":"Falha ao enfileirar downloads","nothingHere":"Nada para baixar aqui","queuedNote":"{0} download(s) na fila — acompanhe pelo ícone da extensão","ytDownload":"Baixar","ytStarting":"Iniciando...","ytOffline":"Servidor offline","ytSaved":"Salvo!","ytError":"Erro","ytMerging":"Unindo...","downloadStarted":"Download iniciado","ytBest":"Qualidade Nativa (Máxima)","yt1080":"1080p (Full HD)","yt720":"720p (HD)","ytAudio":"Só Áudio (M4A)","menuBest":"Baixar na qualidade nativa — Noe VFX Downloader","menuAll":"Baixar TODOS os vídeos desta página","menuIconOn":"Ícone nos vídeos: ativado","menuIconOff":"Ícone nos vídeos: desativado","menuOpenFolder":"Abrir pasta de downloads","menuOptions":"Configurações (pasta padrão)…","optTitle":"Noe VFX Downloader — Configurações","welcomeTitle":"Bem-vindo! Vamos configurar em 1 minuto","welcomeText":"Escolha onde os vídeos serão salvos. Você pode mudar isso quando quiser clicando no ícone da extensão → ⚙️.","step1":"Servidor local","step1Hint":"É ele que baixa os vídeos. Deve ficar rodando em segundo plano (o instalador já configura para iniciar com o computador).","retest":"Testar novamente","step1Offline":"Se estiver offline, rode o instalador do Noe VFX.","step2":"Pasta padrão dos downloads","step2Hint":"Todo vídeo baixado vai para esta pasta. Ela é criada automaticamente se não existir.","outDirPh":"Ex.: C:\\Videos\\NoeVFX  •  /Users/voce/Movies/NoeVFX  •  /home/voce/Videos/NoeVFX","pickFolder":"Escolher pasta…","opening":"Abrindo janela…","openFolder":"Abrir pasta","useDefault":"Usar a pasta padrão do sistema","step3":"Ao clicar no ícone que aparece sobre o vídeo","step3Hint":"O ícone azul do Noe VFX aparece no canto do vídeo quando você passa o mouse.","optMenuT":"Perguntar antes de salvar (recomendado)","optMenuD":"Abre um menu mostrando a pasta padrão com opções: nativa, 1080p, 720p, só áudio e baixar todos.","optDirectT":"Salvar direto na pasta padrão","optDirectD":"Um clique e o download começa na qualidade escolhida abaixo. Sem perguntas.","step4":"Qualidade padrão","step4Hint":"Usada quando você clica no ícone do vídeo ou em \"Baixar todos\".","qBest":"Nativa / Máxima (recomendado)","qAudio2":"Somente áudio (M4A)","step5":"Opções avançadas","step5Hint":"Útil quando o vídeo só aparece depois de entrar na sua própria conta.","useCookiesT":"Usar os cookies do navegador","useCookiesD":"Usa os cookies da sua própria sessão para acessar o mesmo conteúdo que você já está assistindo (não contorna login nem assinatura de terceiros).","organizeT":"Separar em subpasta por site","organizeD":"Cria uma subpasta com o nome do site dentro da pasta padrão (ex.: NoeVFX/youtube.com).","showIconT":"Mostrar o ícone sobre os vídeos","showIconD":"O botão azul que aparece no canto do vídeo (dá para arrastar e ele some após 2 s parado). Desligado, a detecção continua no popup e no botão direito.","extraArgs":"Argumentos extras do yt-dlp (avançado)","extraArgsPh":"ex.: --extractor-args youtube:player_client=web_safari","extraArgsHint":"Deixe vazio se não souber. Separe por espaço.","versionLine":"Versão {0} • Chrome, Edge, Brave, Opera, Vivaldi e outros Chromium (Windows, macOS e Linux).","unsaved":"Alterações não salvas.","saveBtn":"Salvar configurações","finishBtn":"Concluir configuração","savedOk":"✓ Configurações salvas. Pasta: {0}","saveErr":"Erro: {0} — o servidor precisa estar rodando.","pickErr":"Não consegui abrir a janela. Digite o caminho manualmente.","pickOk":"Pasta escolhida. Clique em Salvar.","chooseFirst":"Escolha a pasta padrão antes de salvar.","saving":"Salvando…","openErr":"Não consegui abrir a pasta.","offlineType":"Servidor offline: digite o caminho da pasta manualmente.","settingsTitle":"Configurações","legalNote":"Use apenas com conteúdo que você tem o direito de salvar. A ferramenta não contorna DRM, paywalls ou controles de acesso.","aboutTitle":"Sobre o Noe VFX Downloader","aboutTagline":"Criado artesanalmente por Noé VFX","aboutDesc":"Desenvolvido artesanalmente para quem salva vídeos com precisão, interface limpa e zero telemetria. Sem anúncios, sem rastreamento e sem dependências pesadas.","linkSite":"noevfx.com","linkScripts":"noevfx.com/scripts","linkGithub":"github.com/noevfx","coffeeTitle":"Pague um café ao desenvolvedor","coffeeText":"A ferramenta é feita para a comunidade, sem anúncios e com foco em performance. Se ela te ajudou, considere apoiar o projeto — isso mantém o código cuidado e novas atualizações saindo do forno.","pixTitle":"PIX","pixKeyLabel":"Chave aleatória","pixCopy":"Copiar","pixCodeLabel":"PIX Copia e Cola","pixCopyKey":"Copiar chave","pixQrNote":"QR gerado localmente — sua chave não sai deste computador","supportTitle":"Dúvidas, críticas, sugestões e bugs","supportText":"Sua opinião molda o que vem a seguir. Encontrou um bug, quer sugerir algo para a próxima versão ou tem dúvidas? Mande um e-mail para:","supportCopy":"Copiar","supportSend":"Abrir no e-mail","versionRelease":"release"};document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=dict[el.dataset.i18n]||el.dataset.i18n});document.getElementById('destPath').textContent='Vídeos/NoeVFX';document.getElementById('srv').textContent='Online';document.getElementById('srv').className='badge on';document.getElementById('urlInput').value='https://youtube.com/watch?v=exemplo';document.getElementById('countPill').textContent='2';document.getElementById('streams').innerHTML='<div class="stream-item"><div class="thumb-ph">▶</div><div class="stream-meta"><div class="stream-name">Referência de movimento</div><div class="stream-sub">YouTube · vídeo de exemplo</div></div><button class="mini-btn">Baixar</button></div><div class="stream-item"><div class="thumb-ph">▶</div><div class="stream-meta"><div class="stream-name">Material do roteiro</div><div class="stream-sub">Vimeo · vídeo de exemplo</div></div><button class="mini-btn">Baixar</button></div>';document.getElementById('ver').textContent='v3.1.1';document.getElementById('status').textContent='Demonstração da interface';</script></body>
+</html>

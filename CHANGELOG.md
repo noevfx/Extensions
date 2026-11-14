@@ -19,6 +19,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
   painel e liga o modo de painéis da Adobe. Basta clicar em "Atualizar agora" e depois abrir o Premiere/After Effects.
 
 ### Novo
+- README, manual Markdown e guias rápidos reorganizados por tarefas, com imagens das interfaces atuais e detalhes técnicos opcionais, acompanhando o manual HTML.
 - Repositório independente `noevfx/noevfx-downloader`, com atualização apontando ao novo endereço e migração das instalações antigas por redistribuição do pacote.
 - Apresentação e manual HTML em oito páginas, publicados via GitHub Pages, com os fluxos navegador → projeto e links recebidos → painel Adobe, exemplos de interfaces, instalação e diagnóstico.
 - **GPU de alto desempenho no Windows:** identifica adaptadores pela ordem DXGI, associa cada um ao índice D3D11 pelo identificador LUID e seleciona explicitamente o dispositivo no FFmpeg. Funciona na lógica de seleção com placas da mesma marca; mostra o modelo no progresso. Se a identificação não estiver disponível, usa a CPU para evitar escolher um dispositivo sem identificação.

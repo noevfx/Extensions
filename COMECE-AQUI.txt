@@ -1,71 +1,34 @@
-Noe VFX Downloader 3.1.1 — noevfx.com
-=====================================
+NOE VFX DOWNLOADER — COMECE POR AQUI
 
-Qual versão é? Está no nome do ZIP (noevfx-downloader-X.Y.Z.zip) e no arquivo VERSION.txt.
+Manual ilustrado: https://noevfx.github.io/noevfx-downloader/instalar.html
 
-O instalador faz TUDO sozinho (Python, yt-dlp, FFmpeg, Deno e o servidor).
-Você NÃO precisa instalar nada antes e NÃO precisa de senha de administrador.
-Só precisa de internet na hora de instalar (1 a 5 minutos).
+1. EXTRAIA O ZIP INTEIRO
+   Abra a pasta do seu sistema:
+   Windows: INSTALAR_NOEVFX.bat
+   macOS: INSTALAR-MAC.command (botao direito > Abrir na primeira vez)
+   Linux: bash instalar-noevfx.sh
 
-ESCOLHA A PASTA DO SEU SISTEMA:
-   windows\   ->  Windows 10 / 11
-   mac\       ->  macOS (Intel ou Apple Silicon)
-   linux\     ->  Linux
+2. CONECTE O NAVEGADOR
+   Siga o guia aberto pelo instalador para carregar a pasta extension INSTALADA.
+   Use Chrome, Edge, Brave, Opera, Vivaldi ou outro navegador Chromium.
+   Abra o popup do Downloader e confira Online.
 
-==================================================================
-LEIA ANTES — O ERRO MAIS COMUM
-==================================================================
-O navegador guarda O CAMINHO da pasta da extensão. Se você carregar
-a extensão da pasta EXTRAÍDA do ZIP e depois apagar essa pasta, a
-extensão QUEBRA (fica cinza / some da barra).
+3. ESCOLHA SEU CAMINHO
+   Achei uma referencia: no video da pagina, abra o botao azul e escolha
+   Enviar para o projeto > Premiere ou After Effects.
+   Recebi links: cole um por linha no painel Noe VFX for Editors e use
+   Baixar e importar.
+   Quero salvar na pasta: use os botoes de qualidade do navegador.
 
-CERTO: carregar da pasta onde o PROGRAMA FOI INSTALADO:
+A integracao Adobe exige a edicao for Editors, o componente instalado
+no editor e um projeto salvo e aberto. Reinicie o editor apos instalar.
 
-  Windows   %LOCALAPPDATA%\NoeVFXDownloader\extension
-  macOS     ~/.local/share/NoeVFXDownloader/extension
-  Linux     ~/.local/share/NoeVFXDownloader/extension
+MIGRACAO: recebeu o pacote do novo repositorio? Rode o instalador e
+recarregue a extensao instalada. Dê F5 nas paginas com video.
 
-O instalador ABRE essa pasta sozinho e copia o caminho para a
-área de transferência.
-==================================================================
+DESINSTALAR: feche os programas Adobe e rode o desinstalador do pacote.
+Confira os avisos e remova a extensao de cada navegador e perfil.
+Os videos baixados sao preservados; as configuracoes do app sao removidas.
 
-WINDOWS
-  1. Extraia o ZIP inteiro (botão direito > Extrair tudo)
-  2. Entre na pasta "windows" e dê duplo clique em INSTALAR_NOEVFX.bat
-     (se o Windows avisar "protegeu seu PC": Mais informações > Executar assim mesmo)
-     Não clique dentro da janela escura enquanto instala.
-  3. No final ele abre o navegador (com um guia) e o Explorer já com a pasta "extension"
-     selecionada: ARRASTE essa pasta para a página de extensões (3 cliques no total).
-
-MAC
-  1. Dê duplo clique no ZIP para extrair
-  2. Entre na pasta "mac". CLIQUE COM O BOTÃO DIREITO em INSTALAR-MAC.command
-     e escolha  Abrir  (e Abrir de novo no aviso). Só na 1ª vez.
-     Se preferir o Terminal:   bash instalar-noevfx.sh
-  3. No final ele abre o Chrome em chrome://extensions. Siga o
-     "ÚLTIMO PASSO" (3 cliques): Modo do desenvolvedor > Carregar sem
-     compactação > Cmd+Shift+G, cole o caminho (já copiado), entre na pasta, clique 1x em "extension" > Selecionar.
-     (Mais fácil: ARRASTE a pasta "extension" do Finder, que já abre selecionada, para a página.)
-  Safari não é suportado: use Chrome, Edge ou Brave.
-
-LINUX
-  1. Terminal dentro da pasta "linux":   bash instalar-noevfx.sh
-  2. Siga o "ÚLTIMO PASSO" que aparece na tela.
-
-SE ALGO DER ERRADO
-  - Rode o instalador de novo (é seguro: ele só baixa o que faltar).
-  - O log fica em  <pasta do programa>/install.log
-  - Na extensão, Configurações mostra o que está OK (servidor, yt-dlp,
-    FFmpeg, Deno).
-
-------------------------------------------------------------------
-Manual completo: MANUAL.md
-Desinstalar: DESINSTALAR_NOEVFX.bat  /  desinstalar-noevfx.sh
-O desinstalador remove o app e o painel Adobe do usuário atual. Depois,
-remova a extensão na página de extensões de cada navegador e perfil.
-Os vídeos baixados são preservados.
-------------------------------------------------------------------
-
-Manual visual completo: https://noevfx.github.io/noevfx-downloader/instalar.html
-Repositorio: https://github.com/noevfx/noevfx-downloader
-Migracao do repositorio antigo: rode o instalador do novo pacote e recarregue a extensao instalada.
+AJUDA: https://noevfx.github.io/noevfx-downloader/ajuda.html
+REPOSITORIO: https://github.com/noevfx/noevfx-downloader
