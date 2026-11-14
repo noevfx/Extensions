@@ -12,6 +12,8 @@
     if(path==="/pick-folder")return{ok:true,data:{path:"Vídeos/Referências"}};
     return{ok:false,data:{error:"Esta é uma demonstração local do manual."}};
   };
-  const mount=NVFCollection.mount(document.getElementById("collection"),{api,editors:params.get("edition")!=="basic",target,viewMode:params.get("view")==="full"?"full":"compact",onViewMode:mode=>document.body.classList.toggle("panel-compact",mode==="compact"),media:params.get("mode")==="audio"?"audio":adobe||params.get("mode")==="video"?"video":"audio",url:params.get("empty")==="1"?"":"https://www.youtube.com/playlist?list=exemplo"});
+  const links=params.get("sample")==="links";
+  const mount=NVFCollection.mount(document.getElementById("collection"),{api,editors:params.get("edition")!=="basic",target,viewMode:params.get("view")==="full"?"full":"compact",onViewMode:mode=>document.body.classList.toggle("panel-compact",mode==="compact"),media:params.get("mode")==="audio"?"audio":adobe||params.get("mode")==="video"?"video":"audio",url:params.get("empty")==="1"||links?"":"https://www.youtube.com/playlist?list=exemplo"});
+  if(links)mount.add("https://vimeo.com/111111111 https://vimeo.com/222222222 https://vimeo.com/333333333");
   document.querySelectorAll('[data-demo-target]').forEach(button=>button.addEventListener('click',()=>{location.search='?target='+button.dataset.demoTarget;}));
 })();

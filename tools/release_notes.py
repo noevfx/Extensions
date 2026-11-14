@@ -12,7 +12,7 @@ def main():
     if os.environ.get("GITHUB_REF_TYPE") == "tag" and os.environ.get("GITHUB_REF_NAME") != "v" + version:
         raise SystemExit("A tag não corresponde à versão do manifest.")
     title = "Noe VFX Downloader %s — Vídeos, playlists e áudio" % version
-    base = "https://github.com/noevfx/noevfx-downloader/releases/download/v%s/" % version
+    base = "https://github.com/noevfx/NoeVFX-downloader/releases/download/v%s/" % version
     rows, hashes = [], []
     for edition in ("basic", "editors"):
         spec = EDITIONS[edition]
@@ -40,9 +40,9 @@ Selecione uma playlist inteira ou só alguns itens. Escolha vídeo ou áudio, co
 2. Abra o instalador da pasta do seu sistema. **Não precisa desinstalar para atualizar.**
 3. Recarregue a extensão da pasta instalada. Em for Editors, reinicie Premiere/After Effects.
 
-**Vem de uma versão anterior à 3.2.0?** A mudança dos nomes dos pacotes exige executar o instalador uma vez, por cima. Sua configuração e os vídeos baixados são preservados. Os atualizadores antigos não reconhecem os nomes novos. Depois de migrar, o botão Atualizar agora volta a servir para as próximas releases.
+**Vem de uma versão anterior à 3.2.1?** Os nomes definitivos do repositório e dos pacotes exigem executar o instalador uma vez, por cima. Sua configuração e os vídeos baixados são preservados. Os atualizadores antigos não reconhecem os nomes novos ou recusam a capitalização do repositório. Depois de migrar, o botão Atualizar agora volta a servir para as próximas releases.
 
-**[Conheça o produto](https://noevfx.github.io/noevfx-downloader/)** · **[Manual ilustrado](https://noevfx.github.io/noevfx-downloader/instalar.html)** · **[O que mudou](https://github.com/noevfx/noevfx-downloader/blob/main/CHANGELOG.md)**
+**[Conheça o produto](https://noevfx.github.io/NoeVFX-downloader/)** · **[Manual ilustrado](https://noevfx.github.io/NoeVFX-downloader/instalar.html)** · **[O que mudou](https://github.com/noevfx/NoeVFX-downloader/blob/main/CHANGELOG.md)**
 
 <details>
 <summary>Conferir integridade dos pacotes</summary>

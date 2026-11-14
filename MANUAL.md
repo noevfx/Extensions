@@ -1,6 +1,6 @@
 # Seu primeiro vídeo no projeto
 
-**[Manual ilustrado](https://noevfx.github.io/noevfx-downloader/instalar.html)** · [Manual em texto](https://github.com/noevfx/noevfx-downloader/blob/main/docs/MANUAL-DE-USO.md) · [Downloads](https://github.com/noevfx/noevfx-downloader/releases)
+**[Manual ilustrado](https://noevfx.github.io/NoeVFX-downloader/instalar.html)** · [Manual em texto](https://github.com/noevfx/NoeVFX-downloader/blob/main/docs/MANUAL-DE-USO.md) · [Downloads](https://github.com/noevfx/NoeVFX-downloader/releases)
 
 ## Instale uma vez
 
@@ -31,10 +31,10 @@ Depois de confirmar, a fila continua no app local mesmo se fechar a janela. Rein
 
 ## Atualizar ou remover
 
-Para migrar de uma versão anterior à 3.2.0, rode o instalador do pacote novo por cima, uma vez. Os atualizadores antigos procuram os nomes antigos dos ZIPs. Não precisa desinstalar: configurações e downloads são preservados. Depois da migração, o botão Atualizar agora reconhece os novos pacotes nas próximas releases. Recarregue a extensão instalada, reinicie os editores e dê F5 nas páginas com vídeo.
+Para migrar de uma versão anterior à 3.2.1, rode o instalador do pacote novo por cima, uma vez. Os atualizadores antigos procuram os nomes antigos dos ZIPs. Não precisa desinstalar: configurações e downloads são preservados. Depois da migração, o botão Atualizar agora reconhece os novos pacotes nas próximas releases. Recarregue a extensão instalada, reinicie os editores e dê F5 nas páginas com vídeo.
 
 Para desinstalar, feche os programas Adobe e rode o desinstalador do pacote. Confira os avisos e remova a extensão de cada navegador/perfil. Os vídeos baixados são preservados; as configurações do aplicativo são removidas.
 
 ## Se algo não funcionar
 
-Offline? Rode o instalador. Vídeo não detectado? Dê play e procure novamente. Não importou? Confira a mensagem do painel e a pasta do trabalho. [Veja o guia de ajuda](https://noevfx.github.io/noevfx-downloader/ajuda.html).
+Offline? Rode o instalador. Vídeo não detectado? Dê play e procure novamente. Não importou? Confira a mensagem do painel e a pasta do trabalho. [Veja o guia de ajuda](https://noevfx.github.io/NoeVFX-downloader/ajuda.html).

@@ -67,7 +67,7 @@ def main():
     run(["git", "push", "--atomic", "origin", "HEAD", "refs/tags/" + tag])
 
     print("\n[5/5] O workflow publicará os dois produtos, com notas e hashes.")
-    print("Acompanhe: https://github.com/noevfx/noevfx-downloader/actions/workflows/release.yml")
+    print("Acompanhe: https://github.com/noevfx/NoeVFX-downloader/actions/workflows/release.yml")
 
 
 if __name__ == "__main__":

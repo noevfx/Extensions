@@ -31,10 +31,10 @@ def main():
             old=importlib.util.module_from_spec(spec);spec.loader.exec_module(old)
             try:
                 digest=hashlib.sha256(package.read_bytes()).hexdigest()
-                legacy=tuple(map(int,old.VERSION.split('.'))) < (3,2,0)
+                legacy=tuple(map(int,old.VERSION.split('.'))) < (3,2,1)
                 advertised=version if legacy else '9.9.9'
                 name=EDITIONS[edition]['zip']%advertised
-                asset={'name':name,'digest':'sha256:'+digest,'browser_download_url':'https://github.com/noevfx/noevfx-downloader/releases/download/v%s/%s'%(advertised,name)}
+                asset={'name':name,'digest':'sha256:'+digest,'browser_download_url':'https://github.com/noevfx/NoeVFX-downloader/releases/download/v%s/%s'%(advertised,name)}
                 info=old.update_info({'tag_name':'v'+advertised,'assets':[asset]})
                 assert info['can_apply'] is (not legacy),info
                 installer=old.install_panel_files

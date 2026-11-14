@@ -1,6 +1,6 @@
 # Do vídeo ao seu projeto
 
-**Manual 3.2.0** · [Versão ilustrada e interativa](https://noevfx.github.io/noevfx-downloader/) · [Downloads](https://github.com/noevfx/noevfx-downloader/releases)
+**Manual 3.2.0** · [Versão ilustrada e interativa](https://noevfx.github.io/NoeVFX-downloader/) · [Downloads](https://github.com/noevfx/NoeVFX-downloader/releases)
 
 Encontre referências no navegador e envie ao Premiere ou After Effects. Recebeu links do cliente? Cole no painel e continue editando. Uma playlist de músicas também pode virar uma seleção de áudios.
 
@@ -16,11 +16,11 @@ Encontre referências no navegador e envie ao Premiere ou After Effects. Recebeu
 
 A extensão é para **Chromium**: Chrome, Edge, Brave, Opera, Vivaldi e compatíveis. Os exemplos usam o Edge; Firefox e Safari não usam este pacote. O Noe VFX Downloader salva na pasta. For Editors também envia e importa no Adobe, em versões compatíveis com CEP, no Windows/macOS.
 
-[Instalação com telas e etapas Adobe →](https://noevfx.github.io/noevfx-downloader/instalar.html)
+[Instalação com telas e etapas Adobe →](https://noevfx.github.io/NoeVFX-downloader/instalar.html)
 
 ## 2. Vi uma referência no navegador
 
-![Player web com botão, dropdown de qualidade e destinos Adobe](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/video-envio-3.2.0.png)
+![Player web com botão, dropdown de qualidade e destinos Adobe](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/video-envio-3.2.0.png)
 
 1. Passe o mouse sobre o vídeo e abra o **botão azul** do Downloader. Ele pertence à extensão, não ao site.
 2. Escolha **Nativa**, **1080p** ou **720p** no dropdown.
@@ -31,11 +31,11 @@ O envio Adobe usa a qualidade escolhida nesse menu. O projeto precisa estar salv
 
 **No feed do TikTok:** deixe o vídeo desejado tocar e use o botão azul sobre ele. Não precisa abrir nem copiar um link individual: a extensão identifica o vídeo no próprio player.
 
-[Experimente o menu sobre o vídeo →](https://noevfx.github.io/noevfx-downloader/navegador.html#player)
+[Experimente o menu sobre o vídeo →](https://noevfx.github.io/NoeVFX-downloader/navegador.html#player)
 
 ## 3. Prefiro o popup da extensão
 
-![Popup atual com qualidade, áudio, playlist e destinos Adobe](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/popup-editors-3.2.0.png)
+![Popup atual com qualidade, áudio, playlist e destinos Adobe](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/popup-editors-3.2.0.png)
 
 Abra o ícone na barra do navegador. Use o endereço atual ou cole outro. O dropdown define a qualidade do download rápido e do envio ao Adobe.
 
@@ -53,7 +53,7 @@ Cole uma lista com um endereço por linha **ou vá colando um link após o outro
 
 Se você digitou em vez de colar, use **Adicionar links** ou Enter. Os endereços precisam começar com `http://` ou `https://`. Confira o contador e os itens identificados. O × remove uma origem antes do download; as caixas marcam quais itens baixar.
 
-![Seleção de links com tipo de mídia e destino](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/varios-links-3.2.0.png)
+![Seleção de links com tipo de mídia e destino](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/varios-links-3.2.1.png)
 
 ## 5. Playlist inteira ou só alguns itens
 
@@ -64,7 +64,7 @@ Se você digitou em vez de colar, use **Adicionar links** ou Enter. Os endereço
 5. Escolha o destino e confira o botão: por exemplo, **Baixar 3 áudios em MP3**.
 6. Confirme para enviar a seleção ao app local.
 
-![Playlist com formato MP3 e itens selecionáveis](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/playlist-audio-3.2.0.png)
+![Playlist com formato MP3 e itens selecionáveis](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/playlist-audio-3.2.1.png)
 
 **Vídeo + playlist:** um link de vídeo do YouTube com `list=` começa como vídeo individual. Use **Ver playlist** se quiser abrir o conjunto. Uma playlist de vídeos também é diferente dos manifestos `.m3u8`/`.mpd` usados internamente por um player.
 
@@ -72,7 +72,7 @@ A leitura mostra até 500 itens e avisa quando há mais. A seleção aceita até
 
 Playlists que exigem login dependem do acesso permitido e da sessão do navegador. O painel Adobe não lê os cookies do navegador; tente pelo navegador conectado se necessário. O app não contorna DRM ou restrições de acesso.
 
-[Passo a passo interativo de playlists →](https://noevfx.github.io/noevfx-downloader/navegador.html#playlists)
+[Passo a passo interativo de playlists →](https://noevfx.github.io/NoeVFX-downloader/navegador.html#playlists)
 
 ## 6. Dentro do Premiere ou After Effects
 
@@ -80,9 +80,9 @@ Playlists que exigem login dependem do acesso permitido e da sessão do navegado
 
 Use **Modo completo** para ver todos os detalhes. **Modo compacto** recolhe de novo. A troca preserva os links, os itens marcados, a qualidade e o formato; sua preferência fica salva em cada programa.
 
-![Painel Adobe no modo compacto](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-compacto-3.2.0.png)
+![Painel Adobe no modo compacto](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/painel-adobe-compacto-3.2.1.png)
 
-![Painel Adobe atual com seleção e importação](https://raw.githubusercontent.com/noevfx/noevfx-downloader/main/docs/img/painel-adobe-3.2.0.png)
+![Painel Adobe atual com seleção e importação](https://raw.githubusercontent.com/noevfx/NoeVFX-downloader/main/docs/img/painel-adobe-3.2.1.png)
 
 1. Abra **Janela → Extensões → Noe VFX Downloader for Editors**; o caminho pode variar conforme a versão do editor.
 2. Confira o projeto reconhecido no topo e cole os links ou a playlist.
@@ -94,7 +94,7 @@ No painel, o destino é o projeto do próprio programa. Os arquivos ficam na pas
 
 Download e importação são etapas distintas. Se o arquivo baixou mas não entrou no projeto, confira o aviso e a pasta do trabalho. Mantenha o projeto de destino aberto e o componente Adobe ativo para importar.
 
-[Os dois caminhos ilustrados, com Premiere e After Effects →](https://noevfx.github.io/noevfx-downloader/manual.html)
+[Os dois caminhos ilustrados, com Premiere e After Effects →](https://noevfx.github.io/NoeVFX-downloader/manual.html)
 
 ## 7. Qualidade de vídeo e formatos de áudio
 
@@ -113,7 +113,7 @@ WAV/FLAC não recuperam qualidade perdida na plataforma. FFmpeg e ffprobe são n
 
 Quando converter, o progresso informa a CPU/GPU usada. No Windows, a seleção identifica o dispositivo indicado para alto desempenho; a comparação pode preferir a CPU. O resultado fica na sessão, sem separar resoluções. Se a GPU falhar, tenta pelo processador. Isso não garante a melhor velocidade em todo vídeo e hardware.
 
-[Qualidade, áudio e GPU em detalhes →](https://noevfx.github.io/noevfx-downloader/formatos.html)
+[Qualidade, áudio e GPU em detalhes →](https://noevfx.github.io/NoeVFX-downloader/formatos.html)
 
 ## 8. Fila, cancelamento e atualização
 
@@ -131,4 +131,4 @@ Os atualizadores antigos não reconhecem os nomes novos. Essa migração pelo in
 
 Para remover: feche os editores, rode o desinstalador e confira os avisos. Ele tenta remover o app e o painel Adobe do usuário atual. Remova o cadastro da extensão em cada navegador/perfil manualmente. Vídeos baixados são preservados; a configuração do app é removida.
 
-[Atualizar ou desinstalar →](https://noevfx.github.io/noevfx-downloader/atualizar.html) · [Resolver problemas →](https://noevfx.github.io/noevfx-downloader/ajuda.html) · [Contato](mailto:labs@noevfx.com)
+[Atualizar ou desinstalar →](https://noevfx.github.io/NoeVFX-downloader/atualizar.html) · [Resolver problemas →](https://noevfx.github.io/NoeVFX-downloader/ajuda.html) · [Contato](mailto:labs@noevfx.com)

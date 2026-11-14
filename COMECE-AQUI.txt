@@ -1,6 +1,6 @@
 NOE VFX DOWNLOADER — COMECE POR AQUI
 
-Manual ilustrado: https://noevfx.github.io/noevfx-downloader/instalar.html
+Manual ilustrado: https://noevfx.github.io/NoeVFX-downloader/instalar.html
 
 1. EXTRAIA O ZIP INTEIRO
    Abra a pasta do seu sistema:
@@ -27,10 +27,10 @@ A integracao Adobe exige a edicao for Editors, o componente instalado
 no editor e um projeto salvo e aberto. Reinicie o editor apos instalar.
 
 PACOTES:
-NoeVFX-Downloader-3.2.0.zip
-NoeVFX-Downloader-for-Editors-3.2.0.zip
+NoeVFX-Downloader-3.2.1.zip
+NoeVFX-Downloader-for-Editors-3.2.1.zip
 
-MIGRACAO PARA 3.2.0: rode o instalador por cima uma vez, inclusive
+MIGRACAO PARA 3.2.1: rode o instalador por cima uma vez, inclusive
 se voce usa 3.1.0 ou 3.1.1. Os atualizadores antigos nao reconhecem
 os nomes novos dos pacotes. Nao precisa desinstalar: preferencias
 e downloads ficam. Recarregue a extensao instalada, reinicie os
@@ -41,5 +41,5 @@ DESINSTALAR: feche os programas Adobe e rode o desinstalador do pacote.
 Confira os avisos e remova a extensao de cada navegador e perfil.
 Os videos baixados sao preservados; as configuracoes do app sao removidas.
 
-AJUDA: https://noevfx.github.io/noevfx-downloader/ajuda.html
-REPOSITORIO: https://github.com/noevfx/noevfx-downloader
+AJUDA: https://noevfx.github.io/NoeVFX-downloader/ajuda.html
+REPOSITORIO: https://github.com/noevfx/NoeVFX-downloader

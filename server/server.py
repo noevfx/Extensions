@@ -44,7 +44,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as url_open
 
-VERSION = "3.2.0"
+VERSION = "3.2.1"
 API_VERSION = 2                      # sobe quando o protocolo extensão <-> servidor muda
 AUDIO_FORMATS = {"mp3", "m4a", "wav", "flac", "opus"}
 ADOBE_AUDIO_FORMATS = {"mp3", "m4a", "wav"}
@@ -2476,9 +2476,9 @@ def _updater_loop():
 # A extensão carregada em modo desenvolvedor não se atualiza sozinha. O servidor local, que já está instalado ao lado da pasta
 # "extension", consulta a última release, baixa o zip, confere o SHA-256 e troca os arquivos; a extensão então se recarrega.
 # --------------------------------------------------------------------------- #
-UPDATE_REPO = "noevfx/noevfx-downloader"
+UPDATE_REPO = "noevfx/NoeVFX-downloader"
 # Endereço atual; aceita também URLs históricas do repositório antes da renomeação.
-UPDATE_ASSET_RE = re.compile(r"^https://github\.com/noevfx/(?:Extensions|noevfx-downloader)/releases/download/v\d+\.\d+\.\d+/(?:NoeVFX-Downloader(?:-for-Editors)?|noevfx-downloader(?:-basic)?)-\d+\.\d+\.\d+\.zip$")
+UPDATE_ASSET_RE = re.compile(r"^https://github\.com/(?i:noevfx/(?:Extensions|noevfx-downloader))/releases/download/v\d+\.\d+\.\d+/(?:NoeVFX-Downloader(?:-for-Editors)?|noevfx-downloader(?:-basic)?)-\d+\.\d+\.\d+\.zip$")
 UPDATE_LOCK = threading.Lock()
 _UPD_CACHE = {"at": 0.0, "data": None}
 UPDATE_MAX_BYTES = 80 * 1024 * 1024

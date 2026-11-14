@@ -42,7 +42,7 @@ conteúdo de e-mails, abas em segundo plano, localização.
   Python do GitHub/gyan.dev/PyPI (com checagem de integridade). O yt-dlp consulta o GitHub
   1x por dia para se atualizar.
 - **Atualização do aplicativo (3.0.14)**: ao abrir o popup, o servidor local consulta a API de releases do GitHub para saber a última
-  versão (sem enviar dado pessoal). Só quando você clica em **Atualizar agora** ele baixa o pacote de `github.com/noevfx/noevfx-downloader`,
+  versão (sem enviar dado pessoal). Só quando você clica em **Atualizar agora** ele baixa o pacote de `github.com/noevfx/NoeVFX-downloader`,
   confere o SHA-256 e troca os arquivos.
 - **Ferramentas de download**: o servidor local chama o `yt-dlp` e o `ffmpeg`
   instalados na sua máquina para baixar o vídeo diretamente do site de origem.
@@ -94,11 +94,11 @@ nenhum usuário.
 ## 7. Alterações nesta política
 
 Mudanças relevantes serão publicadas neste arquivo, no repositório
-https://github.com/noevfx/noevfx-downloader, com a data de atualização.
+https://github.com/noevfx/NoeVFX-downloader, com a data de atualização.
 
 ---
 
 ## 8. Contato
 
 Dúvidas sobre privacidade: **https://noevfx.com** ou abra uma issue em
-https://github.com/noevfx/noevfx-downloader/issues
+https://github.com/noevfx/NoeVFX-downloader/issues

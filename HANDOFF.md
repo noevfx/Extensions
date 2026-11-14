@@ -184,3 +184,8 @@ Carrossel Instagram editável em PSD, foco for Editors, didático e bem ilustrad
 - Migração de versões anteriores à 3.2.0: instalador novo por cima uma vez; recarregar extensão e reiniciar Adobe após salvar. Não precisa desinstalar. Para a cópia 3.2.0 já atualizada localmente nesta sessão, basta recarregar as interfaces.
 - Publicação pelo workflow release.yml, tag v3.2.0 e main no mesmo push atômico. Não reconstruir nem substituir assets após a publicação; eventual correção futura exige PATCH novo.
 - Carrossel PSD permanece tarefa separada, ainda não iniciado.
+
+
+## Fechamento 3.2.1 — capitalização aprovada
+
+Usuário decidiu manter NoeVFX-downloader. Links públicos e atualizador alinhados; 3.2.0 publicada permanece imutável. Versões até 3.2.0 precisam do instalador 3.2.1 por cima uma vez devido ao validador antigo. Imagens distorcidas de links e playlist refeitas e inspecionadas a 640 px; painel a 360 px. Testes Python: 70 aprovados. Publicação autorizada no mesmo fluxo de finalização. CI 3.2.0 teve falhas em testes com caminhos Windows nos runners Unix e no carregamento de extensão Chrome; não declarar CI multiplataforma toda verde.

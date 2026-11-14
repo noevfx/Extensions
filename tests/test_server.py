@@ -391,7 +391,7 @@ class SiteRulesCase(unittest.TestCase):
         sha = "ab" * 32
         rel = lambda tag, **kw: dict({"tag_name": tag, "html_url": "https://github.com/noevfx/Extensions/releases/tag/" + tag,
             "assets": [{"name": "NoeVFX-Downloader-for-Editors-%s.zip" % tag.lstrip("v"), "digest": "sha256:" + sha,
-                        "browser_download_url": "https://github.com/noevfx/noevfx-downloader/releases/download/%s/NoeVFX-Downloader-for-Editors-%s.zip" % (tag, tag.lstrip("v"))}]}, **kw)
+                        "browser_download_url": "https://github.com/noevfx/NoeVFX-downloader/releases/download/%s/NoeVFX-Downloader-for-Editors-%s.zip" % (tag, tag.lstrip("v"))}]}, **kw)
         nova = "9.9.9"
         i = m.update_info(rel("v" + nova))
         self.assertTrue(i["newer"])
@@ -584,7 +584,7 @@ class SiteRulesCase(unittest.TestCase):
             self.assertEqual(m._delocalize(mostrado), str(real))
             self.assertEqual(m._delocalize(str(real)), "")                     # já é o caminho real: nada a traduzir
         self.assertTrue(m.UPDATE_ASSET_RE.match("https://github.com/noevfx/Extensions/releases/download/v3.1.0/noevfx-downloader-3.1.0.zip"))
-        self.assertTrue(m.UPDATE_ASSET_RE.match("https://github.com/noevfx/noevfx-downloader/releases/download/v3.1.0/noevfx-downloader-basic-3.1.0.zip"))
+        self.assertTrue(m.UPDATE_ASSET_RE.match("https://github.com/noevfx/NoeVFX-downloader/releases/download/v3.1.0/noevfx-downloader-basic-3.1.0.zip"))
         self.assertFalse(m.UPDATE_ASSET_RE.match("https://github.com/outro/Extensions/releases/download/v3.1.0/noevfx-downloader-3.1.0.zip"))
 
     def test_painel_entra_inteiro_e_seguro(self):

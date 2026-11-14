@@ -28,7 +28,7 @@ class DistributionCase(unittest.TestCase):
 
     def release(self, digests=True):
         return {"tag_name":"v9.9.9", "assets":[
-            {"name":name, "digest":"sha256:"+sha if digests else "", "browser_download_url":"https://github.com/noevfx/noevfx-downloader/releases/download/v9.9.9/"+name}
+            {"name":name, "digest":"sha256:"+sha if digests else "", "browser_download_url":"https://github.com/noevfx/NoeVFX-downloader/releases/download/v9.9.9/"+name}
             for name,sha in (("NoeVFX-Downloader-9.9.9.zip","ab"*32),("NoeVFX-Downloader-for-Editors-9.9.9.zip","cd"*32))]}
 
     def test_update_selects_exact_product(self):
@@ -57,6 +57,14 @@ class DistributionCase(unittest.TestCase):
         for asset in release["assets"]:
             asset["browser_download_url"]=asset["browser_download_url"].replace("/noevfx/","/outro/")
         self.assertFalse(self.server.update_info(release)["can_apply"])
+
+    def test_repository_capitalization_does_not_block_update(self):
+        for repo in ("NoeVFX-downloader", "noevfx-downloader", "NOEVFX-DOWNLOADER"):
+            release=self.release()
+            for asset in release["assets"]:
+                asset["browser_download_url"]=asset["browser_download_url"].replace("NoeVFX-downloader",repo)
+            with self.subTest(repository=repo),patch.object(self.server,"installed_layout",return_value=True):
+                self.assertTrue(self.server.update_info(release)["can_apply"])
 
     def test_final_packages_identify_products_and_installers(self):
         version=json.loads((ROOT/"browser/manifest.json").read_text(encoding="utf-8"))["version"]

@@ -6,6 +6,12 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [3.2.1] — 2026-11-14
+
+- Endereços oficiais alinhados ao repositório **NoeVFX-downloader**, incluindo GitHub Pages, manuais, instaladores e notas.
+- Atualizador aceita a capitalização do nome do repositório, mantendo a restrição à conta/projeto autorizados.
+- Para versões até 3.2.0, use o instalador da 3.2.1 por cima uma vez: o validador anterior recusava URLs com a nova capitalização.
+
 ## [3.2.0] — 2026-11-14
 
 - TikTok: identifica o vídeo pelo próprio player no feed/Explorar, mesmo com endereço genérico e vídeo em blob. Evita enviar a página inicial ou um link de vídeo vizinho; acompanha o ID quando o player é reutilizado.

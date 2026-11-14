@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Noe VFX Downloader 3.2.0 — Desinstalador (macOS / Linux)
+#  Noe VFX Downloader 3.2.1 — Desinstalador (macOS / Linux)
 #  Uso: bash desinstalar-noevfx.sh
 # =============================================================================
 set -u
